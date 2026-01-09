@@ -10,12 +10,11 @@ pip install realtimex-sdk
 
 ## Prerequisites
 
-Before using this SDK, ensure your Supabase database is set up:
+Before using this SDK, ensure your Supabase database is set up via the Main App:
 
-1. Open **RealtimeX Main App** → **Local Apps** → Your App → **Configure**
-2. Enter your Supabase **URL** and **Anon Key**
-3. Select **Compatible Mode** and click **Login to Supabase**
-4. Click **Auto-Setup Schema** to create required tables and functions
+1. Open **RealtimeX** → **Settings** → **Local Apps**
+2. Create or configure your Local App
+3. Select **Compatible Mode** → **Login to Supabase** → **Auto-Setup Schema**
 
 > **Note:** Schema setup is handled entirely by the Main App.
 
@@ -23,20 +22,11 @@ Before using this SDK, ensure your Supabase database is set up:
 
 ```python
 import asyncio
-from realtimex_sdk import RealtimeXSDK, SupabaseConfig, RealtimeXConfig
+from realtimex_sdk import RealtimeXSDK
 
 async def main():
-    # Initialize SDK
-    sdk = RealtimeXSDK(
-        supabase=SupabaseConfig(
-            url="https://your-project.supabase.co",
-            anon_key="your-anon-key"
-        ),
-        realtimex=RealtimeXConfig(
-            url="http://localhost:3001",
-            app_name="My Local App"
-        )
-    )
+    # No config needed - auto-detects from environment
+    sdk = RealtimeXSDK()
     
     # Insert activity
     activity = await sdk.activities.insert({
@@ -49,7 +39,8 @@ async def main():
         raw_data=activity,
         auto_run=True,
         agent_name="lead-processor",
-        workspace_slug="sales"
+        workspace_slug="sales",
+        thread_slug="general"
     )
     print(f"Task created: {result['task_uuid']}")
     
@@ -60,6 +51,18 @@ async def main():
     )
 
 asyncio.run(main())
+```
+
+## Configuration (Optional)
+
+Override auto-detected values if needed:
+
+```python
+from realtimex_sdk import RealtimeXSDK, SDKConfig
+
+sdk = RealtimeXSDK(config=SDKConfig(
+    url="http://custom-host:3001"  # Default: localhost:3001
+))
 ```
 
 ## Environment Variables
