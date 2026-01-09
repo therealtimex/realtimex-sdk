@@ -1,0 +1,43 @@
+{
+    "name": "@realtimex/local-app-sdk",
+    "version": "1.0.0",
+    "description": "SDK for building Local Apps that integrate with RealtimeX",
+    "main": "dist/index.js",
+    "module": "dist/index.mjs",
+    "types": "dist/index.d.ts",
+    "exports": {
+        ".": {
+            "import": "./dist/index.mjs",
+            "require": "./dist/index.js",
+            "types": "./dist/index.d.ts"
+        }
+    },
+    "scripts": {
+        "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+        "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+        "test": "vitest run",
+        "prepublishOnly": "npm run build"
+    },
+    "keywords": [
+        "realtimex",
+        "local-apps",
+        "sdk",
+        "supabase"
+    ],
+    "author": "RealtimeX Team",
+    "license": "MIT",
+    "dependencies": {},
+    "devDependencies": {
+        "@types/node": "^20.10.0",
+        "tsup": "^8.0.0",
+        "typescript": "^5.3.0",
+        "vitest": "^1.0.0"
+    },
+    "files": [
+        "dist",
+        "README.md"
+    ],
+    "engines": {
+        "node": ">=18.0.0"
+    }
+}
