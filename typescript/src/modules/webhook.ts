@@ -33,6 +33,7 @@ export class WebhookModule {
                     agent_name: payload.agent_name,
                     workspace_slug: payload.workspace_slug,
                     thread_slug: payload.thread_slug,
+                    prompt: payload.prompt ?? '',
                 },
             }),
         });

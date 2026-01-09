@@ -18,7 +18,7 @@ export class ActivitiesModule {
         path: string,
         options: RequestInit = {}
     ): Promise<T> {
-        const url = `${this.baseUrl}/api${path}`;
+        const url = `${this.baseUrl}${path}`;
         const headers: Record<string, string> = {
             'Content-Type': 'application/json',
         };

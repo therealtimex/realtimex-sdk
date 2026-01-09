@@ -15,7 +15,7 @@ class ApiModule:
     async def get_agents(self) -> List[Dict[str, Any]]:
         """Get available agents."""
         async with httpx.AsyncClient() as client:
-            response = await client.get(f"{self.realtimex_url}/api/agents")
+            response = await client.get(f"{self.realtimex_url}/agents")
             data = response.json()
             
             if not response.is_success:
@@ -26,7 +26,7 @@ class ApiModule:
     async def get_workspaces(self) -> List[Dict[str, Any]]:
         """Get workspaces."""
         async with httpx.AsyncClient() as client:
-            response = await client.get(f"{self.realtimex_url}/api/workspaces")
+            response = await client.get(f"{self.realtimex_url}/workspaces")
             data = response.json()
             
             if not response.is_success:
@@ -38,7 +38,7 @@ class ApiModule:
         """Get threads in a workspace."""
         async with httpx.AsyncClient() as client:
             response = await client.get(
-                f"{self.realtimex_url}/api/workspaces/{workspace_slug}/threads"
+                f"{self.realtimex_url}/workspaces/{workspace_slug}/threads"
             )
             data = response.json()
             
@@ -51,7 +51,7 @@ class ApiModule:
         """Get task status."""
         async with httpx.AsyncClient() as client:
             response = await client.get(
-                f"{self.realtimex_url}/api/task/{task_uuid}"
+                f"{self.realtimex_url}/task/{task_uuid}"
             )
             data = response.json()
             

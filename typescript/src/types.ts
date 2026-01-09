@@ -29,6 +29,7 @@ export interface TriggerAgentPayload {
     agent_name?: string;
     workspace_slug?: string;
     thread_slug?: string;
+    prompt?: string;
 }
 
 export interface TriggerAgentResponse {
