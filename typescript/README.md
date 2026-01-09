@@ -5,7 +5,7 @@ TypeScript/JavaScript SDK for building Local Apps that integrate with RealtimeX.
 ## Installation
 
 ```bash
-npm install @realtimex/local-app-sdk
+npm install @realtimex/sdk
 ```
 
 ## Prerequisites
@@ -22,7 +22,7 @@ Before using this SDK, ensure your Supabase database is set up:
 ## Quick Start
 
 ```typescript
-import { RealtimeXSDK } from '@realtimex/local-app-sdk';
+import { RealtimeXSDK } from '@realtimex/sdk';
 
 // No config needed - RTX_APP_ID is auto-detected from environment
 const sdk = new RealtimeXSDK();
@@ -39,6 +39,8 @@ await sdk.webhook.triggerAgent({
   auto_run: true,
   agent_name: 'processor',
   workspace_slug: 'sales',
+  thread_slug: 'general', //create_new for new thread
+  prompt: 'Process this lead',//optional
 });
 ```
 

@@ -13,7 +13,7 @@ This SDK allows your applications to:
 
 | Language | Package | Documentation |
 |----------|---------|---------------|
-| TypeScript/JavaScript | `@realtimex/local-app-sdk` | [TypeScript README](./typescript/README.md) |
+| TypeScript/JavaScript | `@realtimex/sdk` | [TypeScript README](./typescript/README.md) |
 | Python | `realtimex-sdk` | [Python README](./python/README.md) |
 
 

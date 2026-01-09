@@ -24,7 +24,7 @@ class ActivitiesModule:
         """Insert a new activity."""
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                f"{self.base_url}/api/activities",
+                f"{self.base_url}/activities",
                 headers=self._get_headers(),
                 json={"raw_data": raw_data},
             )
@@ -36,7 +36,7 @@ class ActivitiesModule:
         """Update an existing activity."""
         async with httpx.AsyncClient() as client:
             response = await client.patch(
-                f"{self.base_url}/api/activities/{id}",
+                f"{self.base_url}/activities/{id}",
                 headers=self._get_headers(),
                 json=updates,
             )
@@ -48,7 +48,7 @@ class ActivitiesModule:
         """Delete an activity."""
         async with httpx.AsyncClient() as client:
             response = await client.delete(
-                f"{self.base_url}/api/activities/{id}",
+                f"{self.base_url}/activities/{id}",
                 headers=self._get_headers(),
             )
             response.raise_for_status()
@@ -57,7 +57,7 @@ class ActivitiesModule:
         """Get an activity by ID."""
         async with httpx.AsyncClient() as client:
             response = await client.get(
-                f"{self.base_url}/api/activities/{id}",
+                f"{self.base_url}/activities/{id}",
                 headers=self._get_headers(),
             )
             if response.status_code == 404:
@@ -79,7 +79,7 @@ class ActivitiesModule:
 
         async with httpx.AsyncClient() as client:
             response = await client.get(
-                f"{self.base_url}/api/activities",
+                f"{self.base_url}/activities",
                 headers=self._get_headers(),
                 params=params,
             )
