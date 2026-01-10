@@ -8,6 +8,8 @@ from .client import RealtimeXSDK
 from .activities import ActivitiesModule
 from .webhook import WebhookModule
 from .api import ApiModule
+from .task import TaskModule
 
 __version__ = "1.0.0"
-__all__ = ["RealtimeXSDK", "ActivitiesModule", "WebhookModule", "ApiModule"]
+__all__ = ["RealtimeXSDK", "ActivitiesModule", "WebhookModule", "ApiModule", "TaskModule"]
+

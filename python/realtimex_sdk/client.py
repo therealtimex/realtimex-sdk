@@ -12,6 +12,7 @@ from typing import Optional
 from .activities import ActivitiesModule
 from .webhook import WebhookModule
 from .api import ApiModule
+from .task import TaskModule
 
 
 @dataclass
@@ -60,6 +61,7 @@ class RealtimeXSDK:
         self.activities = ActivitiesModule(realtimex_url, app_id)
         self.webhook = WebhookModule(realtimex_url, app_name, app_id)
         self.api = ApiModule(realtimex_url)
+        self.task = TaskModule(realtimex_url, app_name, app_id)
 
 
 # Keep old class names for backward compatibility
