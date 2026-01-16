@@ -38,22 +38,42 @@ class PortModule:
         env_port = os.environ.get("RTX_PORT")
         return int(env_port) if env_port else self.default_port
     
+    def _is_port_available_on(self, port: int, host: str, family: int) -> bool:
+        """Check if a port is available on a specific host."""
+        try:
+            with socket.socket(family, socket.SOCK_STREAM) as s:
+                s.bind((host, port))
+                return True
+        except OSError:
+            return False
+    
     def is_port_available(self, port: int) -> bool:
         """
-        Check if a port is available.
+        Check if a port is available (checks both IPv4 and IPv6).
         
         Args:
             port: Port number to check
             
         Returns:
-            True if port is available, False otherwise
+            True if port is available on ALL interfaces, False otherwise
         """
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            try:
-                s.bind(("127.0.0.1", port))
-                return True
-            except OSError:
+        # Check IPv4 on localhost
+        if not self._is_port_available_on(port, "127.0.0.1", socket.AF_INET):
+            return False
+        
+        # Check IPv4 on all interfaces (0.0.0.0)
+        if not self._is_port_available_on(port, "0.0.0.0", socket.AF_INET):
+            return False
+        
+        # Check IPv6 on localhost (if supported)
+        try:
+            if not self._is_port_available_on(port, "::1", socket.AF_INET6):
                 return False
+        except OSError:
+            # IPv6 not supported on this system, skip
+            pass
+        
+        return True
     
     def find_available_port(
         self, 

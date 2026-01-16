@@ -21,11 +21,9 @@ export class PortModule {
     }
 
     /**
-     * Check if a port is available
-     * @param port - Port number to check
-     * @returns Promise resolving to true if port is available
+     * Check if a port is available on a specific host
      */
-    async isPortAvailable(port: number): Promise<boolean> {
+    private async isPortAvailableOn(port: number, host: string): Promise<boolean> {
         return new Promise((resolve) => {
             const server = net.createServer();
             server.once('error', () => resolve(false));
@@ -33,8 +31,28 @@ export class PortModule {
                 server.close();
                 resolve(true);
             });
-            server.listen(port, '127.0.0.1');
+            server.listen(port, host);
         });
+    }
+
+    /**
+     * Check if a port is available (checks both IPv4 and IPv6)
+     * @param port - Port number to check
+     * @returns Promise resolving to true if port is available on ALL interfaces
+     */
+    async isPortAvailable(port: number): Promise<boolean> {
+        // Check IPv4 first
+        const ipv4Available = await this.isPortAvailableOn(port, '127.0.0.1');
+        if (!ipv4Available) return false;
+
+        // Check IPv6 (:: = all interfaces on IPv6)
+        // This catches cases where Express/Node listens on :::port
+        const ipv6Available = await this.isPortAvailableOn(port, '::1');
+        if (!ipv6Available) return false;
+
+        // Check 0.0.0.0 (all IPv4 interfaces) - catches net.Server default behavior
+        const allInterfacesAvailable = await this.isPortAvailableOn(port, '0.0.0.0');
+        return allInterfacesAvailable;
     }
 
     /**
