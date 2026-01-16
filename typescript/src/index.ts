@@ -10,12 +10,14 @@ import { ActivitiesModule } from './modules/activities';
 import { WebhookModule } from './modules/webhook';
 import { ApiModule } from './modules/api';
 import { TaskModule } from './modules/task';
+import { PortModule } from './modules/port';
 
 export class RealtimeXSDK {
     public activities: ActivitiesModule;
     public webhook: WebhookModule;
     public api: ApiModule;
     public task: TaskModule;
+    public port: PortModule;
     public readonly appId: string;
     public readonly appName: string | undefined;
 
@@ -37,6 +39,7 @@ export class RealtimeXSDK {
         this.webhook = new WebhookModule(realtimexUrl, this.appName, this.appId);
         this.api = new ApiModule(realtimexUrl);
         this.task = new TaskModule(realtimexUrl, this.appName, this.appId);
+        this.port = new PortModule(config.defaultPort);
     }
 
     /**
@@ -63,4 +66,5 @@ export { ActivitiesModule } from './modules/activities';
 export { WebhookModule } from './modules/webhook';
 export { ApiModule } from './modules/api';
 export { TaskModule } from './modules/task';
+export { PortModule } from './modules/port';
 

@@ -9,7 +9,9 @@ from .activities import ActivitiesModule
 from .webhook import WebhookModule
 from .api import ApiModule
 from .task import TaskModule
+from .port import PortModule
 
 __version__ = "1.0.0"
-__all__ = ["RealtimeXSDK", "ActivitiesModule", "WebhookModule", "ApiModule", "TaskModule"]
+__all__ = ["RealtimeXSDK", "ActivitiesModule", "WebhookModule", "ApiModule", "TaskModule", "PortModule"]
+
 

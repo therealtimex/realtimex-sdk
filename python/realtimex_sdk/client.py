@@ -6,13 +6,14 @@ All operations go through RealtimeX Main App proxy.
 """
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 
 from .activities import ActivitiesModule
 from .webhook import WebhookModule
 from .api import ApiModule
 from .task import TaskModule
+from .port import PortModule
 
 
 @dataclass
@@ -21,6 +22,7 @@ class SDKConfig:
     url: str = "http://localhost:3001"
     app_id: Optional[str] = None
     app_name: Optional[str] = None
+    default_port: int = 8080
 
 
 class RealtimeXSDK:
@@ -49,10 +51,12 @@ class RealtimeXSDK:
             realtimex_url = config.url or self.DEFAULT_REALTIMEX_URL
             app_id = config.app_id or env_app_id
             app_name = config.app_name or env_app_name
+            default_port = config.default_port
         else:
             realtimex_url = self.DEFAULT_REALTIMEX_URL
             app_id = env_app_id
             app_name = env_app_name
+            default_port = 8080
         
         self.app_id = app_id
         self.app_name = app_name
@@ -62,6 +66,7 @@ class RealtimeXSDK:
         self.webhook = WebhookModule(realtimex_url, app_name, app_id)
         self.api = ApiModule(realtimex_url)
         self.task = TaskModule(realtimex_url, app_name, app_id)
+        self.port = PortModule(default_port)
 
 
 # Keep old class names for backward compatibility

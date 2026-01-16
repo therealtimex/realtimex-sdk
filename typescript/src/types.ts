@@ -8,6 +8,7 @@ export interface SDKConfig {
         appId?: string;   // Auto-detected from RTX_APP_ID env
         appName?: string; // Auto-detected from RTX_APP_NAME env
     };
+    defaultPort?: number; // Default port for PortModule (default: 8080)
 }
 
 export interface Activity {
