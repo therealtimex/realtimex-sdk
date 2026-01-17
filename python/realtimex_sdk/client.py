@@ -64,7 +64,7 @@ class RealtimeXSDK:
         # Initialize modules
         self.activities = ActivitiesModule(realtimex_url, app_id)
         self.webhook = WebhookModule(realtimex_url, app_name, app_id)
-        self.api = ApiModule(realtimex_url)
+        self.api = ApiModule(realtimex_url, app_id)
         self.task = TaskModule(realtimex_url, app_name, app_id)
         self.port = PortModule(default_port)
 

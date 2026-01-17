@@ -9,13 +9,24 @@ import httpx
 class ApiModule:
     """Call RealtimeX public API endpoints."""
     
-    def __init__(self, realtimex_url: str):
+    def __init__(self, realtimex_url: str, app_id: str):
         self.realtimex_url = realtimex_url.rstrip("/")
+        self.app_id = app_id
+    
+    def _get_headers(self) -> Dict[str, str]:
+        """Get headers with app ID."""
+        return {
+            "Content-Type": "application/json",
+            "x-app-id": self.app_id,
+        }
     
     async def get_agents(self) -> List[Dict[str, Any]]:
         """Get available agents."""
         async with httpx.AsyncClient() as client:
-            response = await client.get(f"{self.realtimex_url}/agents")
+            response = await client.get(
+                f"{self.realtimex_url}/agents",
+                headers=self._get_headers()
+            )
             data = response.json()
             
             if not response.is_success:
@@ -26,7 +37,10 @@ class ApiModule:
     async def get_workspaces(self) -> List[Dict[str, Any]]:
         """Get workspaces."""
         async with httpx.AsyncClient() as client:
-            response = await client.get(f"{self.realtimex_url}/workspaces")
+            response = await client.get(
+                f"{self.realtimex_url}/workspaces",
+                headers=self._get_headers()
+            )
             data = response.json()
             
             if not response.is_success:
@@ -38,7 +52,8 @@ class ApiModule:
         """Get threads in a workspace."""
         async with httpx.AsyncClient() as client:
             response = await client.get(
-                f"{self.realtimex_url}/workspaces/{workspace_slug}/threads"
+                f"{self.realtimex_url}/workspaces/{workspace_slug}/threads",
+                headers=self._get_headers()
             )
             data = response.json()
             
@@ -51,7 +66,8 @@ class ApiModule:
         """Get task status."""
         async with httpx.AsyncClient() as client:
             response = await client.get(
-                f"{self.realtimex_url}/task/{task_uuid}"
+                f"{self.realtimex_url}/task/{task_uuid}",
+                headers=self._get_headers()
             )
             data = response.json()
             

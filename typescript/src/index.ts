@@ -37,7 +37,7 @@ export class RealtimeXSDK {
         // Initialize modules
         this.activities = new ActivitiesModule(realtimexUrl, this.appId);
         this.webhook = new WebhookModule(realtimexUrl, this.appName, this.appId);
-        this.api = new ApiModule(realtimexUrl);
+        this.api = new ApiModule(realtimexUrl, this.appId);
         this.task = new TaskModule(realtimexUrl, this.appName, this.appId);
         this.port = new PortModule(config.defaultPort);
     }
