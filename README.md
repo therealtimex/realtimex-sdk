@@ -10,6 +10,7 @@ Official SDK for building **Local Apps** that integrate seamlessly with [Realtim
 - **AI Agent Integration**: Trigger RealtimeX agents for automated processing or manual review.
 - **Platform APIs**: Access workspaces, agents, threads, and task statuses programmatically.
 - **Auto-Configuration**: Zero-config setup when running within the RealtimeX environment.
+- **Permission System**: Granular permission control for secure API access.
 - **Cross-Platform**: Available for both TypeScript/JavaScript and Python.
 
 ---
@@ -36,15 +37,47 @@ Before using the SDK, you must configure your Local App via the **RealtimeX Main
 
 ---
 
+## 🔐 Authentication & Permissions
+
+### App ID Header (v1.0.8+)
+
+All SDK API calls now require the `x-app-id` header for authentication. This is handled automatically by the SDK when running within the RealtimeX environment.
+
+The SDK reads the `RTX_APP_ID` environment variable (injected by RealtimeX when starting your app) and includes it in all API requests.
+
+### Permission System (v1.0.8+)
+
+RealtimeX uses a **manifest-based permission system**. When initializing the SDK, you declare the permissions your app needs. RealtimeX will ensure these permissions are granted (prompting the user if necessary) before your app starts.
+
+#### Declaring Permissions
+
+| Permission | Description | API Access |
+|------------|-------------|------------|
+| `api.agents` | List agents | `sdk.api.getAgents()` |
+| `api.workspaces` | List workspaces | `sdk.api.getWorkspaces()` |
+| `api.threads` | List threads | `sdk.api.getThreads()` |
+| `api.task` | Get task status | `sdk.api.getTask()` |
+| `webhook.trigger` | Trigger agents | `sdk.webhook.triggerAgent()` |
+| `activities.read` | Read activities | `sdk.activities.list()` |
+| `activities.write` | Write activities | `sdk.activities.insert/update/delete()` |
+
+### Runtime Prompts
+
+If your app tries to call an API without a declared permission, the SDK will automatically request the permission at runtime and re-attempt the call after the user grants it.
+
+---
+
 ## 💡 Quick Start
 
 ### TypeScript / JavaScript
 ```typescript
 import { RealtimeXSDK } from '@realtimex/sdk';
 
-const sdk = new RealtimeXSDK();
+const sdk = new RealtimeXSDK({
+  permissions: ['activities.write', 'webhook.trigger']
+});
 
-// Insert an activity
+// Insert an activity (SDK handles permission prompt if needed)
 const activity = await sdk.activities.insert({
   type: 'new_lead',
   email: 'user@example.com',
@@ -62,10 +95,13 @@ await sdk.webhook.triggerAgent({
 ### Python
 ```python
 import asyncio
-from realtimex_sdk import RealtimeXSDK
+from realtimex_sdk import RealtimeXSDK, SDKConfig
 
 async def main():
-    sdk = RealtimeXSDK()
+    # Declare permissions in config
+    sdk = RealtimeXSDK(config=SDKConfig(
+        permissions=['activities.write', 'webhook.trigger']
+    ))
     
     # Insert an activity
     activity = await sdk.activities.insert({
@@ -95,6 +131,7 @@ graph LR
   A[Your Local App] -- SDK --> B[RealtimeX Main App]
   B -- Proxy --> C[Supabase DB]
   B -- API --> D[RealtimeX Platform]
+  B -- Permission Check --> E[Verify x-app-id]
 ```
 
 ---
@@ -105,8 +142,11 @@ When your Local App is launched by the RealtimeX Main App, the following variabl
 
 | Variable | Description |
 |----------|-------------|
-| `RTX_APP_ID` | Your app's unique identifier. |
+| `RTX_APP_ID` | Your app's unique identifier (required for API authentication). |
 | `RTX_APP_NAME` | Your app's display name. |
+| `RTX_PORT` | Suggested port for your app (optional, for port auto-detection). |
+
+> **Important:** The `RTX_APP_ID` is essential for API access. All SDK API calls include this as the `x-app-id` header automatically.
 
 ---
 

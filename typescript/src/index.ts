@@ -20,6 +20,8 @@ export class RealtimeXSDK {
     public port: PortModule;
     public readonly appId: string;
     public readonly appName: string | undefined;
+    private readonly realtimexUrl: string;
+    private readonly permissions: string[];
 
     private static DEFAULT_REALTIMEX_URL = 'http://localhost:3001';
 
@@ -30,16 +32,54 @@ export class RealtimeXSDK {
 
         this.appId = config.realtimex?.appId || envAppId || '';
         this.appName = config.realtimex?.appName || envAppName;
+        this.permissions = config.permissions || [];
 
         // Default to localhost:3001
-        const realtimexUrl = config.realtimex?.url || RealtimeXSDK.DEFAULT_REALTIMEX_URL;
+        this.realtimexUrl = config.realtimex?.url || RealtimeXSDK.DEFAULT_REALTIMEX_URL;
 
         // Initialize modules
-        this.activities = new ActivitiesModule(realtimexUrl, this.appId);
-        this.webhook = new WebhookModule(realtimexUrl, this.appName, this.appId);
-        this.api = new ApiModule(realtimexUrl, this.appId);
-        this.task = new TaskModule(realtimexUrl, this.appName, this.appId);
+        this.activities = new ActivitiesModule(this.realtimexUrl, this.appId, this.appName);
+        this.webhook = new WebhookModule(this.realtimexUrl, this.appName, this.appId);
+        this.api = new ApiModule(this.realtimexUrl, this.appId, this.appName);
+        this.task = new TaskModule(this.realtimexUrl, this.appName, this.appId);
         this.port = new PortModule(config.defaultPort);
+
+        // Auto-register with declared permissions
+        if (this.permissions.length > 0) {
+            this.register().catch(err => {
+                console.error('[RealtimeX SDK] Auto-registration failed:', err.message);
+            });
+        }
+    }
+
+    /**
+     * Register app with RealtimeX hub and request declared permissions upfront.
+     * This is called automatically if permissions are provided in constructor.
+     */
+    public async register(permissions?: string[]) {
+        const perms = permissions || this.permissions;
+        if (perms.length === 0) return;
+
+        try {
+            const response = await fetch(`${this.realtimexUrl.replace(/\/$/, '')}/sdk/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    app_id: this.appId,
+                    app_name: this.appName,
+                    permissions: perms,
+                }),
+            });
+
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || 'Registration failed');
+            }
+
+            console.log(`[RealtimeX SDK] App registered successfully (${data.message})`);
+        } catch (error: any) {
+            throw new Error(`Failed to register app: ${error.message}`);
+        }
     }
 
     /**
@@ -64,7 +104,7 @@ export * from './types';
 // Re-export modules for advanced usage
 export { ActivitiesModule } from './modules/activities';
 export { WebhookModule } from './modules/webhook';
-export { ApiModule } from './modules/api';
+export { ApiModule, PermissionDeniedError, PermissionRequiredError } from './modules/api';
 export { TaskModule } from './modules/task';
 export { PortModule } from './modules/port';
 

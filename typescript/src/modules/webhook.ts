@@ -1,8 +1,5 @@
-/**
- * Webhook Module - Call RealtimeX webhook
- */
-
 import { TriggerAgentPayload, TriggerAgentResponse } from '../types';
+import { PermissionDeniedError } from './api';
 
 export class WebhookModule {
     private realtimexUrl: string;
@@ -15,14 +12,79 @@ export class WebhookModule {
         this.appId = appId;
     }
 
+    /**
+     * Request a single permission from Electron via internal API
+     */
+    private async requestPermission(permission: string): Promise<boolean> {
+        try {
+            const response = await fetch(`${this.realtimexUrl}/api/local-apps/request-permission`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    app_id: this.appId,
+                    app_name: this.appName,
+                    permission,
+                }),
+            });
+            const data = await response.json();
+            return data.granted === true;
+        } catch (error) {
+            console.error('[SDK] Permission request failed:', error);
+            return false;
+        }
+    }
+
+    private async request<T>(
+        path: string,
+        options: RequestInit = {}
+    ): Promise<T> {
+        const url = `${this.realtimexUrl}${path}`;
+        const response = await fetch(url, {
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers,
+            },
+        });
+
+        const data = await response.json();
+
+        // Handle permission errors
+        if (response.status === 403) {
+            const errorCode = data.error;
+            const permission = data.permission;
+            const message = data.message;
+
+            if (errorCode === 'PERMISSION_REQUIRED' && permission) {
+                // Try to get permission from user
+                const granted = await this.requestPermission(permission);
+
+                if (granted) {
+                    // Retry the original request
+                    return this.request<T>(path, options);
+                } else {
+                    throw new PermissionDeniedError(permission, message);
+                }
+            }
+
+            if (errorCode === 'PERMISSION_DENIED') {
+                throw new PermissionDeniedError(permission, message);
+            }
+        }
+
+        if (!response.ok) {
+            throw new Error(data.error || `Request failed: ${response.status}`);
+        }
+        return data;
+    }
+
     async triggerAgent(payload: TriggerAgentPayload): Promise<TriggerAgentResponse> {
         if (payload.auto_run && (!payload.agent_name || !payload.workspace_slug)) {
             throw new Error('auto_run requires agent_name and workspace_slug');
         }
 
-        const response = await fetch(`${this.realtimexUrl}/webhooks/realtimex`, {
+        return this.request<TriggerAgentResponse>('/webhooks/realtimex', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 app_name: this.appName,
                 app_id: this.appId,
@@ -37,24 +99,16 @@ export class WebhookModule {
                 },
             }),
         });
-
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Failed to trigger agent');
-        return data as TriggerAgentResponse;
     }
 
     async ping(): Promise<{ success: boolean; app_name: string; message: string }> {
-        const response = await fetch(`${this.realtimexUrl}/webhooks/realtimex`, {
+        return this.request<{ success: boolean; app_name: string; message: string }>('/webhooks/realtimex', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 app_name: this.appName,
                 app_id: this.appId,
                 event: 'ping'
             }),
         });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Ping failed');
-        return data;
     }
 }

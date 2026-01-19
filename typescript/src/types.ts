@@ -9,6 +9,7 @@ export interface SDKConfig {
         appName?: string; // Auto-detected from RTX_APP_NAME env
     };
     defaultPort?: number; // Default port for PortModule (default: 8080)
+    permissions?: string[]; // List of required permissions
 }
 
 export interface Activity {

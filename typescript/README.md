@@ -24,8 +24,9 @@ Before using this SDK, ensure your Supabase database is set up:
 ```typescript
 import { RealtimeXSDK } from '@realtimex/sdk';
 
-// No config needed - RTX_APP_ID is auto-detected from environment
-const sdk = new RealtimeXSDK();
+const sdk = new RealtimeXSDK({
+  permissions: ['activities.read', 'activities.write', 'webhook.trigger']
+});
 
 // Insert activity
 const activity = await sdk.activities.insert({

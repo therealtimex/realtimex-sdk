@@ -4,13 +4,41 @@
 
 import { Agent, Workspace, Thread, Task } from '../types';
 
+/**
+ * Error thrown when a permission is permanently denied
+ */
+export class PermissionDeniedError extends Error {
+    public readonly permission: string;
+
+    constructor(permission: string, message?: string) {
+        super(message || `Permission '${permission}' was denied`);
+        this.name = 'PermissionDeniedError';
+        this.permission = permission;
+    }
+}
+
+/**
+ * Error thrown when a permission needs to be granted
+ */
+export class PermissionRequiredError extends Error {
+    public readonly permission: string;
+
+    constructor(permission: string, message?: string) {
+        super(message || `Permission '${permission}' is required`);
+        this.name = 'PermissionRequiredError';
+        this.permission = permission;
+    }
+}
+
 export class ApiModule {
     private realtimexUrl: string;
     private appId: string;
+    private appName: string;
 
-    constructor(realtimexUrl: string, appId: string) {
+    constructor(realtimexUrl: string, appId: string, appName?: string) {
         this.realtimexUrl = realtimexUrl.replace(/\/$/, '');
         this.appId = appId;
+        this.appName = appName || process.env.RTX_APP_NAME || 'Local App';
     }
 
     private getHeaders(): HeadersInit {
@@ -20,39 +48,86 @@ export class ApiModule {
         };
     }
 
-    async getAgents(): Promise<Agent[]> {
-        const response = await fetch(`${this.realtimexUrl}/agents`, {
+    /**
+     * Request a single permission from Electron via internal API
+     */
+    private async requestPermission(permission: string): Promise<boolean> {
+        try {
+            const response = await fetch(`${this.realtimexUrl}/api/local-apps/request-permission`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    app_id: this.appId,
+                    app_name: this.appName,
+                    permission,
+                }),
+            });
+            const data = await response.json();
+            return data.granted === true;
+        } catch (error) {
+            return false;
+        }
+    }
+
+    /**
+     * Make an API call with automatic permission handling
+     */
+    private async apiCall<T>(method: string, endpoint: string, options?: RequestInit): Promise<T> {
+        const url = `${this.realtimexUrl}${endpoint}`;
+        const response = await fetch(url, {
+            method,
             headers: this.getHeaders(),
+            ...options,
         });
         const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Failed to get agents');
+
+        if (response.status === 403) {
+            const errorCode = data.error;
+            const permission = data.permission;
+            const message = data.message;
+
+            if (errorCode === 'PERMISSION_REQUIRED' && permission) {
+                // Try to get permission from user
+                const granted = await this.requestPermission(permission);
+
+                if (granted) {
+                    return this.apiCall<T>(method, endpoint, options);
+                } else {
+                    throw new PermissionDeniedError(permission, message);
+                }
+            }
+
+            if (errorCode === 'PERMISSION_DENIED') {
+                throw new PermissionDeniedError(permission, message);
+            }
+
+            throw new Error(data.error || 'Permission denied');
+        }
+
+        if (!response.ok) {
+            throw new Error(data.error || `API call failed: ${response.status}`);
+        }
+
+        return data;
+    }
+
+    async getAgents(): Promise<Agent[]> {
+        const data = await this.apiCall<{ agents: Agent[] }>('GET', '/agents');
         return data.agents;
     }
 
     async getWorkspaces(): Promise<Workspace[]> {
-        const response = await fetch(`${this.realtimexUrl}/workspaces`, {
-            headers: this.getHeaders(),
-        });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Failed to get workspaces');
+        const data = await this.apiCall<{ workspaces: Workspace[] }>('GET', '/workspaces');
         return data.workspaces;
     }
 
     async getThreads(workspaceSlug: string): Promise<Thread[]> {
-        const response = await fetch(`${this.realtimexUrl}/workspaces/${encodeURIComponent(workspaceSlug)}/threads`, {
-            headers: this.getHeaders(),
-        });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Failed to get threads');
+        const data = await this.apiCall<{ threads: Thread[] }>('GET', `/workspaces/${encodeURIComponent(workspaceSlug)}/threads`);
         return data.threads;
     }
 
     async getTask(taskUuid: string): Promise<Task> {
-        const response = await fetch(`${this.realtimexUrl}/task/${encodeURIComponent(taskUuid)}`, {
-            headers: this.getHeaders(),
-        });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Failed to get task');
+        const data = await this.apiCall<{ task: Task; runs: Task['runs'] }>('GET', `/task/${encodeURIComponent(taskUuid)}`);
         return { ...data.task, runs: data.runs };
     }
 }

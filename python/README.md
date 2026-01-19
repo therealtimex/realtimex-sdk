@@ -25,8 +25,10 @@ import asyncio
 from realtimex_sdk import RealtimeXSDK
 
 async def main():
-    # No config needed - auto-detects from environment
-    sdk = RealtimeXSDK()
+    # Declare permissions in config
+    sdk = RealtimeXSDK(config=SDKConfig(
+        permissions=['activities.write', 'webhook.trigger']
+    ))
     
     # Insert activity
     activity = await sdk.activities.insert({

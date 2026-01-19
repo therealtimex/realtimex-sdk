@@ -23,6 +23,7 @@ class SDKConfig:
     app_id: Optional[str] = None
     app_name: Optional[str] = None
     default_port: int = 8080
+    permissions: list = field(default_factory=list)  # List of required permissions
 
 
 class RealtimeXSDK:
@@ -60,13 +61,55 @@ class RealtimeXSDK:
         
         self.app_id = app_id
         self.app_name = app_name
+        self.realtimex_url = realtimex_url
+        self.permissions = config.permissions if config else []
         
         # Initialize modules
-        self.activities = ActivitiesModule(realtimex_url, app_id)
+        self.activities = ActivitiesModule(realtimex_url, app_id, app_name)
         self.webhook = WebhookModule(realtimex_url, app_name, app_id)
-        self.api = ApiModule(realtimex_url, app_id)
+        self.api = ApiModule(realtimex_url, app_id, app_name)
         self.task = TaskModule(realtimex_url, app_name, app_id)
         self.port = PortModule(default_port)
+
+        # Auto-register with declared permissions if loop is running
+        if self.permissions:
+            try:
+                import asyncio
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    loop.create_task(self.register())
+            except Exception:
+                pass
+
+    async def register(self):
+        """
+        Register app with RealtimeX hub and request declared permissions upfront.
+        This is an async method and should be called during app startup.
+        """
+        if not self.permissions:
+            return
+            
+        try:
+            import httpx
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    f"{self.realtimex_url.rstrip('/')}/sdk/register",
+                    json={
+                        "app_id": self.app_id,
+                        "app_name": self.app_name,
+                        "permissions": self.permissions,
+                    },
+                    timeout=60.0  # Long timeout for user interaction
+                )
+                
+                data = response.json()
+                if not response.is_success:
+                    print(f"[RealtimeX SDK] Registration failed: {data.get('error')}")
+                    return
+                    
+                print(f"[RealtimeX SDK] App registered successfully ({data.get('message')})")
+        except Exception as e:
+            print(f"[RealtimeX SDK] Auto-registration error: {e}")
 
 
 # Keep old class names for backward compatibility
