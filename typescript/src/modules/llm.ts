@@ -145,6 +145,13 @@ export interface VectorDeleteResponse {
     errors?: string[];
 }
 
+export interface VectorListWorkspacesResponse {
+    success: boolean;
+    workspaces?: string[];
+    error?: string;
+    code?: string;
+}
+
 // === Errors ===
 
 export class LLMPermissionError extends Error {
@@ -266,6 +273,30 @@ export class VectorStore {
 
         if (data.code === 'PERMISSION_REQUIRED') {
             throw new LLMPermissionError(data.permission || 'vectors.write');
+        }
+
+        return data;
+    }
+
+    /**
+     * List all available workspaces (namespaces) for this app
+     * 
+     * @example
+     * ```ts
+     * const { workspaces } = await sdk.llm.vectors.listWorkspaces();
+     * console.log('Workspaces:', workspaces);
+     * ```
+     */
+    async listWorkspaces(): Promise<VectorListWorkspacesResponse> {
+        const response = await fetch(`${this.baseUrl}/sdk/llm/vectors/workspaces`, {
+            method: 'GET',
+            headers: this.headers,
+        });
+
+        const data = await response.json();
+
+        if (data.code === 'PERMISSION_REQUIRED') {
+            throw new LLMPermissionError(data.permission || 'vectors.read');
         }
 
         return data;

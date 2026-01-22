@@ -149,6 +149,13 @@ class VectorDeleteResponse:
     error: Optional[str] = None
     code: Optional[str] = None
 
+@dataclass
+class VectorListWorkspacesResponse:
+    success: bool
+    workspaces: List[str] = field(default_factory=list)
+    error: Optional[str] = None
+    code: Optional[str] = None
+
 
 # === Vector Store Sub-module ===
 
@@ -330,6 +337,35 @@ class VectorStore:
                 success=data.get("success", False),
                 deleted=data.get("deleted", 0),
                 message=data.get("message"),
+                error=data.get("error"),
+                code=data.get("code")
+            )
+
+    async def list_workspaces(self) -> VectorListWorkspacesResponse:
+        """
+        List all available workspaces (namespaces) for this app.
+        
+        Returns:
+            VectorListWorkspacesResponse with list of workspace strings
+        """
+        if httpx is None:
+            raise ImportError("httpx is required for async operations")
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{self._base_url}/sdk/llm/vectors/workspaces",
+                headers=self._headers,
+                timeout=30.0
+            )
+            
+            data = response.json()
+            
+            if data.get("code") == "PERMISSION_REQUIRED":
+                raise LLMPermissionError(data.get("permission", "vectors.read"))
+            
+            return VectorListWorkspacesResponse(
+                success=data.get("success", False),
+                workspaces=data.get("workspaces", []),
                 error=data.get("error"),
                 code=data.get("code")
             )

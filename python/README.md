@@ -180,6 +180,10 @@ query_result = await sdk.llm.vectors.query(
 )
 # returns: VectorQueryResponse with results[]
 
+# List all workspaces for this app
+res = await sdk.llm.vectors.list_workspaces()
+# returns: VectorListWorkspacesResponse with workspaces=['ws-123', 'default', ...]
+
 # Delete all vectors in a workspace
 await sdk.llm.vectors.delete(
     delete_all=True,

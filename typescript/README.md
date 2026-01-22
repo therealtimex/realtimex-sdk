@@ -199,6 +199,10 @@ const results = await sdk.llm.vectors.query(queryVector, {
 });
 // returns: { success, results: [{ id, score, metadata }] }
 
+// List all workspaces for this app
+const { workspaces } = await sdk.llm.vectors.listWorkspaces();
+// returns: { success, workspaces: ['ws-123', 'default', ...] }
+
 // Delete all vectors in a workspace
 await sdk.llm.vectors.delete({ 
   deleteAll: true, 
