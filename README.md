@@ -9,6 +9,8 @@ Official SDK for building **Local Apps** that integrate seamlessly with [Realtim
 - **Activity Management**: Easily insert, update, and query activities in your Supabase database.
 - **AI Agent Integration**: Trigger RealtimeX agents for automated processing or manual review.
 - **Platform APIs**: Access workspaces, agents, threads, and task statuses programmatically.
+- **AI capabilities**: Chat, streaming, and embeddings through RealtimeX LLM proxy.
+- **Managed Vector Storage**: Isolated vector storage for RAG patterns.
 - **Auto-Configuration**: Zero-config setup when running within the RealtimeX environment.
 - **Permission System**: Granular permission control for secure API access.
 - **Cross-Platform**: Available for both TypeScript/JavaScript and Python.
@@ -39,7 +41,7 @@ Before using the SDK, you must configure your Local App via the **RealtimeX Main
 
 ## 🔐 Authentication & Permissions
 
-### App ID Header (v1.0.8+)
+### App ID Header (v1.1.0+)
 
 All SDK API calls now require the `x-app-id` header for authentication. This is handled automatically by the SDK when running within the RealtimeX environment.
 
@@ -58,6 +60,11 @@ RealtimeX uses a **manifest-based permission system**. When initializing the SDK
 | `api.threads` | List threads | `sdk.api.getThreads()` |
 | `api.task` | Get task status | `sdk.api.getTask()` |
 | `webhook.trigger` | Trigger agents | `sdk.webhook.triggerAgent()` |
+| `llm.chat` | LLM Chat | `sdk.llm.chat()` / `sdk.llm.chatStream()` |
+| `llm.embed` | LLM Embeddings | `sdk.llm.embed()` |
+| `llm.providers` | List providers | `sdk.llm.getProviders()` |
+| `vectors.read` | Read vectors | `sdk.llm.vectors.query()` |
+| `vectors.write` | Write vectors | `sdk.llm.vectors.upsert/delete()` |
 | `activities.read` | Read activities | `sdk.activities.list()` |
 | `activities.write` | Write activities | `sdk.activities.insert/update/delete()` |
 

@@ -5,6 +5,35 @@ All notable changes to the RealtimeX SDK will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-01-22
+
+### Added
+- **LLM Proxy Module** (`sdk.llm`): Access RealtimeX's LLM capabilities without managing API keys.
+  - `chat()` / `chatStream()`: Synchronous and streaming chat completion.
+  - `embed()`: Generate text embeddings using configured embedding engine.
+  - `providers()`: List available LLM and embedding models.
+  - `search()`: High-level RAG search (embed query + vector search combined).
+
+- **Vector Store Module** (`sdk.llm.vectors`): Managed vector storage for RAG applications.
+  - `upsert()`: Store vectors with metadata (`workspaceId`, `documentId`).
+  - `query()`: Semantic similarity search with optional `documentId` filtering.
+  - `delete()`: Delete vectors by workspace (supports `deleteAll: true`).
+
+- **New Permissions**: `llm.chat`, `llm.embed`, `llm.providers`, `vectors.read`, `vectors.write`.
+
+- **Example Apps Updated**: Both Node.js and Python demo apps now include:
+  - RAG testing UI with 3 steps: Ingest Data → Search Test → Raw Embedding.
+  - Workspace ID support for physical data isolation.
+  - Document ID support for logical filtering within workspaces.
+
+### Changed
+- SDK architecture now supports LLM and Vector Store operations alongside existing API/Webhook modules.
+- Documentation updated with new endpoints and usage examples.
+
+### Technical Notes
+- **Workspace ID**: Creates separate namespaces in vector database (physical isolation).
+- **Document ID**: Stored as metadata, filtered at endpoint level (post-filter) for provider compatibility.
+
 ## [1.0.9] - 2026-01-19
 
 ### Added

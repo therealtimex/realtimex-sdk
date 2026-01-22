@@ -11,6 +11,7 @@ import { WebhookModule } from './modules/webhook';
 import { ApiModule } from './modules/api';
 import { TaskModule } from './modules/task';
 import { PortModule } from './modules/port';
+import { LLMModule } from './modules/llm';
 
 export class RealtimeXSDK {
     public activities: ActivitiesModule;
@@ -18,6 +19,7 @@ export class RealtimeXSDK {
     public api: ApiModule;
     public task: TaskModule;
     public port: PortModule;
+    public llm: LLMModule;
     public readonly appId: string;
     public readonly appName: string | undefined;
     private readonly realtimexUrl: string;
@@ -43,6 +45,7 @@ export class RealtimeXSDK {
         this.api = new ApiModule(this.realtimexUrl, this.appId, this.appName);
         this.task = new TaskModule(this.realtimexUrl, this.appName, this.appId);
         this.port = new PortModule(config.defaultPort);
+        this.llm = new LLMModule(this.realtimexUrl, this.appId);
 
         // Auto-register with declared permissions
         if (this.permissions.length > 0) {
@@ -107,4 +110,27 @@ export { WebhookModule } from './modules/webhook';
 export { ApiModule, PermissionDeniedError, PermissionRequiredError } from './modules/api';
 export { TaskModule } from './modules/task';
 export { PortModule } from './modules/port';
+export {
+    LLMModule,
+    VectorStore,
+    LLMPermissionError,
+    LLMProviderError,
+    // Types
+    type ChatMessage,
+    type ChatOptions,
+    type ChatResponse,
+    type StreamChunk,
+    type EmbedOptions,
+    type EmbedResponse,
+    type Provider,
+    type ProvidersResponse,
+    type VectorRecord,
+    type VectorUpsertOptions,
+    type VectorUpsertResponse,
+    type VectorQueryOptions,
+    type VectorQueryResult,
+    type VectorQueryResponse,
+    type VectorDeleteOptions,
+    type VectorDeleteResponse,
+} from './modules/llm';
 

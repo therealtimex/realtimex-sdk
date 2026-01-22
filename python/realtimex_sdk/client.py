@@ -14,6 +14,7 @@ from .webhook import WebhookModule
 from .api import ApiModule
 from .task import TaskModule
 from .port import PortModule
+from .llm import LLMModule
 
 
 @dataclass
@@ -70,6 +71,7 @@ class RealtimeXSDK:
         self.api = ApiModule(realtimex_url, app_id, app_name)
         self.task = TaskModule(realtimex_url, app_name, app_id)
         self.port = PortModule(default_port)
+        self.llm = LLMModule(realtimex_url, app_id)
 
         # Auto-register with declared permissions if loop is running
         if self.permissions:

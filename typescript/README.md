@@ -120,6 +120,154 @@ const threads = await sdk.api.getThreads('sales');
 const task = await sdk.api.getTask('task-uuid');
 ```
 
+### LLM Module
+
+Access AI capabilities through the RealtimeX proxy:
+
+```typescript
+const sdk = new RealtimeXSDK({
+  permissions: ['llm.chat', 'llm.embed', 'llm.providers', 'vectors.write', 'vectors.read']
+});
+```
+
+#### List Providers & Models
+
+```typescript
+const { llm, embedding } = await sdk.llm.getProviders();
+// llm[]: Array of LLM providers with models
+// embedding[]: Array of embedding providers with models
+```
+
+#### Chat Completion
+
+```typescript
+// Sync Chat
+const response = await sdk.llm.chat(
+  [
+    { role: 'system', content: 'You are a helpful assistant.' },
+    { role: 'user', content: 'What is RealtimeX?' }
+  ],
+  { 
+    model: 'gpt-4o',           // Optional: specific model
+    provider: 'openai',        // Optional: specific provider
+    temperature: 0.7,          // Optional: 0.0-2.0
+    max_tokens: 1000           // Optional: max response tokens
+  }
+);
+console.log(response.response?.content);
+
+// Streaming Chat
+for await (const chunk of sdk.llm.chatStream(messages, options)) {
+  process.stdout.write(chunk.textResponse || '');
+}
+```
+
+#### Generate Embeddings
+
+```typescript
+const { embeddings, dimensions, provider, model } = await sdk.llm.embed(
+  ['Hello world', 'Goodbye'],
+  { provider: 'openai', model: 'text-embedding-3-small' } // Optional
+);
+// embeddings: number[][] - vector arrays
+// dimensions: number - vector dimension (e.g., 1536)
+```
+
+#### Vector Store Operations
+
+```typescript
+// Upsert vectors with metadata
+await sdk.llm.vectors.upsert([
+  { 
+    id: 'chunk-1', 
+    vector: embeddings[0], 
+    metadata: { 
+      text: 'Hello world',      // Original text (for retrieval)
+      documentId: 'doc-1',       // Logical grouping
+      customField: 'any value'   // Any custom metadata
+    } 
+  }
+], { 
+  workspaceId: 'ws-123'          // Optional: physical namespace isolation
+});
+
+// Query similar vectors
+const results = await sdk.llm.vectors.query(queryVector, {
+  topK: 5,                       // Number of results
+  workspaceId: 'ws-123',         // Optional: search in specific workspace
+  filter: { documentId: 'doc-1' } // Optional: filter by document
+});
+// returns: { success, results: [{ id, score, metadata }] }
+
+// Delete all vectors in a workspace
+await sdk.llm.vectors.delete({ 
+  deleteAll: true, 
+  workspaceId: 'ws-123' 
+});
+```
+
+#### High-Level Helpers
+
+These combine multiple operations for common RAG patterns:
+
+```typescript
+// embedAndStore: Text → Embed → Store (one call)
+await sdk.llm.embedAndStore(
+  ['Document text 1', 'Document text 2'],  // texts to embed
+  {
+    documentId: 'doc-123',                  // Optional: logical grouping
+    workspaceId: 'ws-456',                  // Optional: physical isolation
+    provider: 'openai',                     // Optional: embedding provider
+    model: 'text-embedding-3-small'         // Optional: embedding model
+  }
+);
+
+// search: Query → Embed → Search (one call)
+const searchResults = await sdk.llm.search(
+  'What is RealtimeX?',                     // search query (text, not vector)
+  {
+    topK: 5,                                // Number of results
+    workspaceId: 'ws-123',                  // Optional: search in workspace
+    documentId: 'doc-1',                    // Optional: filter by document
+    provider: 'openai',                     // Optional: embedding provider
+    model: 'text-embedding-3-small'         // Optional: embedding model
+  }
+);
+// returns: [{ id, score, metadata: { text, documentId, ... } }]
+```
+
+> **Note on Isolation:**
+> - `workspaceId`: Creates **physical namespace** (`sdk_{appId}_{wsId}`) - data completely isolated
+> - `documentId`: Stored as **metadata**, filtered after search (post-filter)
+
+### Error Handling
+
+The SDK provides specific error classes for handling LLM-related issues:
+
+```typescript
+import { LLMPermissionError, LLMProviderError } from '@realtimex/sdk';
+
+try {
+  for await (const chunk of sdk.llm.chatStream(messages)) {
+    process.stdout.write(chunk.textResponse || '');
+  }
+} catch (error) {
+  if (error instanceof LLMPermissionError) {
+    // Permission not granted: 'llm.chat' etc.
+    console.error(`Permission required: ${error.permission}`);
+  } else if (error instanceof LLMProviderError) {
+    // Provider errors: rate limit, timeout, model unavailable, etc.
+    console.error(`Provider error: ${error.message} (code: ${error.code})`);
+    // Common codes: LLM_STREAM_ERROR, RATE_LIMIT, PROVIDER_UNAVAILABLE
+  }
+}
+```
+
+| Error Class | Common Codes | Description |
+|-------------|--------------|-------------|
+| `LLMPermissionError` | `PERMISSION_REQUIRED` | Missing or denied permission |
+| `LLMProviderError` | `LLM_STREAM_ERROR`, `RATE_LIMIT`, `PROVIDER_UNAVAILABLE` | AI provider issues |
+
 ## Environment Variables
 
 | Variable | Description |
