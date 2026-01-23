@@ -22,33 +22,36 @@ export class RealtimeXSDK {
     public llm: LLMModule;
     public readonly appId: string;
     public readonly appName: string | undefined;
+    public readonly apiKey: string | undefined;
     private readonly realtimexUrl: string;
     private readonly permissions: string[];
 
     private static DEFAULT_REALTIMEX_URL = 'http://localhost:3001';
 
     constructor(config: SDKConfig = {}) {
-        // Auto-detect app ID from environment (injected by Main App)
+        // Auto-detect from environment (injected by Main App)
         const envAppId = this.getEnvVar('RTX_APP_ID');
         const envAppName = this.getEnvVar('RTX_APP_NAME');
+        const envApiKey = this.getEnvVar('RTX_API_KEY');
 
         this.appId = config.realtimex?.appId || envAppId || '';
         this.appName = config.realtimex?.appName || envAppName;
+        this.apiKey = config.realtimex?.apiKey || envApiKey;
         this.permissions = config.permissions || [];
 
         // Default to localhost:3001
         this.realtimexUrl = config.realtimex?.url || RealtimeXSDK.DEFAULT_REALTIMEX_URL;
 
-        // Initialize modules
+        // Initialize modules with appId and apiKey
         this.activities = new ActivitiesModule(this.realtimexUrl, this.appId, this.appName);
         this.webhook = new WebhookModule(this.realtimexUrl, this.appName, this.appId);
         this.api = new ApiModule(this.realtimexUrl, this.appId, this.appName);
         this.task = new TaskModule(this.realtimexUrl, this.appName, this.appId);
         this.port = new PortModule(config.defaultPort);
-        this.llm = new LLMModule(this.realtimexUrl, this.appId);
+        this.llm = new LLMModule(this.realtimexUrl, this.appId, this.apiKey);
 
-        // Auto-register with declared permissions
-        if (this.permissions.length > 0) {
+        // Auto-register with declared permissions (only for production mode)
+        if (this.permissions.length > 0 && this.appId && !this.apiKey) {
             this.register().catch(err => {
                 console.error('[RealtimeX SDK] Auto-registration failed:', err.message);
             });
@@ -98,6 +101,35 @@ export class RealtimeXSDK {
             return (window as any)[name];
         }
         return undefined;
+    }
+
+    /**
+     * Ping RealtimeX server to verify connection and authentication.
+     * Works in both development (API Key) and production (App ID) modes.
+     */
+    public async ping(): Promise<{ success: boolean; mode: 'development' | 'production'; appId?: string; timestamp: string }> {
+        try {
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (this.apiKey) {
+                headers['Authorization'] = `Bearer ${this.apiKey}`;
+            } else if (this.appId) {
+                headers['x-app-id'] = this.appId;
+            }
+
+            const response = await fetch(`${this.realtimexUrl.replace(/\/$/, '')}/sdk/ping`, {
+                method: 'GET',
+                headers,
+            });
+
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || 'Ping failed');
+            }
+
+            return data;
+        } catch (error: any) {
+            throw new Error(`Connection failed: ${error.message}`);
+        }
     }
 }
 

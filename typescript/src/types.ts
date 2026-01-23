@@ -5,8 +5,9 @@
 export interface SDKConfig {
     realtimex?: {
         url?: string;     // Default: http://localhost:3001
-        appId?: string;   // Auto-detected from RTX_APP_ID env
+        appId?: string;   // For production mode - from registered LocalApp
         appName?: string; // Auto-detected from RTX_APP_NAME env
+        apiKey?: string;  // For dev mode - API key from Settings > API Keys
     };
     defaultPort?: number; // Default port for PortModule (default: 8080)
     permissions?: string[]; // List of required permissions

@@ -25,7 +25,12 @@ import asyncio
 from realtimex_sdk import RealtimeXSDK, SDKConfig
 
 async def main():
-    # Declare permissions in config
+    # Development Mode: Use API key
+    sdk = RealtimeXSDK(config=SDKConfig(
+        api_key="sk-abc123..."
+    ))
+    
+    # OR Production Mode: Declare permissions
     sdk = RealtimeXSDK(config=SDKConfig(
         permissions=['activities.write', 'webhook.trigger']
     ))
@@ -63,7 +68,9 @@ Override auto-detected values if needed:
 from realtimex_sdk import RealtimeXSDK, SDKConfig
 
 sdk = RealtimeXSDK(config=SDKConfig(
-    url="http://custom-host:3001"  # Default: localhost:3001
+    url="http://custom-host:3001",  # Default: localhost:3001
+    api_key="sk-abc123...",         # Development mode
+    app_id="registered-id"          # Production mode (override)
 ))
 ```
 

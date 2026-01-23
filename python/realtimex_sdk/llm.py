@@ -169,12 +169,20 @@ class VectorStore:
         ], workspace_id="ws-123")
     """
     
-    def __init__(self, base_url: str, app_id: str):
+    def __init__(self, base_url: str, app_id: str, api_key: Optional[str] = None):
         self._base_url = base_url.rstrip("/")
         self._app_id = app_id
+        self._api_key = api_key
     
     @property
     def _headers(self) -> Dict[str, str]:
+        # Dev mode: use API key with Bearer auth
+        if self._api_key:
+            return {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self._api_key}",
+            }
+        # Production mode: use x-app-id
         return {
             "Content-Type": "application/json",
             "x-app-id": self._app_id,
@@ -393,13 +401,21 @@ class LLMModule:
         print(result.embeddings[0])
     """
     
-    def __init__(self, base_url: str, app_id: str):
+    def __init__(self, base_url: str, app_id: str, api_key: Optional[str] = None):
         self._base_url = base_url.rstrip("/")
         self._app_id = app_id
-        self.vectors = VectorStore(base_url, app_id)
+        self._api_key = api_key
+        self.vectors = VectorStore(base_url, app_id, api_key)
     
     @property
     def _headers(self) -> Dict[str, str]:
+        # Dev mode: use API key with Bearer auth
+        if self._api_key:
+            return {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self._api_key}",
+            }
+        # Production mode: use x-app-id
         return {
             "Content-Type": "application/json",
             "x-app-id": self._app_id,

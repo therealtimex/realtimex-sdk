@@ -23,6 +23,7 @@ class SDKConfig:
     url: str = "http://localhost:3001"
     app_id: Optional[str] = None
     app_name: Optional[str] = None
+    api_key: Optional[str] = None  # For dev mode - API key from Settings > API Keys
     default_port: int = 8080
     permissions: list = field(default_factory=list)  # List of required permissions
 
@@ -32,12 +33,12 @@ class RealtimeXSDK:
     Main SDK client for RealtimeX Local Apps.
     
     Example:
-        # Auto-detect from environment (recommended)
+        # Production mode: Auto-detect from environment
         sdk = RealtimeXSDK()
         
-        # Or with custom config
+        # Development mode: Use API key
         sdk = RealtimeXSDK(config=SDKConfig(
-            url="http://custom-host:3001"
+            api_key="sk-abc123..."
         ))
     """
     
@@ -47,21 +48,25 @@ class RealtimeXSDK:
         # Auto-detect from environment
         env_app_id = os.environ.get("RTX_APP_ID", "")
         env_app_name = os.environ.get("RTX_APP_NAME")
+        env_api_key = os.environ.get("RTX_API_KEY")
         
         # Use config or defaults
         if config:
             realtimex_url = config.url or self.DEFAULT_REALTIMEX_URL
             app_id = config.app_id or env_app_id
             app_name = config.app_name or env_app_name
+            api_key = config.api_key or env_api_key
             default_port = config.default_port
         else:
             realtimex_url = self.DEFAULT_REALTIMEX_URL
             app_id = env_app_id
             app_name = env_app_name
+            api_key = env_api_key
             default_port = 8080
         
         self.app_id = app_id
         self.app_name = app_name
+        self.api_key = api_key
         self.realtimex_url = realtimex_url
         self.permissions = config.permissions if config else []
         
@@ -71,10 +76,10 @@ class RealtimeXSDK:
         self.api = ApiModule(realtimex_url, app_id, app_name)
         self.task = TaskModule(realtimex_url, app_name, app_id)
         self.port = PortModule(default_port)
-        self.llm = LLMModule(realtimex_url, app_id)
+        self.llm = LLMModule(realtimex_url, app_id, api_key)
 
-        # Auto-register with declared permissions if loop is running
-        if self.permissions:
+        # Auto-register with declared permissions (only for production mode)
+        if self.permissions and self.app_id and not self.api_key:
             try:
                 import asyncio
                 loop = asyncio.get_event_loop()
@@ -112,6 +117,37 @@ class RealtimeXSDK:
                 print(f"[RealtimeX SDK] App registered successfully ({data.get('message')})")
         except Exception as e:
             print(f"[RealtimeX SDK] Auto-registration error: {e}")
+
+    async def ping(self) -> dict:
+        """
+        Ping RealtimeX server to verify connection and authentication.
+        Works in both development (API Key) and production (App ID) modes.
+        
+        Returns:
+            dict with success, mode, appId, and timestamp
+        """
+        try:
+            import httpx
+            headers = {"Content-Type": "application/json"}
+            if self.api_key:
+                headers["Authorization"] = f"Bearer {self.api_key}"
+            elif self.app_id:
+                headers["x-app-id"] = self.app_id
+                
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"{self.realtimex_url.rstrip('/')}/sdk/ping",
+                    headers=headers,
+                    timeout=10.0
+                )
+                
+                data = response.json()
+                if not response.is_success:
+                    raise Exception(data.get("error", "Ping failed"))
+                    
+                return data
+        except Exception as e:
+            raise Exception(f"Connection failed: {e}")
 
 
 # Keep old class names for backward compatibility

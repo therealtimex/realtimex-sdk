@@ -41,11 +41,17 @@ Before using the SDK, you must configure your Local App via the **RealtimeX Main
 
 ## 🔐 Authentication & Permissions
 
-### App ID Header (v1.1.0+)
+### App ID Header (Production Mode)
 
-All SDK API calls now require the `x-app-id` header for authentication. This is handled automatically by the SDK when running within the RealtimeX environment.
+All SDK API calls require authentication. When running within the RealtimeX environment, this is handled automatically using the `x-app-id` header.
 
 The SDK reads the `RTX_APP_ID` environment variable (injected by RealtimeX when starting your app) and includes it in all API requests.
+
+### API Key (Development Mode)
+
+For local development without registering an app in the UI, you can use an **API Key** from **Settings > API Keys**. This grants full access to SDK endpoints without requiring specific permission prompts.
+
+The SDK will use the `Authorization: Bearer {API_KEY}` header when an API key is provided via configuration or `RTX_API_KEY` environment variable.
 
 ### Permission System (v1.0.8+)
 
@@ -149,11 +155,12 @@ When your Local App is launched by the RealtimeX Main App, the following variabl
 
 | Variable | Description |
 |----------|-------------|
-| `RTX_APP_ID` | Your app's unique identifier (required for API authentication). |
+| `RTX_APP_ID` | Your app's unique identifier (Production Mode). |
+| `RTX_API_KEY` | Your API key from settings (Development Mode). |
 | `RTX_APP_NAME` | Your app's display name. |
-| `RTX_PORT` | Suggested port for your app (optional, for port auto-detection). |
+| `RTX_PORT` | Suggested port for your app (optional). |
 
-> **Important:** The `RTX_APP_ID` is essential for API access. All SDK API calls include this as the `x-app-id` header automatically.
+> **Important:** Either `RTX_APP_ID` or `RTX_API_KEY` is required for API access.
 
 ---
 

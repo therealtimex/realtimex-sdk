@@ -179,10 +179,19 @@ export class LLMProviderError extends Error {
 export class VectorStore {
     constructor(
         private baseUrl: string,
-        private appId: string
+        private appId: string,
+        private apiKey?: string
     ) { }
 
     private get headers(): Record<string, string> {
+        // Dev mode: use API key with Bearer auth
+        if (this.apiKey) {
+            return {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${this.apiKey}`,
+            };
+        }
+        // Production mode: use x-app-id
         return {
             'Content-Type': 'application/json',
             'x-app-id': this.appId,
@@ -310,12 +319,21 @@ export class LLMModule {
 
     constructor(
         private baseUrl: string,
-        private appId: string
+        private appId: string,
+        private apiKey?: string
     ) {
-        this.vectors = new VectorStore(baseUrl, appId);
+        this.vectors = new VectorStore(baseUrl, appId, apiKey);
     }
 
     private get headers(): Record<string, string> {
+        // Dev mode: use API key with Bearer auth
+        if (this.apiKey) {
+            return {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${this.apiKey}`,
+            };
+        }
+        // Production mode: use x-app-id
         return {
             'Content-Type': 'application/json',
             'x-app-id': this.appId,

@@ -25,6 +25,9 @@ Before using this SDK, ensure your Supabase database is set up:
 import { RealtimeXSDK } from '@realtimex/sdk';
 
 const sdk = new RealtimeXSDK({
+  // Development Mode: Use API key for full access
+  realtimex: { apiKey: 'sk-abc123...' }, 
+  // OR Production Mode: Declare permissions
   permissions: ['activities.read', 'activities.write', 'webhook.trigger']
 });
 
@@ -59,8 +62,9 @@ When you start your Local App from the RealtimeX Main App:
 const sdk = new RealtimeXSDK({
   realtimex: {
     url: 'http://custom-host:3001',  // Default: localhost:3001
-    appId: 'custom-id',               // Override auto-detected
-    appName: 'My App',                // Override auto-detected
+    apiKey: 'sk-abc123...',           // Development mode
+    appId: 'custom-id',               // Production mode (override)
+    appName: 'My App',                // Optional
   }
 });
 ```
