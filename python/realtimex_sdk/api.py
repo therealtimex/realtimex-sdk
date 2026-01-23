@@ -24,13 +24,19 @@ class PermissionRequiredError(Exception):
 class ApiModule:
     """Call RealtimeX public API endpoints."""
     
-    def __init__(self, realtimex_url: str, app_id: str, app_name: str = None):
+    def __init__(self, realtimex_url: str, app_id: str, app_name: str = None, api_key: str = None):
         self.realtimex_url = realtimex_url.rstrip("/")
         self.app_id = app_id
         self.app_name = app_name or os.environ.get("RTX_APP_NAME", "Local App")
+        self.api_key = api_key
     
     def _get_headers(self) -> Dict[str, str]:
-        """Get headers with app ID."""
+        """Get headers with app ID or API key."""
+        if self.api_key:
+            return {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.api_key}",
+            }
         return {
             "Content-Type": "application/json",
             "x-app-id": self.app_id,

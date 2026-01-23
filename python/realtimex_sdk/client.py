@@ -71,10 +71,10 @@ class RealtimeXSDK:
         self.permissions = config.permissions if config else []
         
         # Initialize modules
-        self.activities = ActivitiesModule(realtimex_url, app_id, app_name)
-        self.webhook = WebhookModule(realtimex_url, app_name, app_id)
-        self.api = ApiModule(realtimex_url, app_id, app_name)
-        self.task = TaskModule(realtimex_url, app_name, app_id)
+        self.activities = ActivitiesModule(realtimex_url, app_id, app_name, api_key)
+        self.webhook = WebhookModule(realtimex_url, app_name, app_id, api_key)
+        self.api = ApiModule(realtimex_url, app_id, app_name, api_key)
+        self.task = TaskModule(realtimex_url, app_name, app_id, api_key)
         self.port = PortModule(default_port)
         self.llm = LLMModule(realtimex_url, app_id, api_key)
 

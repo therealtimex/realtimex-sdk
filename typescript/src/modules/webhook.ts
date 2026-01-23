@@ -5,11 +5,13 @@ export class WebhookModule {
     private realtimexUrl: string;
     private appName?: string;
     private appId?: string;
+    private apiKey?: string;
 
-    constructor(realtimexUrl: string, appName?: string, appId?: string) {
+    constructor(realtimexUrl: string, appName?: string, appId?: string, apiKey?: string) {
         this.realtimexUrl = realtimexUrl.replace(/\/$/, '');
         this.appName = appName;
         this.appId = appId;
+        this.apiKey = apiKey;
     }
 
     /**
@@ -39,12 +41,20 @@ export class WebhookModule {
         options: RequestInit = {}
     ): Promise<T> {
         const url = `${this.realtimexUrl}${path}`;
+        const headers: any = {
+            'Content-Type': 'application/json',
+            ...(options.headers as any),
+        };
+
+        if (this.apiKey) {
+            headers['Authorization'] = `Bearer ${this.apiKey}`;
+        } else if (this.appId) {
+            headers['x-app-id'] = this.appId;
+        }
+
         const response = await fetch(url, {
             ...options,
-            headers: {
-                'Content-Type': 'application/json',
-                ...options.headers,
-            },
+            headers,
         });
 
         const data = await response.json();

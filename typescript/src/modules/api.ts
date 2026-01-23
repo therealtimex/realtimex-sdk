@@ -34,14 +34,22 @@ export class ApiModule {
     private realtimexUrl: string;
     private appId: string;
     private appName: string;
+    private apiKey?: string;
 
-    constructor(realtimexUrl: string, appId: string, appName?: string) {
+    constructor(realtimexUrl: string, appId: string, appName?: string, apiKey?: string) {
         this.realtimexUrl = realtimexUrl.replace(/\/$/, '');
         this.appId = appId;
         this.appName = appName || process.env.RTX_APP_NAME || 'Local App';
+        this.apiKey = apiKey;
     }
 
     private getHeaders(): HeadersInit {
+        if (this.apiKey) {
+            return {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${this.apiKey}`,
+            };
+        }
         return {
             'Content-Type': 'application/json',
             'x-app-id': this.appId,

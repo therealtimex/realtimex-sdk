@@ -73,9 +73,11 @@ export interface ProvidersResponse {
     success: boolean;
     llm?: Provider[];
     embedding?: Provider[];
+    providers?: Provider[]; // For specialized endpoints
     error?: string;
     code?: string;
 }
+
 
 // Vector Store Types
 export interface VectorRecord {
@@ -340,17 +342,19 @@ export class LLMModule {
         };
     }
 
+
+
     /**
-     * Get available LLM and embedding providers/models
+     * Get only configured chat (LLM) providers
      * 
      * @example
      * ```ts
-     * const { llm, embedding } = await sdk.llm.getProviders();
-     * console.log('Available LLM models:', llm[0].models);
+     * const { providers } = await sdk.llm.chatProviders();
+     * console.log('Available chat models:', providers[0].models);
      * ```
      */
-    async getProviders(): Promise<ProvidersResponse> {
-        const response = await fetch(`${this.baseUrl}/sdk/llm/providers`, {
+    async chatProviders(): Promise<ProvidersResponse> {
+        const response = await fetch(`${this.baseUrl}/sdk/llm/providers/chat`, {
             method: 'GET',
             headers: this.headers,
         });
@@ -363,6 +367,31 @@ export class LLMModule {
 
         return data;
     }
+
+    /**
+     * Get only configured embedding providers
+     * 
+     * @example
+     * ```ts
+     * const { providers } = await sdk.llm.embedProviders();
+     * console.log('Available embedding models:', providers[0].models);
+     * ```
+     */
+    async embedProviders(): Promise<ProvidersResponse> {
+        const response = await fetch(`${this.baseUrl}/sdk/llm/providers/embed`, {
+            method: 'GET',
+            headers: this.headers,
+        });
+
+        const data = await response.json();
+
+        if (data.code === 'PERMISSION_REQUIRED') {
+            throw new LLMPermissionError(data.permission || 'llm.providers');
+        }
+
+        return data;
+    }
+
 
     /**
      * Send a chat completion request (synchronous)

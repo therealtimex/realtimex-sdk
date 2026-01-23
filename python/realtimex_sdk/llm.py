@@ -107,7 +107,9 @@ class ProvidersResponse:
     success: bool
     llm: List[Provider] = field(default_factory=list)
     embedding: List[Provider] = field(default_factory=list)
+    providers: List[Provider] = field(default_factory=list) # For specialized endpoints
     error: Optional[str] = None
+
 
 
 @dataclass
@@ -421,19 +423,21 @@ class LLMModule:
             "x-app-id": self._app_id,
         }
     
-    async def get_providers(self) -> ProvidersResponse:
+
+
+    async def chat_providers(self) -> ProvidersResponse:
         """
-        Get available LLM and embedding providers/models.
+        Get only configured chat (LLM) providers.
         
         Returns:
-            ProvidersResponse with llm and embedding providers
+            ProvidersResponse with providers list
         """
         if httpx is None:
             raise ImportError("httpx is required for async operations")
         
         async with httpx.AsyncClient() as client:
             response = await client.get(
-                f"{self._base_url}/sdk/llm/providers",
+                f"{self._base_url}/sdk/llm/providers/chat",
                 headers=self._headers,
                 timeout=30.0
             )
@@ -455,10 +459,48 @@ class LLMModule:
             
             return ProvidersResponse(
                 success=data.get("success", False),
-                llm=parse_providers(data.get("llm", [])),
-                embedding=parse_providers(data.get("embedding", [])),
+                providers=parse_providers(data.get("providers", [])),
                 error=data.get("error")
             )
+
+    async def embed_providers(self) -> ProvidersResponse:
+        """
+        Get only configured embedding providers.
+        
+        Returns:
+            ProvidersResponse with providers list
+        """
+        if httpx is None:
+            raise ImportError("httpx is required for async operations")
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{self._base_url}/sdk/llm/providers/embed",
+                headers=self._headers,
+                timeout=30.0
+            )
+            
+            data = response.json()
+            
+            if data.get("code") == "PERMISSION_REQUIRED":
+                raise LLMPermissionError(data.get("permission", "llm.providers"))
+            
+            def parse_providers(providers_data: List[Dict]) -> List[Provider]:
+                result = []
+                for p in providers_data:
+                    models = [
+                        ProviderModel(id=m.get("id", ""), name=m.get("name", ""))
+                        for m in p.get("models", [])
+                    ]
+                    result.append(Provider(provider=p.get("provider", ""), models=models))
+                return result
+            
+            return ProvidersResponse(
+                success=data.get("success", False),
+                providers=parse_providers(data.get("providers", [])),
+                error=data.get("error")
+            )
+
     
     async def chat(
         self,

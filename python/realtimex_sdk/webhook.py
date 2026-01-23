@@ -12,10 +12,12 @@ class WebhookModule:
         realtimex_url: str,
         app_name: Optional[str] = None,
         app_id: Optional[str] = None,
+        api_key: Optional[str] = None,
     ):
         self.realtimex_url = realtimex_url.rstrip("/")
         self.app_name = app_name or os.environ.get("RTX_APP_NAME", "Local App")
         self.app_id = app_id
+        self.api_key = api_key
 
     async def _request_permission(self, permission: str) -> bool:
         """Request a single permission from Electron via internal API."""
@@ -77,9 +79,16 @@ class WebhookModule:
                 )
 
         async def do_request():
+            headers = {"Content-Type": "application/json"}
+            if self.api_key:
+                headers["Authorization"] = f"Bearer {self.api_key}"
+            elif self.app_id:
+                headers["x-app-id"] = self.app_id
+                
             async with httpx.AsyncClient() as client:
                 response = await client.post(
                     f"{self.realtimex_url}/webhooks/realtimex",
+                    headers=headers,
                     json={
                         "app_name": self.app_name,
                         "app_id": self.app_id,

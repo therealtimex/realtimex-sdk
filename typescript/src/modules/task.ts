@@ -14,11 +14,13 @@ export class TaskModule {
     private realtimexUrl: string;
     private appName?: string;
     private appId?: string;
+    private apiKey?: string;
 
-    constructor(realtimexUrl: string, appName?: string, appId?: string) {
+    constructor(realtimexUrl: string, appName?: string, appId?: string, apiKey?: string) {
         this.realtimexUrl = realtimexUrl.replace(/\/$/, '');
         this.appName = appName;
         this.appId = appId;
+        this.apiKey = apiKey;
     }
 
     /**
@@ -47,9 +49,16 @@ export class TaskModule {
         taskUuid: string,
         extra: { result?: object; error?: string; machine_id?: string }
     ): Promise<TaskStatusResponse> {
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (this.apiKey) {
+            headers['Authorization'] = `Bearer ${this.apiKey}`;
+        } else if (this.appId) {
+            headers['x-app-id'] = this.appId;
+        }
+
         const response = await fetch(`${this.realtimexUrl}/webhooks/realtimex`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             body: JSON.stringify({
                 app_name: this.appName,
                 app_id: this.appId,

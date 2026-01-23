@@ -43,10 +43,10 @@ export class RealtimeXSDK {
         this.realtimexUrl = config.realtimex?.url || RealtimeXSDK.DEFAULT_REALTIMEX_URL;
 
         // Initialize modules with appId and apiKey
-        this.activities = new ActivitiesModule(this.realtimexUrl, this.appId, this.appName);
-        this.webhook = new WebhookModule(this.realtimexUrl, this.appName, this.appId);
-        this.api = new ApiModule(this.realtimexUrl, this.appId, this.appName);
-        this.task = new TaskModule(this.realtimexUrl, this.appName, this.appId);
+        this.activities = new ActivitiesModule(this.realtimexUrl, this.appId, this.appName, this.apiKey);
+        this.webhook = new WebhookModule(this.realtimexUrl, this.appName, this.appId, this.apiKey);
+        this.api = new ApiModule(this.realtimexUrl, this.appId, this.appName, this.apiKey);
+        this.task = new TaskModule(this.realtimexUrl, this.appName, this.appId, this.apiKey);
         this.port = new PortModule(config.defaultPort);
         this.llm = new LLMModule(this.realtimexUrl, this.appId, this.apiKey);
 

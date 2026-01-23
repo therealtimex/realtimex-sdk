@@ -10,10 +10,11 @@ import aiohttp
 class TaskModule:
     """Report task status via RealtimeX webhook"""
 
-    def __init__(self, realtimex_url: str, app_name: Optional[str] = None, app_id: Optional[str] = None):
+    def __init__(self, realtimex_url: str, app_name: Optional[str] = None, app_id: Optional[str] = None, api_key: Optional[str] = None):
         self.realtimex_url = realtimex_url.rstrip('/')
         self.app_name = app_name
         self.app_id = app_id
+        self.api_key = api_key
 
     async def start(self, task_uuid: str, machine_id: Optional[str] = None) -> Dict[str, Any]:
         """Mark task as processing"""
@@ -45,9 +46,16 @@ class TaskModule:
         if machine_id is not None:
             payload['machine_id'] = machine_id
 
+        headers = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+        elif self.app_id:
+            headers["x-app-id"] = self.app_id
+
         async with aiohttp.ClientSession() as session:
             async with session.post(
                 f"{self.realtimex_url}/webhooks/realtimex",
+                headers=headers,
                 json={
                     'app_name': self.app_name,
                     'app_id': self.app_id,

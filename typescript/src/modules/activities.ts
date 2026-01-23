@@ -10,11 +10,13 @@ export class ActivitiesModule {
     private baseUrl: string;
     private appId: string;
     private appName: string;
+    private apiKey?: string;
 
-    constructor(realtimexUrl: string, appId: string, appName?: string) {
+    constructor(realtimexUrl: string, appId: string, appName?: string, apiKey?: string) {
         this.baseUrl = realtimexUrl.replace(/\/$/, '');
         this.appId = appId;
         this.appName = appName || process.env.RTX_APP_NAME || 'Local App';
+        this.apiKey = apiKey;
     }
 
     /**
@@ -48,9 +50,12 @@ export class ActivitiesModule {
             'Content-Type': 'application/json',
         };
 
-        // Add app ID header if available
-        if (this.appId) {
-            headers['X-App-Id'] = this.appId;
+        // Dev mode: use API key with Bearer auth
+        if (this.apiKey) {
+            headers['Authorization'] = `Bearer ${this.apiKey}`;
+        } else if (this.appId) {
+            // Production mode: use x-app-id
+            headers['x-app-id'] = this.appId;
         }
 
         const response = await fetch(url, {

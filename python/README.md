@@ -119,10 +119,17 @@ sdk = RealtimeXSDK(config=SDKConfig(
 #### List Providers & Models
 
 ```python
-providers = await sdk.llm.get_providers()
-# providers.llm: List of LLM providers with models
-# providers.embedding: List of embedding providers with models
+
+
+# Get only configured Chat providers (recommended)
+chat_res = await sdk.llm.chat_providers()
+# chat_res.providers: List of chat providers with models
+
+# Get only configured Embedding providers (recommended)
+embed_res = await sdk.llm.embed_providers()
+# embed_res.providers: List of embedding providers with models
 ```
+
 
 #### Chat Completion
 

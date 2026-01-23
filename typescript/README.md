@@ -137,10 +137,17 @@ const sdk = new RealtimeXSDK({
 #### List Providers & Models
 
 ```typescript
-const { llm, embedding } = await sdk.llm.getProviders();
-// llm[]: Array of LLM providers with models
-// embedding[]: Array of embedding providers with models
+
+
+// Get only configured Chat providers (recommended)
+const chatRes = await sdk.llm.chatProviders();
+// chatRes.providers: Array of chat providers with models
+
+// Get only configured Embedding providers (recommended)
+const embedRes = await sdk.llm.embedProviders();
+// embedRes.providers: Array of embedding providers with models
 ```
+
 
 #### Chat Completion
 
