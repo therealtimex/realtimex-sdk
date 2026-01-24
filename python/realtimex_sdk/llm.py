@@ -52,6 +52,7 @@ class ChatOptions:
     provider: Optional[str] = None
     temperature: float = 0.7
     max_tokens: int = 1000
+    response_format: Optional[Dict[str, str]] = None  # For JSON mode: {"type": "json_object"}
 
 
 @dataclass
@@ -806,3 +807,70 @@ class LLMModule:
             raise LLMProviderError(query_result.error or "Vector search failed")
         
         return query_result.results
+
+
+    # Synchronous wrapper methods for non-async contexts
+    
+    def chat_sync(
+        self,
+        messages: List[ChatMessage],
+        options: Optional[ChatOptions] = None
+    ) -> ChatResponse:
+        """
+        Synchronous version of chat() for non-async contexts.
+        
+        This is a convenience wrapper for CLI tools, initialization code,
+        and other contexts where asyncio event loops are not available.
+        
+        Args:
+            messages: List of ChatMessage objects
+            options: Optional ChatOptions for model, temperature, etc.
+            
+        Returns:
+            ChatResponse with content and metrics
+        
+        Example:
+            from realtimex_sdk import RealtimeXSDK, ChatMessage, ChatOptions
+            
+            sdk = RealtimeXSDK()
+            response = sdk.llm.chat_sync(
+                messages=[ChatMessage(role="user", content="Hello!")],
+                options=ChatOptions(model="gpt-4o")
+            )
+            print(response.content)
+        """
+        import asyncio
+        return asyncio.run(self.chat(messages, options))
+    
+    def embed_sync(
+        self,
+        input_text: Union[str, List[str]],
+        provider: Optional[str] = None,
+        model: Optional[str] = None
+    ) -> EmbedResponse:
+        """
+        Synchronous version of embed() for non-async contexts.
+        
+        This is a convenience wrapper for CLI tools, initialization code,
+        and other contexts where asyncio event loops are not available.
+        
+        Args:
+            input_text: Single string or list of strings to embed
+            provider: Optional provider override
+            model: Optional model override
+            
+        Returns:
+            EmbedResponse with embeddings and dimensions
+        
+        Example:
+            from realtimex_sdk import RealtimeXSDK
+            
+            sdk = RealtimeXSDK()
+            result = sdk.llm.embed_sync(
+                input_text=["Hello world", "Goodbye"],
+                model="text-embedding-3-small"
+            )
+            print(result.embeddings)
+        """
+        import asyncio
+        return asyncio.run(self.embed(input_text, provider, model))
