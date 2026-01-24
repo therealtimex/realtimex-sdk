@@ -149,6 +149,26 @@ class RealtimeXSDK:
         except Exception as e:
             raise Exception(f"Connection failed: {e}")
 
+    def ping_sync(self) -> dict:
+        """
+        Synchronous version of ping() for non-async contexts.
+
+        This is a convenience wrapper for CLI tools, initialization code,
+        and other contexts where asyncio event loops are not available.
+
+        Returns:
+            dict with success, mode, appId, and timestamp
+
+        Example:
+            from realtimex_sdk import RealtimeXSDK
+
+            sdk = RealtimeXSDK()
+            result = sdk.ping_sync()
+            print(f"Connected: {result['success']}")
+        """
+        import asyncio
+        return asyncio.run(self.ping())
+
 
 # Keep old class names for backward compatibility
 SupabaseConfig = None  # Deprecated - no longer needed
