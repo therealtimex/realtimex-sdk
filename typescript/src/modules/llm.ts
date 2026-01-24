@@ -614,14 +614,22 @@ export class LLMModule {
             };
         }
 
+        // Generate a unique ID base if using default to avoid collisions across successive calls
+        let uniquePrefix = idPrefix;
+        if (idPrefix === 'chunk') {
+            const randomSuffix = Math.random().toString(36).substring(2, 6);
+            uniquePrefix = `chunk_${randomSuffix}`;
+        }
+
         // Create vector records
         const vectors: VectorRecord[] = texts.map((text, i) => ({
-            id: `${idPrefix}_${i}`,
+            id: `${uniquePrefix}_${i}`,
             vector: embedResult.embeddings![i],
             metadata: {
                 text,
                 documentId,
                 workspaceId,
+                embeddingModel: embedResult.model || model || 'unknown',
             },
         }));
 
@@ -655,7 +663,10 @@ export class LLMModule {
         }
 
         // Search vectors
-        const queryResult = await this.vectors.query(embedResult.embeddings[0], options);
+        const queryResult = await this.vectors.query(embedResult.embeddings[0], {
+            ...options,
+            model: options.model || embedResult.model
+        });
         if (!queryResult.success) {
             throw new LLMProviderError(queryResult.error || 'Vector search failed');
         }

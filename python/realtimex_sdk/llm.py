@@ -11,6 +11,9 @@ Provides access to LLM capabilities:
 import json
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, AsyncIterator, Iterator, Union
+import random
+import string
+
 
 try:
     import httpx
@@ -741,14 +744,21 @@ class LLMModule:
                 code=embed_result.code
             )
         
+        # Generate a unique base if it's the default prefix to avoid collisions across calls
+        unique_prefix = id_prefix
+        if id_prefix == "chunk":
+            random_suffix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=4))
+            unique_prefix = f"chunk_{random_suffix}"
+
         vectors = [
             VectorRecord(
-                id=f"{id_prefix}_{i}",
+                id=f"{unique_prefix}_{i}",
                 vector=embed_result.embeddings[i],
                 metadata={
                     "text": text,
                     "documentId": document_id,
                     "workspaceId": workspace_id,
+                    "embeddingModel": embed_result.model or model or "unknown",
                 }
             )
             for i, text in enumerate(texts)
@@ -788,7 +798,8 @@ class LLMModule:
             vector=embed_result.embeddings[0],
             top_k=top_k,
             workspace_id=workspace_id,
-            document_id=document_id
+            document_id=document_id,
+            model=model or embed_result.model
         )
         
         if not query_result.success:
