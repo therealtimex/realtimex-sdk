@@ -76,7 +76,7 @@ class RealtimeXSDK:
         self.api = ApiModule(realtimex_url, app_id, app_name, api_key)
         self.task = TaskModule(realtimex_url, app_name, app_id, api_key)
         self.port = PortModule(default_port)
-        self.llm = LLMModule(realtimex_url, app_id, api_key)
+        self.llm = LLMModule(realtimex_url, app_id, app_name, api_key)
 
         # Auto-register with declared permissions (only for production mode)
         if self.permissions and self.app_id and not self.api_key:

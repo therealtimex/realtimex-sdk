@@ -8,6 +8,8 @@
  * - Vector storage (upsert, query, delete)
  */
 
+import { PermissionDeniedError, PermissionRequiredError } from './api';
+
 // === Types ===
 
 export interface ChatMessage {
@@ -157,12 +159,12 @@ export interface VectorListWorkspacesResponse {
 
 // === Errors ===
 
-export class LLMPermissionError extends Error {
-    constructor(
-        public permission: string,
-        public code: string = 'PERMISSION_REQUIRED'
-    ) {
-        super(`Permission required: ${permission}`);
+/**
+ * @deprecated Use PermissionRequiredError from api module instead
+ */
+export class LLMPermissionError extends PermissionRequiredError {
+    constructor(permission: string, code: string = 'PERMISSION_REQUIRED') {
+        super(permission, undefined, code);
         this.name = 'LLMPermissionError';
     }
 }
@@ -183,6 +185,7 @@ export class VectorStore {
     constructor(
         private baseUrl: string,
         private appId: string,
+        private appName: string = 'Local App',
         private apiKey?: string
     ) { }
 
@@ -202,6 +205,58 @@ export class VectorStore {
     }
 
     /**
+     * Request a single permission from Electron via internal API
+     */
+    private async requestPermission(permission: string): Promise<boolean> {
+        try {
+            const response = await fetch(`${this.baseUrl}/api/local-apps/request-permission`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    app_id: this.appId,
+                    app_name: this.appName,
+                    permission,
+                }),
+            });
+            const data = await response.json();
+            return data.granted === true;
+        } catch (error) {
+            return false;
+        }
+    }
+
+    /**
+     * Internal request wrapper that handles automatic permission prompts
+     */
+    private async request<T>(method: string, endpoint: string, body?: any): Promise<T> {
+        const response = await fetch(`${this.baseUrl}${endpoint}`, {
+            method,
+            headers: this.headers,
+            body: body ? JSON.stringify(body) : undefined,
+        });
+
+        const data = await response.json();
+
+        if (data.code === 'PERMISSION_REQUIRED') {
+            const permission = data.permission || 'vectors.read';
+            const granted = await this.requestPermission(permission);
+            if (granted) {
+                return this.request<T>(method, endpoint, body);
+            }
+            throw new PermissionDeniedError(permission);
+        }
+
+        if (!data.success && data.error) {
+            if (data.code === 'LLM_ERROR') {
+                throw new LLMProviderError(data.error);
+            }
+            throw new Error(data.error);
+        }
+
+        return data;
+    }
+
+    /**
      * Upsert (insert or update) vectors into storage
      * 
      * @example
@@ -212,22 +267,10 @@ export class VectorStore {
      * ```
      */
     async upsert(vectors: VectorRecord[], options: VectorUpsertOptions = {}): Promise<VectorUpsertResponse> {
-        const response = await fetch(`${this.baseUrl}/sdk/llm/vectors/upsert`, {
-            method: 'POST',
-            headers: this.headers,
-            body: JSON.stringify({
-                vectors,
-                workspaceId: options.workspaceId,
-            }),
+        return this.request<VectorUpsertResponse>('POST', '/sdk/llm/vectors/upsert', {
+            vectors,
+            workspaceId: options.workspaceId,
         });
-
-        const data = await response.json();
-
-        if (data.code === 'PERMISSION_REQUIRED') {
-            throw new LLMPermissionError(data.permission || 'vectors.write');
-        }
-
-        return data;
     }
 
     /**
@@ -243,24 +286,12 @@ export class VectorStore {
      * ```
      */
     async query(vector: number[], options: VectorQueryOptions = {}): Promise<VectorQueryResponse> {
-        const response = await fetch(`${this.baseUrl}/sdk/llm/vectors/query`, {
-            method: 'POST',
-            headers: this.headers,
-            body: JSON.stringify({
-                vector,
-                topK: options.topK ?? 5,
-                filter: options.filter,
-                workspaceId: options.workspaceId,
-            }),
+        return this.request<VectorQueryResponse>('POST', '/sdk/llm/vectors/query', {
+            vector,
+            topK: options.topK ?? 5,
+            filter: options.filter,
+            workspaceId: options.workspaceId,
         });
-
-        const data = await response.json();
-
-        if (data.code === 'PERMISSION_REQUIRED') {
-            throw new LLMPermissionError(data.permission || 'vectors.read');
-        }
-
-        return data;
     }
 
     /**
@@ -275,19 +306,7 @@ export class VectorStore {
      * ```
      */
     async delete(options: VectorDeleteOptions): Promise<VectorDeleteResponse> {
-        const response = await fetch(`${this.baseUrl}/sdk/llm/vectors/delete`, {
-            method: 'POST',
-            headers: this.headers,
-            body: JSON.stringify(options),
-        });
-
-        const data = await response.json();
-
-        if (data.code === 'PERMISSION_REQUIRED') {
-            throw new LLMPermissionError(data.permission || 'vectors.write');
-        }
-
-        return data;
+        return this.request<VectorDeleteResponse>('POST', '/sdk/llm/vectors/delete', options);
     }
 
     /**
@@ -300,18 +319,7 @@ export class VectorStore {
      * ```
      */
     async listWorkspaces(): Promise<VectorListWorkspacesResponse> {
-        const response = await fetch(`${this.baseUrl}/sdk/llm/vectors/workspaces`, {
-            method: 'GET',
-            headers: this.headers,
-        });
-
-        const data = await response.json();
-
-        if (data.code === 'PERMISSION_REQUIRED') {
-            throw new LLMPermissionError(data.permission || 'vectors.read');
-        }
-
-        return data;
+        return this.request<VectorListWorkspacesResponse>('GET', '/sdk/llm/vectors/workspaces');
     }
 }
 
@@ -323,9 +331,10 @@ export class LLMModule {
     constructor(
         private baseUrl: string,
         private appId: string,
+        private appName: string = 'Local App',
         private apiKey?: string
     ) {
-        this.vectors = new VectorStore(baseUrl, appId, apiKey);
+        this.vectors = new VectorStore(baseUrl, appId, appName, apiKey);
     }
 
     private get headers(): Record<string, string> {
@@ -343,6 +352,58 @@ export class LLMModule {
         };
     }
 
+    /**
+     * Request a single permission from Electron via internal API
+     */
+    private async requestPermission(permission: string): Promise<boolean> {
+        try {
+            const response = await fetch(`${this.baseUrl}/api/local-apps/request-permission`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    app_id: this.appId,
+                    app_name: this.appName,
+                    permission,
+                }),
+            });
+            const data = await response.json();
+            return data.granted === true;
+        } catch (error) {
+            return false;
+        }
+    }
+
+    /**
+     * Internal request wrapper that handles automatic permission prompts
+     */
+    private async request<T>(method: string, endpoint: string, body?: any): Promise<T> {
+        const response = await fetch(`${this.baseUrl}${endpoint}`, {
+            method,
+            headers: this.headers,
+            body: body ? JSON.stringify(body) : undefined,
+        });
+
+        const data = await response.json();
+
+        if (data.code === 'PERMISSION_REQUIRED') {
+            const permission = data.permission || 'llm.chat';
+            const granted = await this.requestPermission(permission);
+            if (granted) {
+                return this.request<T>(method, endpoint, body);
+            }
+            throw new PermissionDeniedError(permission);
+        }
+
+        if (!data.success && data.error) {
+            if (data.code === 'LLM_ERROR') {
+                throw new LLMProviderError(data.error);
+            }
+            throw new Error(data.error);
+        }
+
+        return data;
+    }
+
 
 
     /**
@@ -355,18 +416,7 @@ export class LLMModule {
      * ```
      */
     async chatProviders(): Promise<ProvidersResponse> {
-        const response = await fetch(`${this.baseUrl}/sdk/llm/providers/chat`, {
-            method: 'GET',
-            headers: this.headers,
-        });
-
-        const data = await response.json();
-
-        if (data.code === 'PERMISSION_REQUIRED') {
-            throw new LLMPermissionError(data.permission || 'llm.providers');
-        }
-
-        return data;
+        return this.request<ProvidersResponse>('GET', '/sdk/llm/providers/chat');
     }
 
     /**
@@ -379,18 +429,7 @@ export class LLMModule {
      * ```
      */
     async embedProviders(): Promise<ProvidersResponse> {
-        const response = await fetch(`${this.baseUrl}/sdk/llm/providers/embed`, {
-            method: 'GET',
-            headers: this.headers,
-        });
-
-        const data = await response.json();
-
-        if (data.code === 'PERMISSION_REQUIRED') {
-            throw new LLMPermissionError(data.permission || 'llm.providers');
-        }
-
-        return data;
+        return this.request<ProvidersResponse>('GET', '/sdk/llm/providers/embed');
     }
 
 
@@ -408,30 +447,14 @@ export class LLMModule {
      * ```
      */
     async chat(messages: ChatMessage[], options: ChatOptions = {}): Promise<ChatResponse> {
-        const response = await fetch(`${this.baseUrl}/sdk/llm/chat`, {
-            method: 'POST',
-            headers: this.headers,
-            body: JSON.stringify({
-                messages,
-                model: options.model,
-                provider: options.provider,
-                temperature: options.temperature ?? 0.7,
-                max_tokens: options.max_tokens ?? 1000,
-                response_format: options.response_format,
-            }),
+        return this.request<ChatResponse>('POST', '/sdk/llm/chat', {
+            messages,
+            model: options.model,
+            provider: options.provider,
+            temperature: options.temperature ?? 0.7,
+            max_tokens: options.max_tokens ?? 1000,
+            response_format: options.response_format,
         });
-
-        const data = await response.json();
-
-        if (data.code === 'PERMISSION_REQUIRED') {
-            throw new LLMPermissionError(data.permission || 'llm.chat');
-        }
-
-        if (data.code === 'LLM_ERROR') {
-            throw new LLMProviderError(data.error || 'LLM request failed');
-        }
-
-        return data;
     }
 
     /**
@@ -469,7 +492,13 @@ export class LLMModule {
         if (!response.ok) {
             const errorData = await response.json();
             if (errorData.code === 'PERMISSION_REQUIRED') {
-                throw new LLMPermissionError(errorData.permission || 'llm.chat');
+                const permission = errorData.permission || 'llm.chat';
+                const granted = await this.requestPermission(permission);
+                if (granted) {
+                    yield* this.chatStream(messages, options);
+                    return;
+                }
+                throw new PermissionDeniedError(permission);
             }
             throw new LLMProviderError(errorData.error || 'Stream request failed');
         }
@@ -562,27 +591,11 @@ export class LLMModule {
     async embed(input: string | string[], options: EmbedOptions = {}): Promise<EmbedResponse> {
         const inputArray = Array.isArray(input) ? input : [input];
 
-        const response = await fetch(`${this.baseUrl}/sdk/llm/embed`, {
-            method: 'POST',
-            headers: this.headers,
-            body: JSON.stringify({
-                input: inputArray,
-                provider: options.provider,
-                model: options.model,
-            }),
+        return this.request<EmbedResponse>('POST', '/sdk/llm/embed', {
+            input: inputArray,
+            provider: options.provider,
+            model: options.model,
         });
-
-        const data = await response.json();
-
-        if (data.code === 'PERMISSION_REQUIRED') {
-            throw new LLMPermissionError(data.permission || 'llm.embed');
-        }
-
-        if (data.code === 'PROVIDER_UNAVAILABLE') {
-            throw new LLMProviderError(data.error || 'Embedding provider not available');
-        }
-
-        return data;
     }
 
     /**

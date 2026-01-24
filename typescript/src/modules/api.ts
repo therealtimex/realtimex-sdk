@@ -9,11 +9,13 @@ import { Agent, Workspace, Thread, Task } from '../types';
  */
 export class PermissionDeniedError extends Error {
     public readonly permission: string;
+    public readonly code: string;
 
-    constructor(permission: string, message?: string) {
+    constructor(permission: string, message?: string, code: string = 'PERMISSION_DENIED') {
         super(message || `Permission '${permission}' was denied`);
         this.name = 'PermissionDeniedError';
         this.permission = permission;
+        this.code = code;
     }
 }
 
@@ -22,11 +24,13 @@ export class PermissionDeniedError extends Error {
  */
 export class PermissionRequiredError extends Error {
     public readonly permission: string;
+    public readonly code: string;
 
-    constructor(permission: string, message?: string) {
+    constructor(permission: string, message?: string, code: string = 'PERMISSION_REQUIRED') {
         super(message || `Permission '${permission}' is required`);
         this.name = 'PermissionRequiredError';
         this.permission = permission;
+        this.code = code;
     }
 }
 

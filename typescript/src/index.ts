@@ -48,7 +48,7 @@ export class RealtimeXSDK {
         this.api = new ApiModule(this.realtimexUrl, this.appId, this.appName, this.apiKey);
         this.task = new TaskModule(this.realtimexUrl, this.appName, this.appId, this.apiKey);
         this.port = new PortModule(config.defaultPort);
-        this.llm = new LLMModule(this.realtimexUrl, this.appId, this.apiKey);
+        this.llm = new LLMModule(this.realtimexUrl, this.appId, this.appName, this.apiKey);
 
         // Auto-register with declared permissions (only for production mode)
         if (this.permissions.length > 0 && this.appId && !this.apiKey) {

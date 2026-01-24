@@ -9,15 +9,17 @@ import os
 
 class PermissionDeniedError(Exception):
     """Raised when a permission is permanently denied."""
-    def __init__(self, permission: str, message: str = None):
+    def __init__(self, permission: str, message: str = None, code: str = "PERMISSION_DENIED"):
         self.permission = permission
+        self.code = code
         super().__init__(message or f"Permission '{permission}' was denied")
 
 
 class PermissionRequiredError(Exception):
     """Raised when a permission needs to be granted."""
-    def __init__(self, permission: str, message: str = None):
+    def __init__(self, permission: str, message: str = None, code: str = "PERMISSION_REQUIRED"):
         self.permission = permission
+        self.code = code
         super().__init__(message or f"Permission '{permission}' is required")
 
 

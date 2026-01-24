@@ -8,11 +8,7 @@ import httpx
 import os
 
 
-class PermissionDeniedError(Exception):
-    """Raised when a permission is permanently denied."""
-    def __init__(self, permission: str, message: str = None):
-        self.permission = permission
-        super().__init__(message or f"Permission '{permission}' was denied")
+from .api import PermissionDeniedError, PermissionRequiredError
 
 
 class ActivitiesModule:
