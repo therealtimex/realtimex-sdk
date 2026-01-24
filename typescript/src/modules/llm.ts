@@ -20,6 +20,7 @@ export interface ChatOptions {
     provider?: string;
     temperature?: number;
     max_tokens?: number;
+    response_format?: { type: string };  // For JSON mode: { type: "json_object" }
 }
 
 export interface ChatResponse {
@@ -416,6 +417,7 @@ export class LLMModule {
                 provider: options.provider,
                 temperature: options.temperature ?? 0.7,
                 max_tokens: options.max_tokens ?? 1000,
+                response_format: options.response_format,
             }),
         });
 
@@ -460,6 +462,7 @@ export class LLMModule {
                 provider: options.provider,
                 temperature: options.temperature ?? 0.7,
                 max_tokens: options.max_tokens ?? 1000,
+                response_format: options.response_format,
             }),
         });
 
