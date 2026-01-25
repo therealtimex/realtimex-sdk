@@ -327,6 +327,8 @@ export class VectorStore {
 
 export class LLMModule {
     public vectors: VectorStore;
+    private chatProvidersCache: ProvidersResponse | null = null;
+    private embedProvidersCache: ProvidersResponse | null = null;
 
     constructor(
         private baseUrl: string,
@@ -415,8 +417,15 @@ export class LLMModule {
      * console.log('Available chat models:', providers[0].models);
      * ```
      */
-    async chatProviders(): Promise<ProvidersResponse> {
-        return this.request<ProvidersResponse>('GET', '/sdk/llm/providers/chat');
+    async chatProviders(forceRefresh: boolean = false): Promise<ProvidersResponse> {
+        if (this.chatProvidersCache && !forceRefresh) {
+            return this.chatProvidersCache;
+        }
+        const response = await this.request<ProvidersResponse>('GET', '/sdk/llm/providers/chat');
+        if (response.success) {
+            this.chatProvidersCache = response;
+        }
+        return response;
     }
 
     /**
@@ -428,8 +437,15 @@ export class LLMModule {
      * console.log('Available embedding models:', providers[0].models);
      * ```
      */
-    async embedProviders(): Promise<ProvidersResponse> {
-        return this.request<ProvidersResponse>('GET', '/sdk/llm/providers/embed');
+    async embedProviders(forceRefresh: boolean = false): Promise<ProvidersResponse> {
+        if (this.embedProvidersCache && !forceRefresh) {
+            return this.embedProvidersCache;
+        }
+        const response = await this.request<ProvidersResponse>('GET', '/sdk/llm/providers/embed');
+        if (response.success) {
+            this.embedProvidersCache = response;
+        }
+        return response;
     }
 
 
