@@ -26,39 +26,26 @@ class PermissionRequiredError(Exception):
 class ApiModule:
     """Call RealtimeX public API endpoints."""
     
-    def __init__(self, realtimex_url: str, app_id: str, app_name: str = None, api_key: str = None):
-        self.realtimex_url = realtimex_url.rstrip("/")
+    def __init__(self, client: httpx.AsyncClient, app_id: str, app_name: str = None, api_key: str = None):
+        self.client = client
         self.app_id = app_id
         self.app_name = app_name or os.environ.get("RTX_APP_NAME", "Local App")
-        self.api_key = api_key
-    
-    def _get_headers(self) -> Dict[str, str]:
-        """Get headers with app ID or API key."""
-        if self.api_key:
-            return {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.api_key}",
-            }
-        return {
-            "Content-Type": "application/json",
-            "x-app-id": self.app_id,
-        }
+        # api_key handled by client headers
     
     async def _request_permission(self, permission: str) -> bool:
         """Request a single permission from Electron via internal API."""
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    f"{self.realtimex_url}/api/local-apps/request-permission",
-                    json={
-                        "app_id": self.app_id,
-                        "app_name": self.app_name,
-                        "permission": permission,
-                    },
-                    timeout=60.0  # Long timeout for user interaction
-                )
-                data = response.json()
-                return data.get("granted", False)
+            response = await self.client.post(
+                "/api/local-apps/request-permission",
+                json={
+                    "app_id": self.app_id,
+                    "app_name": self.app_name,
+                    "permission": permission,
+                },
+                timeout=60.0  # Long timeout for user interaction
+            )
+            data = response.json()
+            return data.get("granted", False)
         except Exception as e:
             print(f"[SDK] Permission request failed: {e}")
             return False
@@ -69,36 +56,34 @@ class ApiModule:
         - PERMISSION_REQUIRED: Request permission and retry
         - PERMISSION_DENIED: Raise PermissionDeniedError (no retry)
         """
-        async with httpx.AsyncClient() as client:
-            url = f"{self.realtimex_url}{endpoint}"
-            response = await client.request(method, url, headers=self._get_headers(), **kwargs)
-            data = response.json()
+        response = await self.client.request(method, endpoint, **kwargs)
+        data = response.json()
+        
+        if response.status_code == 403:
+            error_code = data.get("error")
+            permission = data.get("permission")
+            message = data.get("message")
             
-            if response.status_code == 403:
-                error_code = data.get("error")
-                permission = data.get("permission")
-                message = data.get("message")
+            if error_code == "PERMISSION_REQUIRED" and permission:
+                # Try to get permission from user
+                granted = await self._request_permission(permission)
                 
-                if error_code == "PERMISSION_REQUIRED" and permission:
-                    # Try to get permission from user
-                    granted = await self._request_permission(permission)
-                    
-                    if granted:
-                        # Retry the original request
-                        return await self._api_call(method, endpoint, **kwargs)
-                    else:
-                        raise PermissionDeniedError(permission, message)
-                
-                elif error_code == "PERMISSION_DENIED":
-                    raise PermissionDeniedError(permission, message)
-                
+                if granted:
+                    # Retry the original request
+                    return await self._api_call(method, endpoint, **kwargs)
                 else:
-                    raise Exception(data.get("error", "Permission denied"))
+                    raise PermissionDeniedError(permission, message)
             
-            if not response.is_success:
-                raise Exception(data.get("error", f"API call failed: {response.status_code}"))
+            elif error_code == "PERMISSION_DENIED":
+                raise PermissionDeniedError(permission, message)
             
-            return data
+            else:
+                raise Exception(data.get("error", "Permission denied"))
+        
+        if not response.is_success:
+            raise Exception(data.get("error", f"API call failed: {response.status_code}"))
+        
+        return data
     
     async def get_agents(self) -> List[Dict[str, Any]]:
         """Get available agents."""

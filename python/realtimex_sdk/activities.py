@@ -14,38 +14,26 @@ from .api import PermissionDeniedError, PermissionRequiredError
 class ActivitiesModule:
     """CRUD operations for activities via RealtimeX Main App proxy."""
 
-    def __init__(self, realtimex_url: str, app_id: str, app_name: str = None, api_key: str = None):
-        self.base_url = realtimex_url.rstrip("/")
+    def __init__(self, client: httpx.AsyncClient, app_id: str, app_name: str = None, api_key: str = None):
+        self.client = client
         self.app_id = app_id
         self.app_name = app_name or os.environ.get("RTX_APP_NAME", "Local App")
-        self.api_key = api_key
-
-    def _get_headers(self) -> Dict[str, str]:
-        if self.api_key:
-            return {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.api_key}",
-            }
-        headers = {"Content-Type": "application/json"}
-        if self.app_id:
-            headers["x-app-id"] = self.app_id
-        return headers
+        # api_key is handled by the shared client headers
 
     async def _request_permission(self, permission: str) -> bool:
         """Request a single permission from Electron via internal API."""
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    f"{self.base_url}/api/local-apps/request-permission",
-                    json={
-                        "app_id": self.app_id,
-                        "app_name": self.app_name,
-                        "permission": permission,
-                    },
-                    timeout=60.0  # Long timeout for user interaction
-                )
-                data = response.json()
-                return data.get("granted", False)
+            response = await self.client.post(
+                "/api/local-apps/request-permission",
+                json={
+                    "app_id": self.app_id,
+                    "app_name": self.app_name,
+                    "permission": permission,
+                },
+                timeout=60.0  # Long timeout for user interaction
+            )
+            data = response.json()
+            return data.get("granted", False)
         except Exception as e:
             print(f"[SDK] Permission request failed: {e}")
             return False
@@ -77,52 +65,44 @@ class ActivitiesModule:
     async def insert(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
         """Insert a new activity."""
         async def do_request():
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    f"{self.base_url}/activities",
-                    headers=self._get_headers(),
-                    json={"raw_data": raw_data},
-                )
-                data = await self._handle_response(response, do_request)
-                return data.get("data", data)
+            response = await self.client.post(
+                "/activities",
+                json={"raw_data": raw_data},
+            )
+            data = await self._handle_response(response, do_request)
+            return data.get("data", data)
         return await do_request()
 
     async def update(self, id: str, updates: Dict[str, Any]) -> Dict[str, Any]:
         """Update an existing activity."""
         async def do_request():
-            async with httpx.AsyncClient() as client:
-                response = await client.patch(
-                    f"{self.base_url}/activities/{id}",
-                    headers=self._get_headers(),
-                    json=updates,
-                )
-                data = await self._handle_response(response, do_request)
-                return data.get("data", data)
+            response = await self.client.patch(
+                f"/activities/{id}",
+                json=updates,
+            )
+            data = await self._handle_response(response, do_request)
+            return data.get("data", data)
         return await do_request()
 
     async def delete(self, id: str) -> None:
         """Delete an activity."""
         async def do_request():
-            async with httpx.AsyncClient() as client:
-                response = await client.delete(
-                    f"{self.base_url}/activities/{id}",
-                    headers=self._get_headers(),
-                )
-                await self._handle_response(response, do_request)
+            response = await self.client.delete(
+                f"/activities/{id}",
+            )
+            await self._handle_response(response, do_request)
         await do_request()
 
     async def get(self, id: str) -> Optional[Dict[str, Any]]:
         """Get an activity by ID."""
         async def do_request():
-            async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    f"{self.base_url}/activities/{id}",
-                    headers=self._get_headers(),
-                )
-                if response.status_code == 404:
-                    return None
-                data = await self._handle_response(response, do_request)
-                return data.get("data", data)
+            response = await self.client.get(
+                f"/activities/{id}",
+            )
+            if response.status_code == 404:
+                return None
+            data = await self._handle_response(response, do_request)
+            return data.get("data", data)
         return await do_request()
 
     async def list(
@@ -137,12 +117,10 @@ class ActivitiesModule:
             params["status"] = status
 
         async def do_request():
-            async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    f"{self.base_url}/activities",
-                    headers=self._get_headers(),
-                    params=params,
-                )
-                data = await self._handle_response(response, do_request)
-                return data.get("data", [])
+            response = await self.client.get(
+                "/activities",
+                params=params,
+            )
+            data = await self._handle_response(response, do_request)
+            return data.get("data", [])
         return await do_request()

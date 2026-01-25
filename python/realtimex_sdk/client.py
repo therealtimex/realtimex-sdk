@@ -6,6 +6,7 @@ All operations go through RealtimeX Main App proxy.
 """
 
 import os
+import httpx
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -34,12 +35,13 @@ class RealtimeXSDK:
     
     Example:
         # Production mode: Auto-detect from environment
-        sdk = RealtimeXSDK()
+        async with RealtimeXSDK() as sdk:
+            await sdk.activities.list()
         
         # Development mode: Use API key
-        sdk = RealtimeXSDK(config=SDKConfig(
-            api_key="sk-abc123..."
-        ))
+        sdk = RealtimeXSDK(config=SDKConfig(api_key="sk-..."))
+        await sdk.activities.list()
+        await sdk.aclose()
     """
     
     DEFAULT_REALTIMEX_URL = "http://localhost:3001"
@@ -70,13 +72,26 @@ class RealtimeXSDK:
         self.realtimex_url = realtimex_url
         self.permissions = config.permissions if config else []
         
-        # Initialize modules
-        self.activities = ActivitiesModule(realtimex_url, app_id, app_name, api_key)
-        self.webhook = WebhookModule(realtimex_url, app_name, app_id, api_key)
-        self.api = ApiModule(realtimex_url, app_id, app_name, api_key)
-        self.task = TaskModule(realtimex_url, app_name, app_id, api_key)
+        # Initialize shared HTTP client
+        headers = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+        elif self.app_id:
+            headers["x-app-id"] = self.app_id
+
+        self.client = httpx.AsyncClient(
+            base_url=self.realtimex_url.rstrip("/"),
+            headers=headers,
+            timeout=60.0
+        )
+        
+        # Initialize modules with shared client
+        self.activities = ActivitiesModule(self.client, self.app_id, self.app_name)
+        self.webhook = WebhookModule(self.client, self.app_name, self.app_id)
+        self.api = ApiModule(self.client, self.app_id, self.app_name)
+        self.task = TaskModule(self.client, self.app_name, self.app_id)
         self.port = PortModule(default_port)
-        self.llm = LLMModule(realtimex_url, app_id, app_name, api_key)
+        self.llm = LLMModule(self.client, self.app_id, self.app_name)
 
         # Auto-register with declared permissions (only for production mode)
         if self.permissions and self.app_id and not self.api_key:
@@ -97,24 +112,22 @@ class RealtimeXSDK:
             return
             
         try:
-            import httpx
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    f"{self.realtimex_url.rstrip('/')}/sdk/register",
-                    json={
-                        "app_id": self.app_id,
-                        "app_name": self.app_name,
-                        "permissions": self.permissions,
-                    },
-                    timeout=60.0  # Long timeout for user interaction
-                )
+            response = await self.client.post(
+                "/sdk/register",
+                json={
+                    "app_id": self.app_id,
+                    "app_name": self.app_name,
+                    "permissions": self.permissions,
+                },
+                timeout=60.0  # Long timeout for user interaction
+            )
+            
+            data = response.json()
+            if not response.is_success:
+                print(f"[RealtimeX SDK] Registration failed: {data.get('error')}")
+                return
                 
-                data = response.json()
-                if not response.is_success:
-                    print(f"[RealtimeX SDK] Registration failed: {data.get('error')}")
-                    return
-                    
-                print(f"[RealtimeX SDK] App registered successfully ({data.get('message')})")
+            print(f"[RealtimeX SDK] App registered successfully ({data.get('message')})")
         except Exception as e:
             print(f"[RealtimeX SDK] Auto-registration error: {e}")
 
@@ -127,27 +140,28 @@ class RealtimeXSDK:
             dict with success, mode, appId, and timestamp
         """
         try:
-            import httpx
-            headers = {"Content-Type": "application/json"}
-            if self.api_key:
-                headers["Authorization"] = f"Bearer {self.api_key}"
-            elif self.app_id:
-                headers["x-app-id"] = self.app_id
+            response = await self.client.get(
+                "/sdk/ping",
+                timeout=10.0
+            )
+            
+            data = response.json()
+            if not response.is_success:
+                raise Exception(data.get("error", "Ping failed"))
                 
-            async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    f"{self.realtimex_url.rstrip('/')}/sdk/ping",
-                    headers=headers,
-                    timeout=10.0
-                )
-                
-                data = response.json()
-                if not response.is_success:
-                    raise Exception(data.get("error", "Ping failed"))
-                    
-                return data
+            return data
         except Exception as e:
             raise Exception(f"Connection failed: {e}")
+
+    async def aclose(self):
+        """Close the underlying HTTP client."""
+        await self.client.aclose()
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.aclose()
 
     def ping_sync(self) -> dict:
         """

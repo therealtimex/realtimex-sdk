@@ -177,69 +177,48 @@ class VectorStore:
         ], workspace_id="ws-123")
     """
     
-    def __init__(self, base_url: str, app_id: str, app_name: str = "Local App", api_key: Optional[str] = None):
-        self._base_url = base_url.rstrip("/")
+    def __init__(self, client: httpx.AsyncClient, app_id: str, app_name: str = "Local App"):
+        self.client = client
         self._app_id = app_id
         self._app_name = app_name
-        self._api_key = api_key
-    
-    @property
-    def _headers(self) -> Dict[str, str]:
-        # Dev mode: use API key with Bearer auth
-        if self._api_key:
-            return {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self._api_key}",
-            }
-        # Production mode: use x-app-id
-        return {
-            "Content-Type": "application/json",
-            "x-app-id": self._app_id,
-        }
     
     async def _request_permission(self, permission: str) -> bool:
         """Request a single permission from Electron via internal API."""
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    f"{self._base_url}/api/local-apps/request-permission",
-                    json={
-                        "app_id": self._app_id,
-                        "app_name": self._app_name,
-                        "permission": permission,
-                    },
-                    timeout=60.0 # Long timeout for user interaction
-                )
-                data = response.json()
-                return data.get("granted", False)
+            response = await self.client.post(
+                "/api/local-apps/request-permission",
+                json={
+                    "app_id": self._app_id,
+                    "app_name": self._app_name,
+                    "permission": permission,
+                },
+                timeout=60.0 # Long timeout for user interaction
+            )
+            data = response.json()
+            return data.get("granted", False)
         except Exception as e:
             print(f"[SDK] Permission request failed: {e}")
             return False
 
     async def _request(self, method: str, endpoint: str, **kwargs) -> Dict[str, Any]:
         """Internal request wrapper that handles automatic permission prompts."""
-        if httpx is None:
-            raise ImportError("httpx is required for async operations")
+        response = await self.client.request(method, endpoint, **kwargs)
+        data = response.json()
 
-        async with httpx.AsyncClient() as client:
-            url = f"{self._base_url}{endpoint}"
-            response = await client.request(method, url, headers=self._headers, **kwargs)
-            data = response.json()
+        if data.get("code") == "PERMISSION_REQUIRED":
+            permission = data.get("permission", "vectors.read")
+            granted = await self._request_permission(permission)
+            if granted:
+                return await self._request(method, endpoint, **kwargs)
+            raise PermissionDeniedError(permission)
 
-            if data.get("code") == "PERMISSION_REQUIRED":
-                permission = data.get("permission", "vectors.read")
-                granted = await self._request_permission(permission)
-                if granted:
-                    return await self._request(method, endpoint, **kwargs)
-                raise PermissionDeniedError(permission)
-
-            if not data.get("success", False) and data.get("error"):
-                if data.get("code") == "LLM_ERROR":
-                    raise LLMProviderError(data.get("error"))
-                if data.get("code") == "PROVIDER_UNAVAILABLE":
-                    raise LLMProviderError(data.get("error", "Provider not available"))
-            
-            return data
+        if not data.get("success", False) and data.get("error"):
+            if data.get("code") == "LLM_ERROR":
+                raise LLMProviderError(data.get("error"))
+            if data.get("code") == "PROVIDER_UNAVAILABLE":
+                raise LLMProviderError(data.get("error", "Provider not available"))
+        
+        return data
     
     async def upsert(
         self,
@@ -256,9 +235,6 @@ class VectorStore:
         Returns:
             VectorUpsertResponse with upserted count
         """
-        if httpx is None:
-            raise ImportError("httpx is required for async operations")
-        
         payload = {
             "vectors": [
                 {
@@ -305,9 +281,6 @@ class VectorStore:
         Returns:
             VectorQueryResponse with results
         """
-        if httpx is None:
-            raise ImportError("httpx is required for async operations")
-        
         payload = {
             "vector": vector,
             "topK": top_k,
@@ -415,70 +388,49 @@ class LLMModule:
         print(result.embeddings[0])
     """
     
-    def __init__(self, base_url: str, app_id: str, app_name: str = "Local App", api_key: Optional[str] = None):
-        self._base_url = base_url.rstrip("/")
+    def __init__(self, client: httpx.AsyncClient, app_id: str, app_name: str = "Local App"):
+        self.client = client
         self._app_id = app_id
         self._app_name = app_name
-        self._api_key = api_key
-        self.vectors = VectorStore(base_url, app_id, app_name, api_key)
-    
-    @property
-    def _headers(self) -> Dict[str, str]:
-        # Dev mode: use API key with Bearer auth
-        if self._api_key:
-            return {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self._api_key}",
-            }
-        # Production mode: use x-app-id
-        return {
-            "Content-Type": "application/json",
-            "x-app-id": self._app_id,
-        }
+        self.vectors = VectorStore(client, app_id, app_name)
     
     async def _request_permission(self, permission: str) -> bool:
         """Request a single permission from Electron via internal API."""
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    f"{self._base_url}/api/local-apps/request-permission",
-                    json={
-                        "app_id": self._app_id,
-                        "app_name": self._app_name,
-                        "permission": permission,
-                    },
-                    timeout=60.0 # Long timeout for user interaction
-                )
-                data = response.json()
-                return data.get("granted", False)
+            response = await self.client.post(
+                "/api/local-apps/request-permission",
+                json={
+                    "app_id": self._app_id,
+                    "app_name": self._app_name,
+                    "permission": permission,
+                },
+                timeout=60.0 # Long timeout for user interaction
+            )
+            data = response.json()
+            return data.get("granted", False)
         except Exception as e:
             print(f"[SDK] Permission request failed: {e}")
             return False
 
     async def _request(self, method: str, endpoint: str, **kwargs) -> Dict[str, Any]:
         """Internal request wrapper that handles automatic permission prompts."""
-        if httpx is None:
-            raise ImportError("httpx is required for async operations")
+        response = await self.client.request(method, endpoint, **kwargs)
+        data = response.json()
 
-        async with httpx.AsyncClient() as client:
-            url = f"{self._base_url}{endpoint}"
-            response = await client.request(method, url, headers=self._headers, **kwargs)
-            data = response.json()
+        if data.get("code") == "PERMISSION_REQUIRED":
+            permission = data.get("permission", "llm.chat")
+            granted = await self._request_permission(permission)
+            if granted:
+                return await self._request(method, endpoint, **kwargs)
+            raise PermissionDeniedError(permission)
 
-            if data.get("code") == "PERMISSION_REQUIRED":
-                permission = data.get("permission", "llm.chat")
-                granted = await self._request_permission(permission)
-                if granted:
-                    return await self._request(method, endpoint, **kwargs)
-                raise PermissionDeniedError(permission)
-
-            if not data.get("success", False) and data.get("error"):
-                if data.get("code") == "LLM_ERROR":
-                    raise LLMProviderError(data.get("error"))
-                if data.get("code") == "PROVIDER_UNAVAILABLE":
-                    raise LLMProviderError(data.get("error", "Provider not available"))
-            
-            return data
+        if not data.get("success", False) and data.get("error"):
+            if data.get("code") == "LLM_ERROR":
+                raise LLMProviderError(data.get("error"))
+            if data.get("code") == "PROVIDER_UNAVAILABLE":
+                raise LLMProviderError(data.get("error", "Provider not available"))
+        
+        return data
     
 
 
@@ -595,8 +547,6 @@ class LLMModule:
         Yields:
             StreamChunk objects with text content
         """
-        if httpx is None:
-            raise ImportError("httpx is required for async operations")
         
         opts = options or ChatOptions()
         
@@ -608,73 +558,72 @@ class LLMModule:
             "max_tokens": opts.max_tokens,
         }
         
-        async with httpx.AsyncClient() as client:
-            async with client.stream(
-                "POST",
-                f"{self._base_url}/sdk/llm/chat/stream",
-                headers={**self._headers, "Accept": "text/event-stream"},
-                json=payload,
-                timeout=120.0
-            ) as response:
-                if response.status_code != 200:
-                    data = await response.aread()
-                    try:
-                        error_data = json.loads(data)
-                        if error_data.get("code") == "PERMISSION_REQUIRED":
-                            permission = error_data.get("permission", "llm.chat")
-                            granted = await self._request_permission(permission)
-                            if granted:
-                                async for chunk in self.chat_stream(messages, options):
-                                    yield chunk
-                                return
-                            raise PermissionDeniedError(permission)
-                        raise LLMProviderError(error_data.get("error", "Stream request failed"))
-                    except json.JSONDecodeError:
-                        raise LLMProviderError(f"Stream failed: {data.decode()}")
+        async with self.client.stream(
+            "POST",
+            "/sdk/llm/chat/stream",
+            headers={"Accept": "text/event-stream"},
+            json=payload,
+            timeout=120.0
+        ) as response:
+            if response.status_code != 200:
+                data = await response.aread()
+                try:
+                    error_data = json.loads(data)
+                    if error_data.get("code") == "PERMISSION_REQUIRED":
+                        permission = error_data.get("permission", "llm.chat")
+                        granted = await self._request_permission(permission)
+                        if granted:
+                            async for chunk in self.chat_stream(messages, options):
+                                yield chunk
+                            return
+                        raise PermissionDeniedError(permission)
+                    raise LLMProviderError(error_data.get("error", "Stream request failed"))
+                except json.JSONDecodeError:
+                    raise LLMProviderError(f"Stream failed: {data.decode()}")
+            
+            buffer = ""
+            is_error_event = False
+            async for chunk in response.aiter_text():
+                buffer += chunk
+                lines = buffer.split("\n")
+                buffer = lines.pop()
                 
-                buffer = ""
-                is_error_event = False
-                async for chunk in response.aiter_text():
-                    buffer += chunk
-                    lines = buffer.split("\n")
-                    buffer = lines.pop()
+                for line in lines:
+                    trimmed_line = line.strip()
+                    if not trimmed_line or trimmed_line.startswith(":"):
+                        continue
                     
-                    for line in lines:
-                        trimmed_line = line.strip()
-                        if not trimmed_line or trimmed_line.startswith(":"):
+                    if trimmed_line.startswith("event: error"):
+                        is_error_event = True
+                        continue
+                    
+                    if trimmed_line.startswith("data: "):
+                        json_str = trimmed_line[6:]
+                        if json_str == "[DONE]":
+                            is_error_event = False
                             continue
                         
-                        if trimmed_line.startswith("event: error"):
-                            is_error_event = True
-                            continue
-                        
-                        if trimmed_line.startswith("data: "):
-                            json_str = trimmed_line[6:]
-                            if json_str == "[DONE]":
-                                is_error_event = False
-                                continue
+                        try:
+                            data = json.loads(json_str)
                             
-                            try:
-                                data = json.loads(json_str)
-                                
-                                if is_error_event:
-                                    is_error_event = False
-                                    raise LLMProviderError(
-                                        data.get("error", "Stream error"),
-                                        code=data.get("code", "LLM_STREAM_ERROR")
-                                    )
-                                
-                                yield StreamChunk(
-                                    text=data.get("textResponse", ""),
-                                    uuid=data.get("uuid"),
-                                    close=data.get("close", False),
-                                    error=data.get("error", False)
+                            if is_error_event:
+                                is_error_event = False
+                                raise LLMProviderError(
+                                    data.get("error", "Stream error"),
+                                    code=data.get("code", "LLM_STREAM_ERROR")
                                 )
-                            except json.JSONDecodeError:
-                                is_error_event = False
-                            except LLMProviderError:
-                                is_error_event = False
-                                raise
+                            
+                            yield StreamChunk(
+                                text=data.get("textResponse", ""),
+                                uuid=data.get("uuid"),
+                                close=data.get("close", False),
+                                error=data.get("error", False)
+                            )
+                        except json.JSONDecodeError:
+                            is_error_event = False
+                        except LLMProviderError:
+                            is_error_event = False
+                            raise
     
     async def embed(
         self,

@@ -9,31 +9,28 @@ class WebhookModule:
 
     def __init__(
         self,
-        realtimex_url: str,
+        client: httpx.AsyncClient,
         app_name: Optional[str] = None,
         app_id: Optional[str] = None,
-        api_key: Optional[str] = None,
     ):
-        self.realtimex_url = realtimex_url.rstrip("/")
+        self.client = client
         self.app_name = app_name or os.environ.get("RTX_APP_NAME", "Local App")
         self.app_id = app_id
-        self.api_key = api_key
 
     async def _request_permission(self, permission: str) -> bool:
         """Request a single permission from Electron via internal API."""
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    f"{self.realtimex_url}/api/local-apps/request-permission",
-                    json={
-                        "app_id": self.app_id,
-                        "app_name": self.app_name,
-                        "permission": permission,
-                    },
-                    timeout=60.0  # Long timeout for user interaction
-                )
-                data = response.json()
-                return data.get("granted", False)
+            response = await self.client.post(
+                "/api/local-apps/request-permission",
+                json={
+                    "app_id": self.app_id,
+                    "app_name": self.app_name,
+                    "permission": permission,
+                },
+                timeout=60.0  # Long timeout for user interaction
+            )
+            data = response.json()
+            return data.get("granted", False)
         except Exception as e:
             print(f"[SDK] Permission request failed: {e}")
             return False
@@ -79,46 +76,37 @@ class WebhookModule:
                 )
 
         async def do_request():
-            headers = {"Content-Type": "application/json"}
-            if self.api_key:
-                headers["Authorization"] = f"Bearer {self.api_key}"
-            elif self.app_id:
-                headers["x-app-id"] = self.app_id
-                
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    f"{self.realtimex_url}/webhooks/realtimex",
-                    headers=headers,
-                    json={
-                        "app_name": self.app_name,
-                        "app_id": self.app_id,
-                        "event": "trigger-agent",
-                        "payload": {
-                            "raw_data": raw_data,
-                            "auto_run": auto_run,
-                            "agent_name": agent_name,
-                            "workspace_slug": workspace_slug,
-                            "thread_slug": thread_slug,
-                            "prompt": prompt,
-                        },
+            response = await self.client.post(
+                "/webhooks/realtimex",
+                json={
+                    "app_name": self.app_name,
+                    "app_id": self.app_id,
+                    "event": "trigger-agent",
+                    "payload": {
+                        "raw_data": raw_data,
+                        "auto_run": auto_run,
+                        "agent_name": agent_name,
+                        "workspace_slug": workspace_slug,
+                        "thread_slug": thread_slug,
+                        "prompt": prompt,
                     },
-                )
-                return await self._handle_response(response, do_request)
+                },
+            )
+            return await self._handle_response(response, do_request)
 
         return await do_request()
 
     async def ping(self) -> Dict[str, Any]:
         """Ping webhook to check connection."""
         async def do_request():
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    f"{self.realtimex_url}/webhooks/realtimex",
-                    json={
-                        "app_name": self.app_name,
-                        "app_id": self.app_id,
-                        "event": "ping",
-                    },
-                )
-                return await self._handle_response(response, do_request)
+            response = await self.client.post(
+                "/webhooks/realtimex",
+                json={
+                    "app_name": self.app_name,
+                    "app_id": self.app_id,
+                    "event": "ping",
+                },
+            )
+            return await self._handle_response(response, do_request)
 
         return await do_request()
