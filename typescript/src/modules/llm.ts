@@ -155,6 +155,41 @@ export interface VectorListWorkspacesResponse {
     workspaces?: string[];
     error?: string;
     code?: string;
+    error_message?: string;
+}
+
+export interface VectorRegisterResponse {
+    success: boolean;
+    message?: string;
+    error?: string;
+    code?: string;
+}
+
+export interface VectorConfigResponse {
+    success: boolean;
+    provider?: string;
+    config?: Record<string, any>;
+    error?: string;
+    code?: string;
+}
+
+export interface VectorProviderField {
+    name: string;
+    label: string;
+    type: 'string' | 'password';
+    placeholder?: string;
+}
+
+export interface VectorProviderMetadata {
+    name: string;
+    label: string;
+    description?: string;
+    fields: VectorProviderField[];
+}
+
+export interface VectorProvidersResponse {
+    success: boolean;
+    providers: VectorProviderMetadata[];
 }
 
 // === Errors ===
@@ -320,6 +355,41 @@ export class VectorStore {
      */
     async listWorkspaces(): Promise<VectorListWorkspacesResponse> {
         return this.request<VectorListWorkspacesResponse>('GET', '/sdk/llm/vectors/workspaces');
+    }
+
+    /**
+     * Register a custom vector database configuration for this app
+     * 
+     * @example
+     * ```ts
+     * await sdk.llm.vectors.registerConfig('lancedb', { });
+     * ```
+     */
+    async registerConfig(provider: string, config: Record<string, any>): Promise<VectorRegisterResponse> {
+        return this.request<VectorRegisterResponse>('POST', '/sdk/llm/vectors/register', {
+            provider,
+            config,
+        });
+    }
+
+    /**
+     * List all supported vector database providers and their configuration requirements
+     */
+    async listProviders(): Promise<VectorProvidersResponse> {
+        return this.request<VectorProvidersResponse>('GET', '/sdk/llm/vectors/providers');
+    }
+
+    /**
+     * Get the current vector database configuration for this app
+     * 
+     * @example
+     * ```ts
+     * const { provider, config } = await sdk.llm.vectors.getConfig();
+     * console.log(`App is using ${provider}`);
+     * ```
+     */
+    async getConfig(): Promise<VectorConfigResponse> {
+        return this.request<VectorConfigResponse>('GET', '/sdk/llm/vectors/config');
     }
 }
 

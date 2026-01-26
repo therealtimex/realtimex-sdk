@@ -169,6 +169,44 @@ class RealtimeXSDK:
         import asyncio
         return asyncio.run(self.ping())
 
+    async def get_app_data_dir(self) -> str:
+        """
+        Get the absolute path to the data directory for this app.
+        Path: ~/.realtimex.ai/Resources/local-apps/{appId}
+        
+        Returns:
+            str: Absolute path to the app's data directory
+        """
+        try:
+            import httpx
+            headers = {"Content-Type": "application/json"}
+            if self.api_key:
+                headers["Authorization"] = f"Bearer {self.api_key}"
+            elif self.app_id:
+                headers["x-app-id"] = self.app_id
+                
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"{self.realtimex_url.rstrip('/')}/sdk/local-apps/data-dir",
+                    headers=headers,
+                    timeout=10.0
+                )
+                
+                data = response.json()
+                if not response.is_success:
+                    raise Exception(data.get("error", "Failed to get data directory"))
+                    
+                return data.get("dataDir")
+        except Exception as e:
+            raise Exception(f"Failed to get app data directory: {e}")
+
+    def get_app_data_dir_sync(self) -> str:
+        """
+        Synchronous version of get_app_data_dir() for non-async contexts.
+        """
+        import asyncio
+        return asyncio.run(self.get_app_data_dir())
+
 
 # Keep old class names for backward compatibility
 SupabaseConfig = None  # Deprecated - no longer needed

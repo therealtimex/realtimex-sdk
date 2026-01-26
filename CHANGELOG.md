@@ -4,6 +4,26 @@ All notable changes to the RealtimeX SDK will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+ 
+## [1.1.4] - 2026-01-26
+ 
+### Added
+- **App Data Directory Discovery**: New `sdk.getAppDataDir()` (TS) and `sdk.get_app_data_dir()` (Python) methods to retrieve the absolute path to the app's persistent storage.
+- **Custom Vector Storage support**: 
+  - `sdk.llm.vectors.listProviders()`: Discover supported vector database engines and their configuration requirements.
+  - `sdk.llm.vectors.registerConfig()`: Register a custom production-grade vector database (PGVector, Chroma, AstraDB, etc.).
+  - `sdk.llm.vectors.getConfig()`: Programmatically retrieve the current active storage configuration.
+- **Automatic Connection Validation**: The system now verifies connectivity before saving custom vector database configurations.
+- **Improved Dev Isolation**: In Development Mode, configurations and storage are now isolated by API Key to prevent data collision when multiple apps share the same local server.
+ 
+### Changed
+- **PGVector Isolated Tables**: Each app now uses an isolated table name within the configured PostgreSQL database.
+- **LanceDB Auto-Management**: Default LanceDB storage is now isolated per App ID at `./storage/lancedb-custom/{appId}`.
+- **Documentation**: New sections added for "App Data Directory" and "Custom Vector Storage" in both Developer Guide and API Reference.
+ 
+### Fixed
+- Fixed identity collision in Development Mode by using masked API Key for state derivation.
+- Standardized vector provider initialization to support the Factory pattern for better per-app isolation.
 
 ## [1.1.0] - 2026-01-22
 

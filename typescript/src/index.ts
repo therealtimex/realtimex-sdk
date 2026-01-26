@@ -131,6 +131,35 @@ export class RealtimeXSDK {
             throw new Error(`Connection failed: ${error.message}`);
         }
     }
+
+    /**
+     * Get the absolute path to the data directory for this app.
+     * Path: ~/.realtimex.ai/Resources/local-apps/{appId}
+     */
+    public async getAppDataDir(): Promise<string> {
+        try {
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (this.apiKey) {
+                headers['Authorization'] = `Bearer ${this.apiKey}`;
+            } else if (this.appId) {
+                headers['x-app-id'] = this.appId;
+            }
+
+            const response = await fetch(`${this.realtimexUrl.replace(/\/$/, '')}/sdk/local-apps/data-dir`, {
+                method: 'GET',
+                headers,
+            });
+
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to get data directory');
+            }
+
+            return data.dataDir;
+        } catch (error: any) {
+            throw new Error(`Failed to get app data directory: ${error.message}`);
+        }
+    }
 }
 
 // Re-export types

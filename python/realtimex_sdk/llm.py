@@ -164,6 +164,42 @@ class VectorListWorkspacesResponse:
     error: Optional[str] = None
     code: Optional[str] = None
 
+@dataclass
+class VectorRegisterResponse:
+    success: bool
+    message: Optional[str] = None
+    error: Optional[str] = None
+    code: Optional[str] = None
+
+@dataclass
+class VectorConfigResponse:
+    success: bool
+    provider: Optional[str] = None
+    config: Optional[Dict[str, Any]] = None
+    error: Optional[str] = None
+    code: Optional[str] = None
+
+@dataclass
+class VectorProviderField:
+    name: str
+    label: str
+    type: str # 'string' | 'password'
+    placeholder: Optional[str] = None
+
+@dataclass
+class VectorProviderMetadata:
+    name: str
+    label: str
+    fields: List[VectorProviderField] = field(default_factory=list)
+    description: Optional[str] = None
+
+@dataclass
+class VectorProvidersResponse:
+    success: bool
+    providers: List[VectorProviderMetadata] = field(default_factory=list)
+    error: Optional[str] = None
+    code: Optional[str] = None
+
 
 # === Vector Store Sub-module ===
 
@@ -388,6 +424,87 @@ class VectorStore:
         return VectorListWorkspacesResponse(
             success=data.get("success", False),
             workspaces=data.get("workspaces", []),
+            error=data.get("error"),
+            code=data.get("code")
+        )
+
+    async def register_config(self, provider: str, config: Dict[str, Any]) -> VectorRegisterResponse:
+        """
+        Register a custom vector database configuration for this app.
+        
+        Args:
+            provider: Vector database provider name (e.g., 'lancedb')
+            config: Configuration dictionary (e.g., {'uri': './storage/custom_app'})
+            
+        Returns:
+            VectorRegisterResponse
+        """
+        data = await self._request(
+            "POST", 
+            "/sdk/llm/vectors/register",
+            json={
+                "provider": provider,
+                "config": config
+            },
+            timeout=30.0
+        )
+        
+        return VectorRegisterResponse(
+            success=data.get("success", False),
+            message=data.get("message"),
+            error=data.get("error"),
+            code=data.get("code")
+        )
+
+    async def list_providers(self) -> VectorProvidersResponse:
+        """
+        List all supported vector database providers and their configuration requirements.
+        
+        Returns:
+            VectorProvidersResponse
+        """
+        data = await self._request("GET", "/sdk/llm/vectors/providers", timeout=30.0)
+        
+        providers = []
+        for p in data.get("providers", []):
+            fields = [
+                VectorProviderField(
+                    name=f.get("name"),
+                    label=f.get("label"),
+                    type=f.get("type"),
+                    placeholder=f.get("placeholder")
+                )
+                for f in p.get("fields", [])
+            ]
+            providers.append(
+                VectorProviderMetadata(
+                    name=p.get("name"),
+                    label=p.get("label"),
+                    description=p.get("description"),
+                    fields=fields
+                )
+            )
+            
+        return VectorProvidersResponse(
+            success=data.get("success", False),
+            providers=providers,
+            error=data.get("error"),
+            code=data.get("code")
+        )
+
+    async def get_config(self) -> VectorConfigResponse:
+        """
+        Get the current vector database configuration for this app.
+        
+        Returns:
+            VectorConfigResponse with provider and config
+        """
+        data = await self._request("GET", "/sdk/llm/vectors/config", timeout=30.0)
+        
+        return VectorConfigResponse(
+            success=data.get("success", False),
+            provider=data.get("provider"),
+            config=data.get("config"),
             error=data.get("error"),
             code=data.get("code")
         )
