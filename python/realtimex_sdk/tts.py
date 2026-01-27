@@ -3,15 +3,12 @@ TTS Module for RealtimeX SDK (Python)
 
 Provides access to Text-to-Speech capabilities.
 """
-
-from typing import Optional, Dict, Any, AsyncIterator, Union
 import json
-from .api import PermissionDeniedError, PermissionRequiredError
+from typing import Any, AsyncIterator, Dict, List, Optional, Union
 
-try:
-    import httpx
-except ImportError:
-    httpx = None
+import httpx
+
+from .api import PermissionDeniedError
 
 
 class TTSModule:
