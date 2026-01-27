@@ -78,6 +78,11 @@ export class TTSModule {
             return response.body as unknown as T;
         }
 
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            return response.json() as unknown as T;
+        }
+
         return response.arrayBuffer() as unknown as T;
     }
 
