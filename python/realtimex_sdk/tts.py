@@ -1,0 +1,228 @@
+"""
+TTS Module for RealtimeX SDK (Python)
+
+Provides access to Text-to-Speech capabilities.
+"""
+
+from typing import Optional, Dict, Any, AsyncIterator, Union
+import json
+from .api import PermissionDeniedError, PermissionRequiredError
+
+try:
+    import httpx
+except ImportError:
+    httpx = None
+
+
+class TTSModule:
+    """
+    TTS operations for RealtimeX SDK.
+    
+    Example:
+        # Speak (Buffer)
+        audio_bytes = await sdk.tts.speak("Hello world")
+        
+        # Speak (Stream)
+        async for chunk in sdk.tts.speak_stream("Hello world"):
+            # process chunk
+            pass
+    """
+    
+    def __init__(self, base_url: str, app_id: str, app_name: str = "Local App", api_key: Optional[str] = None):
+        self._base_url = base_url.rstrip("/")
+        self._app_id = app_id
+        self._app_name = app_name
+        self._api_key = api_key
+    
+    @property
+    def _headers(self) -> Dict[str, str]:
+        # Dev mode: use API key with Bearer auth
+        if self._api_key:
+            return {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self._api_key}",
+            }
+        # Production mode: use x-app-id
+        return {
+            "Content-Type": "application/json",
+            "x-app-id": self._app_id,
+        }
+    
+    async def _request_permission(self, permission: str) -> bool:
+        """Request a single permission from Electron via internal API."""
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    f"{self._base_url}/api/local-apps/request-permission",
+                    json={
+                        "app_id": self._app_id,
+                        "app_name": self._app_name,
+                        "permission": permission,
+                    },
+                    timeout=60.0 # Long timeout for user interaction
+                )
+                data = response.json()
+                return data.get("granted", False)
+        except Exception as e:
+            print(f"[SDK] Permission request failed: {e}")
+            return False
+
+    async def _request(self, method: str, endpoint: str, **kwargs) -> Union[bytes, httpx.Response]:
+        """Internal request wrapper that handles automatic permission prompts."""
+        if httpx is None:
+            raise ImportError("httpx is required for async operations")
+
+        async with httpx.AsyncClient() as client:
+            url = f"{self._base_url}{endpoint}"
+            
+            # For streaming, we need to return the response object to iterate over it
+            stream = kwargs.pop('stream', False)
+            
+            if stream:
+                 # For streaming we can't use the simple wrapper logic easily because we need to yield
+                 # This is handled in speak_stream directly
+                 pass
+
+            response = await client.request(method, url, headers=self._headers, **kwargs)
+            
+            if response.status_code == 200:
+                return response.content
+
+            try:
+                data = response.json()
+                if data.get("code") == "PERMISSION_REQUIRED":
+                    permission = data.get("permission", "tts.speak")
+                    granted = await self._request_permission(permission)
+                    if granted:
+                        return await self._request(method, endpoint, **kwargs)
+                    raise PermissionDeniedError(permission)
+                
+                raise Exception(data.get("error", f"Request failed: {response.status_code}"))
+            except json.JSONDecodeError:
+                response.raise_for_status()
+                return response.content
+
+    async def speak(
+        self,
+        text: str,
+        voice: Optional[str] = None,
+        model: Optional[str] = None,
+        speed: Optional[float] = None,
+        provider: Optional[str] = None
+    ) -> bytes:
+        """
+        Generate speech from text (returns full audio bytes).
+        
+        Args:
+            text: Text to speak
+            voice: Optional voice ID
+            model: Optional model ID
+            speed: Optional speed multiplier
+            provider: Optional provider ID
+            
+        Returns:
+            bytes: Audio data
+        """
+        payload = {
+            "text": text,
+            "voice": voice,
+            "model": model,
+            "speed": speed,
+            "provider": provider
+        }
+        # Filter None values
+        payload = {k: v for k, v in payload.items() if v is not None}
+        
+        return await self._request("POST", "/sdk/tts", json=payload, timeout=60.0)
+
+    async def speak_stream(
+        self,
+        text: str,
+        voice: Optional[str] = None,
+        model: Optional[str] = None,
+        speed: Optional[float] = None,
+        provider: Optional[str] = None
+    ) -> AsyncIterator[bytes]:
+        """
+        Generate speech from text (yields audio chunks).
+        
+        Args:
+            text: Text to speak
+            voice: Optional voice ID
+            model: Optional model ID
+            speed: Optional speed multiplier
+            provider: Optional provider ID
+            
+        Yields:
+            bytes: Audio chunks
+        """
+        if httpx is None:
+            raise ImportError("httpx is required for async operations")
+            
+        payload = {
+            "text": text,
+            "voice": voice,
+            "model": model,
+            "speed": speed,
+            "provider": provider
+        }
+        payload = {k: v for k, v in payload.items() if v is not None}
+        
+        async with httpx.AsyncClient() as client:
+            async with client.stream(
+                "POST", 
+                f"{self._base_url}/sdk/tts/stream", 
+                headers=self._headers, 
+                json=payload,
+                timeout=60.0
+            ) as response:
+                
+                if response.status_code != 200:
+                    # Handle errors (including permissions)
+                    content = await response.aread()
+                    try:
+                        data = json.loads(content)
+                        if data.get("code") == "PERMISSION_REQUIRED":
+                            permission = data.get("permission", "tts.speak")
+                            granted = await self._request_permission(permission)
+                            if granted:
+                                async for chunk in self.speak_stream(text, voice, model, speed):
+                                    yield chunk
+                                return
+                            raise PermissionDeniedError(permission)
+                        raise Exception(data.get("error", f"Stream failed: {response.status_code}"))
+                    except json.JSONDecodeError:
+                        response.raise_for_status()
+                
+                async for chunk in response.aiter_bytes():
+                    yield chunk
+
+    async def list_providers(self) -> List[Dict[str, Any]]:
+        """
+        List available TTS providers.
+        
+        Returns:
+            List[Dict]: List of provider objects
+        """
+        if httpx is None:
+            raise ImportError("httpx is required for async operations")
+            
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{self._base_url}/sdk/tts/providers",
+                headers=self._headers,
+                timeout=10.0
+            )
+            
+            if response.status_code != 200:
+                data = response.json()
+                if data.get("code") == "PERMISSION_REQUIRED":
+                    permission = data.get("permission", "tts.speak")
+                    granted = await self._request_permission(permission)
+                    if granted:
+                        return await self.list_providers()
+                    raise PermissionDeniedError(permission)
+                raise Exception(data.get("error", f"Request failed: {response.status_code}"))
+                
+            data = response.json()
+            return data.get("providers", [])

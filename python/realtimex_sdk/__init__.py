@@ -10,6 +10,7 @@ from .webhook import WebhookModule
 from .api import ApiModule, PermissionDeniedError, PermissionRequiredError
 from .task import TaskModule
 from .port import PortModule
+from .tts import TTSModule
 from .llm import (
     LLMModule,
     VectorStore,
@@ -41,6 +42,7 @@ __all__ = [
     "ApiModule",
     "TaskModule",
     "PortModule",
+    "TTSModule",
     "PermissionDeniedError",
     "PermissionRequiredError",
     # LLM Module
