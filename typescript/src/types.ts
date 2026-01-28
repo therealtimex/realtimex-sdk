@@ -88,3 +88,24 @@ export interface Task {
     updated_at: string;
     runs: TaskRun[];
 }
+
+export interface TTSOptions {
+    voice?: string;
+    model?: string;
+    speed?: number;
+    provider?: string;
+}
+
+export interface TTSProvider {
+    id: string;
+    name: string;
+    type: 'remote' | 'local';
+    voices: string[];
+}
+
+export interface TTSProvidersResponse {
+    success: boolean;
+    providers: TTSProvider[];
+    default: string;
+    error?: string;
+}

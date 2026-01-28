@@ -15,6 +15,7 @@ from .api import ApiModule
 from .task import TaskModule
 from .port import PortModule
 from .llm import LLMModule
+from .tts import TTSModule
 
 
 @dataclass
@@ -77,6 +78,7 @@ class RealtimeXSDK:
         self.task = TaskModule(realtimex_url, app_name, app_id, api_key)
         self.port = PortModule(default_port)
         self.llm = LLMModule(realtimex_url, app_id, app_name, api_key)
+        self.tts = TTSModule(realtimex_url, app_id, app_name, api_key)
 
         # Auto-register with declared permissions (only for production mode)
         if self.permissions and self.app_id and not self.api_key:

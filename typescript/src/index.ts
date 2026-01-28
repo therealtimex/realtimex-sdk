@@ -12,6 +12,7 @@ import { ApiModule } from './modules/api';
 import { TaskModule } from './modules/task';
 import { PortModule } from './modules/port';
 import { LLMModule } from './modules/llm';
+import { TTSModule } from './modules/tts';
 
 export class RealtimeXSDK {
     public activities: ActivitiesModule;
@@ -20,6 +21,7 @@ export class RealtimeXSDK {
     public task: TaskModule;
     public port: PortModule;
     public llm: LLMModule;
+    public tts: TTSModule;
     public readonly appId: string;
     public readonly appName: string | undefined;
     public readonly apiKey: string | undefined;
@@ -49,6 +51,7 @@ export class RealtimeXSDK {
         this.task = new TaskModule(this.realtimexUrl, this.appName, this.appId, this.apiKey);
         this.port = new PortModule(config.defaultPort);
         this.llm = new LLMModule(this.realtimexUrl, this.appId, this.appName, this.apiKey);
+        this.tts = new TTSModule(this.realtimexUrl, this.appId, this.appName, this.apiKey);
 
         // Auto-register with declared permissions (only for production mode)
         if (this.permissions.length > 0 && this.appId && !this.apiKey) {
@@ -171,6 +174,8 @@ export { WebhookModule } from './modules/webhook';
 export { ApiModule, PermissionDeniedError, PermissionRequiredError } from './modules/api';
 export { TaskModule } from './modules/task';
 export { PortModule } from './modules/port';
+export { TTSModule } from './modules/tts';
+export { TTSOptions, TTSProvider } from './types';
 export {
     LLMModule,
     VectorStore,
