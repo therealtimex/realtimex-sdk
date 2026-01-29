@@ -105,7 +105,9 @@ class TTSModule:
         voice: Optional[str] = None,
         model: Optional[str] = None,
         speed: Optional[float] = None,
-        provider: Optional[str] = None
+        provider: Optional[str] = None,
+        language: Optional[str] = None,
+        num_inference_steps: Optional[int] = None
     ) -> bytes:
         """
         Generate speech from text (returns full audio bytes).
@@ -116,6 +118,8 @@ class TTSModule:
             model: Optional model ID
             speed: Optional speed multiplier
             provider: Optional provider ID
+            language: Optional language code
+            num_inference_steps: Optional quality (Supertonic)
             
         Returns:
             bytes: Audio data
@@ -125,7 +129,9 @@ class TTSModule:
             "voice": voice,
             "model": model,
             "speed": speed,
-            "provider": provider
+            "provider": provider,
+            "language": language,
+            "num_inference_steps": num_inference_steps
         }
         # Filter None values
         payload = {k: v for k, v in payload.items() if v is not None}

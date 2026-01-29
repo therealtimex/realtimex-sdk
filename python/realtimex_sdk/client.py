@@ -79,8 +79,10 @@ class RealtimeXSDK:
         self.port = PortModule(default_port)
         self.llm = LLMModule(realtimex_url, app_id, app_name, api_key)
         self.tts = TTSModule(realtimex_url, app_id, app_name, api_key)
+        self._registered = False
 
         # Auto-register with declared permissions (only for production mode)
+        # If loop is not running yet (common in NiceGUI/FastAPI), we'll retry later
         if self.permissions and self.app_id and not self.api_key:
             try:
                 import asyncio
@@ -117,6 +119,7 @@ class RealtimeXSDK:
                     return
                     
                 print(f"[RealtimeX SDK] App registered successfully ({data.get('message')})")
+                self._registered = True
         except Exception as e:
             print(f"[RealtimeX SDK] Auto-registration error: {e}")
 
