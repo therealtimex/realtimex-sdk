@@ -1,4 +1,4 @@
-import { TTSOptions, TTSProvider, TTSProvidersResponse } from '../types';
+import { TTSOptions, TTSProvider, TTSProvidersResponse, TTSChunk, TTSChunkEvent } from '../types';
 import { PermissionDeniedError } from './api';
 
 export class TTSModule {
@@ -61,7 +61,7 @@ export class TTSModule {
 
         if (!response.ok) {
             const data = await response.json();
-            
+
             if (data.code === 'PERMISSION_REQUIRED') {
                 const permission = data.permission || 'tts.speak';
                 const granted = await this.requestPermission(permission);
@@ -103,30 +103,103 @@ export class TTSModule {
     }
 
     /**
-     * Generate speech from text (returns stream)
+     * Generate speech from text with streaming (yields decoded audio chunks)
+     * Uses SSE internally but returns decoded ArrayBuffer chunks for easy playback.
      * 
      * @example
      * ```ts
-     * const stream = await sdk.tts.speakStream("Hello world");
-     * for await (const chunk of stream) {
-     *   // Play chunk...
+     * for await (const chunk of sdk.tts.speakStream("Hello world")) {
+     *   // chunk.audio is ArrayBuffer (already decoded!)
+     *   const blob = new Blob([chunk.audio], { type: chunk.mimeType });
+     *   const audio = new Audio(URL.createObjectURL(blob));
+     *   await audio.play();
      * }
      * ```
      */
-    async *speakStream(text: string, options: TTSOptions = {}): AsyncGenerator<Uint8Array> {
-        const body = await this.request<ReadableStream>('POST', '/sdk/tts/stream', {
-            text,
-            ...options
-        }, true);
+    async *speakStream(text: string, options: TTSOptions = {}): AsyncGenerator<TTSChunk> {
+        const response = await fetch(`${this.baseUrl}/sdk/tts/stream`, {
+            method: 'POST',
+            headers: this.headers,
+            body: JSON.stringify({ text, ...options }),
+        });
 
-        if (!body) throw new Error('No response body');
+        if (!response.ok) {
+            const data = await response.json();
 
-        const reader = body.getReader();
+            if (data.code === 'PERMISSION_REQUIRED') {
+                const permission = data.permission || 'tts.generate';
+                const granted = await this.requestPermission(permission);
+                if (granted) {
+                    yield* this.speakStream(text, options);
+                    return;
+                }
+                throw new PermissionDeniedError(permission);
+            }
+
+            throw new Error(data.error || `Streaming failed: ${response.status}`);
+        }
+
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error('No response body');
+
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let eventType = '';
+
         try {
             while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
-                yield value;
+
+                buffer += decoder.decode(value, { stream: true });
+
+                // Parse SSE events
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                    const trimmedLine = line.trim();
+                    if (!trimmedLine) continue;
+
+                    if (trimmedLine.startsWith('event:')) {
+                        eventType = trimmedLine.slice(6).trim();
+                    } else if (trimmedLine.startsWith('data:')) {
+                        const eventData = trimmedLine.slice(5).trim();
+
+                        if (eventType === 'chunk' && eventData) {
+                            try {
+                                const parsed = JSON.parse(eventData);
+                                // Decode base64 to ArrayBuffer
+                                const binaryString = atob(parsed.audio);
+                                const bytes = new Uint8Array(binaryString.length);
+                                for (let i = 0; i < binaryString.length; i++) {
+                                    bytes[i] = binaryString.charCodeAt(i);
+                                }
+
+                                yield {
+                                    index: parsed.index,
+                                    total: parsed.total,
+                                    audio: bytes.buffer,
+                                    mimeType: parsed.mimeType,
+                                };
+                            } catch (e) {
+                                console.warn('[TTS SDK] Failed to parse chunk:', e);
+                            }
+                        } else if (eventType === 'error' && eventData) {
+                            try {
+                                const err = JSON.parse(eventData);
+                                throw new Error(err.error || 'TTS streaming error');
+                            } catch (e) {
+                                if (e instanceof Error && e.message !== 'TTS streaming error') {
+                                    throw e;
+                                }
+                            }
+                        }
+                        // info and done events are handled silently
+
+                        eventType = '';
+                    }
+                }
             }
         } finally {
             reader.releaseLock();
@@ -134,7 +207,7 @@ export class TTSModule {
     }
 
     /**
-     * List available TTS providers
+     * List available TTS providers with configuration options
      */
     async listProviders(): Promise<TTSProvider[]> {
         const data = await this.request<TTSProvidersResponse>('GET', '/sdk/tts/providers');

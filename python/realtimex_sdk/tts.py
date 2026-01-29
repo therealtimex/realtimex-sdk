@@ -138,10 +138,13 @@ class TTSModule:
         voice: Optional[str] = None,
         model: Optional[str] = None,
         speed: Optional[float] = None,
-        provider: Optional[str] = None
-    ) -> AsyncIterator[bytes]:
+        provider: Optional[str] = None,
+        language: Optional[str] = None,
+        num_inference_steps: Optional[int] = None
+    ) -> AsyncIterator[Dict[str, Any]]:
         """
-        Generate speech from text (yields audio chunks).
+        Generate speech from text (yields decoded audio chunks).
+        Uses SSE streaming internally, decodes base64 audio for you.
         
         Args:
             text: Text to speak
@@ -149,10 +152,14 @@ class TTSModule:
             model: Optional model ID
             speed: Optional speed multiplier
             provider: Optional provider ID
+            language: Optional language code
+            num_inference_steps: Optional quality (Supertonic)
             
         Yields:
-            bytes: Audio chunks
+            dict: {"index": int, "total": int, "audio": bytes, "mimeType": str}
         """
+        import base64
+        
         if httpx is None:
             raise ImportError("httpx is required for async operations")
             
@@ -161,7 +168,9 @@ class TTSModule:
             "voice": voice,
             "model": model,
             "speed": speed,
-            "provider": provider
+            "provider": provider,
+            "language": language,
+            "num_inference_steps": num_inference_steps
         }
         payload = {k: v for k, v in payload.items() if v is not None}
         
@@ -171,11 +180,10 @@ class TTSModule:
                 f"{self._base_url}/sdk/tts/stream", 
                 headers=self._headers, 
                 json=payload,
-                timeout=60.0
+                timeout=120.0
             ) as response:
                 
                 if response.status_code != 200:
-                    # Handle errors (including permissions)
                     content = await response.aread()
                     try:
                         data = json.loads(content)
@@ -183,7 +191,7 @@ class TTSModule:
                             permission = data.get("permission", "tts.speak")
                             granted = await self._request_permission(permission)
                             if granted:
-                                async for chunk in self.speak_stream(text, voice, model, speed):
+                                async for chunk in self.speak_stream(text, voice, model, speed, provider, language, num_inference_steps):
                                     yield chunk
                                 return
                             raise PermissionDeniedError(permission)
@@ -191,8 +199,47 @@ class TTSModule:
                     except json.JSONDecodeError:
                         response.raise_for_status()
                 
-                async for chunk in response.aiter_bytes():
-                    yield chunk
+                # Parse SSE events
+                buffer = ""
+                event_type = ""
+                
+                async for raw_chunk in response.aiter_text():
+                    buffer += raw_chunk
+                    
+                    while "\n" in buffer:
+                        line, buffer = buffer.split("\n", 1)
+                        line = line.strip()
+                        
+                        if not line:
+                            continue
+                        
+                        if line.startswith("event:"):
+                            event_type = line[6:].strip()
+                        elif line.startswith("data:"):
+                            event_data = line[5:].strip()
+                            
+                            if event_type == "chunk" and event_data:
+                                try:
+                                    parsed = json.loads(event_data)
+                                    # Decode base64 audio
+                                    audio_bytes = base64.b64decode(parsed["audio"])
+                                    yield {
+                                        "index": parsed["index"],
+                                        "total": parsed["total"],
+                                        "audio": audio_bytes,
+                                        "mimeType": parsed.get("mimeType", "audio/wav"),
+                                    }
+                                except Exception as e:
+                                    print(f"[TTS SDK] Failed to parse chunk: {e}")
+                            elif event_type == "error" and event_data:
+                                try:
+                                    err = json.loads(event_data)
+                                    raise Exception(err.get("error", "TTS streaming error"))
+                                except json.JSONDecodeError:
+                                    pass
+                            
+                            event_type = ""
+
 
     async def list_providers(self) -> List[Dict[str, Any]]:
         """

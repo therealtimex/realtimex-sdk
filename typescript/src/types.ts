@@ -90,17 +90,46 @@ export interface Task {
 }
 
 export interface TTSOptions {
+    /** Voice ID (provider-specific) */
     voice?: string;
+    /** Model ID (provider-specific) */
     model?: string;
+    /** Speech speed (0.5-2.0) */
     speed?: number;
+    /** TTS provider ID */
     provider?: string;
+    /** Language code (e.g., 'en', 'es', 'fr') - for Supertonic */
+    language?: string;
+    /** Quality level (1-20) - for Supertonic num_inference_steps */
+    num_inference_steps?: number;
+}
+
+export interface TTSProviderConfig {
+    /** Available voice/speaker IDs */
+    voices: string[];
+    /** Supported languages (for multilingual providers) */
+    languages?: string[];
+    /** Speed range */
+    speed?: { min: number; max: number; default: number };
+    /** Quality range (for providers that support it) */
+    quality?: { min: number; max: number; default: number; description?: string };
 }
 
 export interface TTSProvider {
+    /** Provider ID (e.g., 'elevenlabs', 'supertonic_local') */
     id: string;
+    /** Display name */
     name: string;
-    type: 'remote' | 'local';
-    voices: string[];
+    /** Provider type: 'server' (remote API) or 'client' (local) */
+    type: 'server' | 'client';
+    /** Whether provider is configured and ready */
+    configured: boolean;
+    /** Whether streaming is supported */
+    supportsStreaming: boolean;
+    /** Optional note about provider requirements */
+    note?: string;
+    /** Configuration options */
+    config?: TTSProviderConfig;
 }
 
 export interface TTSProvidersResponse {
@@ -108,4 +137,21 @@ export interface TTSProvidersResponse {
     providers: TTSProvider[];
     default: string;
     error?: string;
+}
+
+export interface TTSChunk {
+    /** Chunk index (0-based) */
+    index: number;
+    /** Total number of chunks */
+    total: number;
+    /** Decoded audio data (ArrayBuffer) - ready for playback */
+    audio: ArrayBuffer;
+    /** Audio MIME type */
+    mimeType: string;
+}
+
+
+export interface TTSChunkEvent {
+    type: 'info' | 'chunk' | 'error' | 'done';
+    data: TTSChunk | { totalChunks: number } | { error: string };
 }
