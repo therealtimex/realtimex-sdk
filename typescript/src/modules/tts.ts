@@ -63,7 +63,7 @@ export class TTSModule {
             const data = await response.json();
 
             if (data.code === 'PERMISSION_REQUIRED') {
-                const permission = data.permission || 'tts.speak';
+                const permission = data.permission || 'tts.generate';
                 const granted = await this.requestPermission(permission);
                 if (granted) {
                     return this.request<T>(method, endpoint, body, isStream);

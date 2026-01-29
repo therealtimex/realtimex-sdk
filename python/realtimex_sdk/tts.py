@@ -88,7 +88,7 @@ class TTSModule:
             try:
                 data = response.json()
                 if data.get("code") == "PERMISSION_REQUIRED":
-                    permission = data.get("permission", "tts.speak")
+                    permission = data.get("permission", "tts.generate")
                     granted = await self._request_permission(permission)
                     if granted:
                         return await self._request(method, endpoint, **kwargs)
@@ -188,7 +188,7 @@ class TTSModule:
                     try:
                         data = json.loads(content)
                         if data.get("code") == "PERMISSION_REQUIRED":
-                            permission = data.get("permission", "tts.speak")
+                            permission = data.get("permission", "tts.generate")
                             granted = await self._request_permission(permission)
                             if granted:
                                 async for chunk in self.speak_stream(text, voice, model, speed, provider, language, num_inference_steps):
@@ -261,7 +261,7 @@ class TTSModule:
             if response.status_code != 200:
                 data = response.json()
                 if data.get("code") == "PERMISSION_REQUIRED":
-                    permission = data.get("permission", "tts.speak")
+                    permission = data.get("permission", "tts.generate")
                     granted = await self._request_permission(permission)
                     if granted:
                         return await self.list_providers()
