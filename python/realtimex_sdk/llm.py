@@ -221,17 +221,12 @@ class VectorStore:
     
     @property
     def _headers(self) -> Dict[str, str]:
-        # Dev mode: use API key with Bearer auth
+        headers = {"Content-Type": "application/json"}
         if self._api_key:
-            return {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self._api_key}",
-            }
-        # Production mode: use x-app-id
-        return {
-            "Content-Type": "application/json",
-            "x-app-id": self._app_id,
-        }
+            headers["Authorization"] = f"Bearer {self._api_key}"
+        if self._app_id:
+            headers["x-app-id"] = self._app_id
+        return headers
     
     async def _request_permission(self, permission: str) -> bool:
         """Request a single permission from Electron via internal API."""
@@ -541,17 +536,12 @@ class LLMModule:
     
     @property
     def _headers(self) -> Dict[str, str]:
-        # Dev mode: use API key with Bearer auth
+        headers = {"Content-Type": "application/json"}
         if self._api_key:
-            return {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self._api_key}",
-            }
-        # Production mode: use x-app-id
-        return {
-            "Content-Type": "application/json",
-            "x-app-id": self._app_id,
-        }
+            headers["Authorization"] = f"Bearer {self._api_key}"
+        if self._app_id:
+            headers["x-app-id"] = self._app_id
+        return headers
     
     async def _request_permission(self, permission: str) -> bool:
         """Request a single permission from Electron via internal API."""

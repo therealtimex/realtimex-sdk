@@ -225,18 +225,16 @@ export class VectorStore {
     ) { }
 
     private get headers(): Record<string, string> {
-        // Dev mode: use API key with Bearer auth
-        if (this.apiKey) {
-            return {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${this.apiKey}`,
-            };
-        }
-        // Production mode: use x-app-id
-        return {
+        const headers: Record<string, string> = {
             'Content-Type': 'application/json',
-            'x-app-id': this.appId,
         };
+        if (this.apiKey) {
+            headers['Authorization'] = `Bearer ${this.apiKey}`;
+        }
+        if (this.appId) {
+            headers['x-app-id'] = this.appId;
+        }
+        return headers;
     }
 
     /**
@@ -408,18 +406,16 @@ export class LLMModule {
     }
 
     private get headers(): Record<string, string> {
-        // Dev mode: use API key with Bearer auth
-        if (this.apiKey) {
-            return {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${this.apiKey}`,
-            };
-        }
-        // Production mode: use x-app-id
-        return {
+        const headers: Record<string, string> = {
             'Content-Type': 'application/json',
-            'x-app-id': this.appId,
         };
+        if (this.apiKey) {
+            headers['Authorization'] = `Bearer ${this.apiKey}`;
+        }
+        if (this.appId) {
+            headers['x-app-id'] = this.appId;
+        }
+        return headers;
     }
 
     /**

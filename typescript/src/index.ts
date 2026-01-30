@@ -115,7 +115,8 @@ export class RealtimeXSDK {
             const headers: Record<string, string> = { 'Content-Type': 'application/json' };
             if (this.apiKey) {
                 headers['Authorization'] = `Bearer ${this.apiKey}`;
-            } else if (this.appId) {
+            }
+            if (this.appId) {
                 headers['x-app-id'] = this.appId;
             }
 
@@ -144,7 +145,8 @@ export class RealtimeXSDK {
             const headers: Record<string, string> = { 'Content-Type': 'application/json' };
             if (this.apiKey) {
                 headers['Authorization'] = `Bearer ${this.apiKey}`;
-            } else if (this.appId) {
+            }
+            if (this.appId) {
                 headers['x-app-id'] = this.appId;
             }
 

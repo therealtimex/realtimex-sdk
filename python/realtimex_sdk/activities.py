@@ -21,12 +21,9 @@ class ActivitiesModule:
         self.api_key = api_key
 
     def _get_headers(self) -> Dict[str, str]:
-        if self.api_key:
-            return {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.api_key}",
-            }
         headers = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
         if self.app_id:
             headers["x-app-id"] = self.app_id
         return headers

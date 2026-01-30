@@ -33,16 +33,13 @@ class ApiModule:
         self.api_key = api_key
     
     def _get_headers(self) -> Dict[str, str]:
-        """Get headers with app ID or API key."""
+        """Get headers with app ID and/or API key."""
+        headers = {"Content-Type": "application/json"}
         if self.api_key:
-            return {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.api_key}",
-            }
-        return {
-            "Content-Type": "application/json",
-            "x-app-id": self.app_id,
-        }
+            headers["Authorization"] = f"Bearer {self.api_key}"
+        if self.app_id:
+            headers["x-app-id"] = self.app_id
+        return headers
     
     async def _request_permission(self, permission: str) -> bool:
         """Request a single permission from Electron via internal API."""

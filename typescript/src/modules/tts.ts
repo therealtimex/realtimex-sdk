@@ -15,16 +15,16 @@ export class TTSModule {
     }
 
     private get headers(): Record<string, string> {
-        if (this.apiKey) {
-            return {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${this.apiKey}`,
-            };
-        }
-        return {
+        const headers: Record<string, string> = {
             'Content-Type': 'application/json',
-            'x-app-id': this.appId,
         };
+        if (this.apiKey) {
+            headers['Authorization'] = `Bearer ${this.apiKey}`;
+        }
+        if (this.appId) {
+            headers['x-app-id'] = this.appId;
+        }
+        return headers;
     }
 
     /**

@@ -136,7 +136,7 @@ class RealtimeXSDK:
             headers = {"Content-Type": "application/json"}
             if self.api_key:
                 headers["Authorization"] = f"Bearer {self.api_key}"
-            elif self.app_id:
+            if self.app_id:
                 headers["x-app-id"] = self.app_id
                 
             async with httpx.AsyncClient() as client:
@@ -187,7 +187,7 @@ class RealtimeXSDK:
             headers = {"Content-Type": "application/json"}
             if self.api_key:
                 headers["Authorization"] = f"Bearer {self.api_key}"
-            elif self.app_id:
+            if self.app_id:
                 headers["x-app-id"] = self.app_id
                 
             async with httpx.AsyncClient() as client:

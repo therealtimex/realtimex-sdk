@@ -50,10 +50,10 @@ export class ActivitiesModule {
             'Content-Type': 'application/json',
         };
 
-        // Dev mode: use API key with Bearer auth
         if (this.apiKey) {
             headers['Authorization'] = `Bearer ${this.apiKey}`;
-        } else if (this.appId) {
+        }
+        if (this.appId) {
             // Production mode: use x-app-id
             headers['x-app-id'] = this.appId;
         }
