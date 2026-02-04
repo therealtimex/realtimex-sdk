@@ -11,6 +11,7 @@ from .api import ApiModule, PermissionDeniedError, PermissionRequiredError
 from .task import TaskModule
 from .port import PortModule
 from .tts import TTSModule
+from .stt import STTModule
 from .llm import (
     LLMModule,
     VectorStore,
@@ -43,6 +44,7 @@ __all__ = [
     "TaskModule",
     "PortModule",
     "TTSModule",
+    "STTModule",
     "PermissionDeniedError",
     "PermissionRequiredError",
     # LLM Module

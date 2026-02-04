@@ -1,0 +1,48 @@
+"""
+STT Module - Integrate with RealtimeX STT Services
+"""
+
+from typing import Dict, Any, Optional
+from .api import ApiModule
+
+class STTModule(ApiModule):
+    """
+    STT Module for RealtimeX SDK.
+    Allows accessing Speech-to-Text capabilities via the SDK.
+    """
+    
+    async def listen(self, options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Listen to microphone and transcribe speech to text.
+        Performed on the client device (Electron) via the RealtimeX Hub.
+        
+        Args:
+            options: Configuration options
+                - provider: 'native', 'whisper', or 'groq'
+                - language: Language code (e.g., 'en-US')
+                - timeout: Timeout in milliseconds (default: 60000)
+                
+        Returns:
+            Dict containing:
+                - success: boolean
+                - text: transcribed text
+                - error: error message (if any)
+                
+        Raises:
+            Exception: If the API call fails
+        """
+        try:
+            return await self._api_call(
+                method="POST", 
+                endpoint="/sdk/stt/listen", 
+                json=options or {}
+            )
+        except Exception as e:
+            raise Exception(f"STT listen failed: {str(e)}")
+            
+    def listen_sync(self, options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Synchronous version of listen() for non-async contexts.
+        """
+        import asyncio
+        return asyncio.run(self.listen(options))
