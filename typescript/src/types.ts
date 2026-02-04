@@ -155,3 +155,19 @@ export interface TTSChunkEvent {
     type: 'info' | 'chunk' | 'error' | 'done';
     data: TTSChunk | { totalChunks: number } | { error: string };
 }
+
+export interface STTListenOptions {
+    /** STT provider (e.g., 'native', 'whisper', 'groq') */
+    provider?: string;
+    /** Language code (e.g., 'en-US') */
+    language?: string;
+    /** Timeout in milliseconds (default: 60000) */
+    timeout?: number;
+}
+
+export interface STTResponse {
+    success: boolean;
+    /** Transcribed text */
+    text: string;
+    error?: string;
+}

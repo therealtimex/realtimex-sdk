@@ -13,6 +13,7 @@ import { TaskModule } from './modules/task';
 import { PortModule } from './modules/port';
 import { LLMModule } from './modules/llm';
 import { TTSModule } from './modules/tts';
+import { STTModule } from './modules/stt';
 
 export class RealtimeXSDK {
     public activities: ActivitiesModule;
@@ -22,6 +23,7 @@ export class RealtimeXSDK {
     public port: PortModule;
     public llm: LLMModule;
     public tts: TTSModule;
+    public stt: STTModule;
     public readonly appId: string;
     public readonly appName: string | undefined;
     public readonly apiKey: string | undefined;
@@ -52,6 +54,7 @@ export class RealtimeXSDK {
         this.port = new PortModule(config.defaultPort);
         this.llm = new LLMModule(this.realtimexUrl, this.appId, this.appName, this.apiKey);
         this.tts = new TTSModule(this.realtimexUrl, this.appId, this.appName, this.apiKey);
+        this.stt = new STTModule(this.realtimexUrl, this.appId, this.appName, this.apiKey);
 
         // Auto-register with declared permissions (only for production mode)
         if (this.permissions.length > 0 && this.appId && !this.apiKey) {
@@ -178,6 +181,8 @@ export { TaskModule } from './modules/task';
 export { PortModule } from './modules/port';
 export { TTSModule } from './modules/tts';
 export { TTSOptions, TTSProvider } from './types';
+export { STTModule } from './modules/stt';
+export { STTListenOptions, STTResponse } from './types';
 export {
     LLMModule,
     VectorStore,
