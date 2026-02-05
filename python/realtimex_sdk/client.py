@@ -162,6 +162,9 @@ class RealtimeXSDK:
 
         This is a convenience wrapper for CLI tools, initialization code,
         and other contexts where asyncio event loops are not available.
+        
+        It is robust: if called from within a running event loop, it will
+        execute the async work in a separate thread to avoid blocking effectively.
 
         Returns:
             dict with success, mode, appId, and timestamp
@@ -174,7 +177,22 @@ class RealtimeXSDK:
             print(f"Connected: {result['success']}")
         """
         import asyncio
-        return asyncio.run(self.ping())
+        import concurrent.futures
+
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        if loop and loop.is_running():
+            # We are in a running loop. We cannot use asyncio.run().
+            # Run in a separate thread to avoid "asyncio.run() cannot be called from a running event loop"
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(asyncio.run, self.ping())
+                return future.result()
+        else:
+            # No running loop, safe to use asyncio.run()
+            return asyncio.run(self.ping())
 
     async def get_app_data_dir(self) -> str:
         """
