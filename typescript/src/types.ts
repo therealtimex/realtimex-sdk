@@ -162,9 +162,25 @@ export interface STTListenOptions {
     /** Language code (e.g., 'en-US') */
     language?: string;
     /** Specific model ID (e.g., 'onnx-community/whisper-tiny.en') */
-    model?: string;
+    model: string;
     /** Timeout in milliseconds (default: 60000) */
     timeout?: number;
+}
+
+export interface STTModel {
+    id: string;
+    name: string;
+    provider: string; // 'native' | 'whisper' | 'groq'
+    description?: string;
+    language?: string;
+    size?: string;
+    recommended?: boolean;
+}
+
+export interface STTModelsResponse {
+    success: boolean;
+    models: STTModel[];
+    error?: string;
 }
 
 export interface STTResponse {
