@@ -161,6 +161,8 @@ export interface STTListenOptions {
     provider?: string;
     /** Language code (e.g., 'en-US') */
     language?: string;
+    /** Specific model ID (e.g., 'onnx-community/whisper-tiny.en') */
+    model?: string;
     /** Timeout in milliseconds (default: 60000) */
     timeout?: number;
 }
