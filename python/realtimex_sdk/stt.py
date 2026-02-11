@@ -59,27 +59,27 @@ class STTModule(ApiModule):
         else:
             return asyncio.run(self.listen(options))
 
-    async def models(self) -> Dict[str, Any]:
+    async def list_providers(self) -> Dict[str, Any]:
         """
-        Get available STT models.
+        Get available STT providers and models.
 
         Returns:
             Dict containing:
                 - success: boolean
-                - models: List of models (flat list)
+                - providers: List of Provider objects (dict)
                 - error: error message (if any)
 
         Raises:
             Exception: If the API call fails
         """
         try:
-            return await self._api_call(method="GET", endpoint="/sdk/stt/models")
+            return await self._api_call(method="GET", endpoint="/sdk/stt/providers")
         except Exception as e:
-            raise Exception(f"STT models fetch failed: {str(e)}") from e
+            raise Exception(f"STT providers fetch failed: {str(e)}") from e
 
-    def models_sync(self) -> Dict[str, Any]:
+    def list_providers_sync(self) -> Dict[str, Any]:
         """
-        Synchronous version of models() for non-async contexts.
+        Synchronous version of list_providers() for non-async contexts.
         """
         import asyncio
         import concurrent.futures
@@ -91,7 +91,7 @@ class STTModule(ApiModule):
 
         if loop and loop.is_running():
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                future = executor.submit(asyncio.run, self.models())
+                future = executor.submit(asyncio.run, self.list_providers())
                 return future.result()
         else:
-            return asyncio.run(self.models())
+            return asyncio.run(self.list_providers())
