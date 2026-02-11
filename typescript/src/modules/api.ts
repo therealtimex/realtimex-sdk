@@ -84,7 +84,7 @@ export class ApiModule {
     /**
      * Make an API call with automatic permission handling
      */
-    private async apiCall<T>(method: string, endpoint: string, options?: RequestInit): Promise<T> {
+    protected async apiCall<T>(method: string, endpoint: string, options?: RequestInit): Promise<T> {
         const url = `${this.realtimexUrl}${endpoint}`;
         const response = await fetch(url, {
             method,
