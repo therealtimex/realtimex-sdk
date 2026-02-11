@@ -2,8 +2,10 @@
 STT Module - Integrate with RealtimeX STT Services
 """
 
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
+
 from .api import ApiModule
+
 
 class STTModule(ApiModule):
     """
@@ -33,9 +35,7 @@ class STTModule(ApiModule):
         """
         try:
             return await self._api_call(
-                method="POST",
-                endpoint="/sdk/stt/listen",
-                json=options or {}
+                method="POST", endpoint="/sdk/stt/listen", json=options or {}
             )
         except Exception as e:
             raise Exception(f"STT listen failed: {str(e)}")
@@ -45,7 +45,19 @@ class STTModule(ApiModule):
         Synchronous version of listen() for non-async contexts.
         """
         import asyncio
-        return asyncio.run(self.listen(options))
+        import concurrent.futures
+
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        if loop and loop.is_running():
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(asyncio.run, self.listen(options))
+                return future.result()
+        else:
+            return asyncio.run(self.listen(options))
 
     async def models(self) -> Dict[str, Any]:
         """
@@ -61,10 +73,7 @@ class STTModule(ApiModule):
             Exception: If the API call fails
         """
         try:
-            return await self._api_call(
-                method="GET",
-                endpoint="/sdk/stt/models"
-            )
+            return await self._api_call(method="GET", endpoint="/sdk/stt/models")
         except Exception as e:
             raise Exception(f"STT models fetch failed: {str(e)}") from e
 
@@ -73,4 +82,16 @@ class STTModule(ApiModule):
         Synchronous version of models() for non-async contexts.
         """
         import asyncio
-        return asyncio.run(self.models())
+        import concurrent.futures
+
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        if loop and loop.is_running():
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(asyncio.run, self.models())
+                return future.result()
+        else:
+            return asyncio.run(self.models())
