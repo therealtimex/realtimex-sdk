@@ -66,7 +66,7 @@ class STTModule(ApiModule):
                 endpoint="/sdk/stt/models"
             )
         except Exception as e:
-            raise Exception(f"STT models fetch failed: {str(e)}")
+            raise Exception(f"STT models fetch failed: {str(e)}") from e
 
     def models_sync(self) -> Dict[str, Any]:
         """
