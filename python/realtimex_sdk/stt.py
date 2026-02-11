@@ -38,7 +38,7 @@ class STTModule(ApiModule):
                 method="POST", endpoint="/sdk/stt/listen", json=options or {}
             )
         except Exception as e:
-            raise Exception(f"STT listen failed: {str(e)}")
+            raise Exception(f"STT listen failed: {str(e)}") from e
 
     def listen_sync(self, options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
