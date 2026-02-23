@@ -14,6 +14,8 @@ import { PortModule } from './modules/port';
 import { LLMModule } from './modules/llm';
 import { TTSModule } from './modules/tts';
 import { STTModule } from './modules/stt';
+import { AgentModule } from './modules/agent';
+import { HttpClient } from './modules/http';
 
 export class RealtimeXSDK {
     public activities: ActivitiesModule;
@@ -24,11 +26,13 @@ export class RealtimeXSDK {
     public llm: LLMModule;
     public tts: TTSModule;
     public stt: STTModule;
+    public agent: AgentModule;
     public readonly appId: string;
     public readonly appName: string | undefined;
     public readonly apiKey: string | undefined;
     private readonly realtimexUrl: string;
     private readonly permissions: string[];
+    private httpClient: HttpClient;
 
     private static DEFAULT_REALTIMEX_URL = 'http://localhost:3001';
 
@@ -47,6 +51,8 @@ export class RealtimeXSDK {
         this.realtimexUrl = config.realtimex?.url || RealtimeXSDK.DEFAULT_REALTIMEX_URL;
 
         // Initialize modules with appId and apiKey
+        this.httpClient = new HttpClient(this.realtimexUrl, this.appId, this.apiKey);
+
         this.activities = new ActivitiesModule(this.realtimexUrl, this.appId, this.appName, this.apiKey);
         this.webhook = new WebhookModule(this.realtimexUrl, this.appName, this.appId, this.apiKey);
         this.api = new ApiModule(this.realtimexUrl, this.appId, this.appName, this.apiKey);
@@ -55,6 +61,7 @@ export class RealtimeXSDK {
         this.llm = new LLMModule(this.realtimexUrl, this.appId, this.appName, this.apiKey);
         this.tts = new TTSModule(this.realtimexUrl, this.appId, this.appName, this.apiKey);
         this.stt = new STTModule(this.realtimexUrl, this.appId, this.appName, this.apiKey);
+        this.agent = new AgentModule(this.httpClient);
 
         // Auto-register with declared permissions (only for production mode)
         if (this.permissions.length > 0 && this.appId && !this.apiKey) {
@@ -206,4 +213,15 @@ export {
     type VectorDeleteOptions,
     type VectorDeleteResponse,
 } from './modules/llm';
+
+export {
+    AgentModule,
+    // Types
+    type AgentSessionOptions,
+    type AgentSession,
+    type AgentChatOptions,
+    type AgentChatResponse,
+    type AgentSessionInfo,
+    type StreamChunkEvent,
+} from './modules/agent';
 
