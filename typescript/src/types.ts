@@ -170,11 +170,24 @@ export interface STTListenOptions {
 export interface STTModel {
     id: string;
     name: string;
-    provider: string; // 'native' | 'whisper' | 'groq'
+    provider?: string; // Optional if nested under provider
     description?: string;
     language?: string;
     size?: string;
     recommended?: boolean;
+}
+
+export interface STTProvider {
+    id: string; // 'native' | 'whisper' | 'groq'
+    name: string;
+    description?: string;
+    models: STTModel[];
+}
+
+export interface STTProvidersResponse {
+    success: boolean;
+    providers: STTProvider[];
+    error?: string;
 }
 
 export interface STTModelsResponse {

@@ -1,21 +1,21 @@
 
 import { ApiModule } from './api';
-import { STTListenOptions, STTResponse, STTModelsResponse, STTModel } from '../types';
+import { STTListenOptions, STTResponse, STTProvidersResponse, STTProvider } from '../types';
 
 export class STTModule extends ApiModule {
     /**
-     * Get available STT models.
-     * @returns Promise resolving to list of models
+     * Get available STT providers and their models.
+     * @returns Promise resolving to list of providers
      */
-    public async models(): Promise<STTModel[]> {
+    public async listProviders(): Promise<STTProvider[]> {
         try {
-            const response = await this.apiCall<STTModelsResponse>('GET', '/sdk/stt/models');
+            const response = await this.apiCall<STTProvidersResponse>('GET', '/sdk/stt/providers');
             if (!response.success) {
-                throw new Error(response.error || 'Failed to fetch models');
+                throw new Error(response.error || 'Failed to fetch providers');
             }
-            return response.models;
+            return response.providers;
         } catch (error: any) {
-            throw new Error(`STT models fetch failed: ${error.message}`);
+            throw new Error(`STT providers fetch failed: ${error.message}`);
         }
     }
 
