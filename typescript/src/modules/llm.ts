@@ -12,9 +12,41 @@ import { PermissionDeniedError, PermissionRequiredError } from './api';
 
 // === Types ===
 
+export interface ChatTextBlock {
+    type: 'text' | 'input_text';
+    text: string;
+    [key: string]: unknown;
+}
+
+export interface ChatImageUrlBlock {
+    type: 'image_url' | 'input_image';
+    image_url: string | {
+        url: string;
+        detail?: 'auto' | 'low' | 'high';
+        [key: string]: unknown;
+    };
+    [key: string]: unknown;
+}
+
+export interface ChatFileBlock {
+    type: 'input_file' | 'file';
+    file_url?: string;
+    file_id?: string;
+    filename?: string;
+    [key: string]: unknown;
+}
+
+export interface ChatCustomBlock {
+    type: string;
+    [key: string]: unknown;
+}
+
+export type ChatContentBlock = ChatTextBlock | ChatImageUrlBlock | ChatFileBlock | ChatCustomBlock;
+export type ChatMessageContent = string | ChatContentBlock[];
+
 export interface ChatMessage {
     role: 'system' | 'user' | 'assistant';
-    content: string;
+    content: ChatMessageContent;
 }
 
 export interface ChatOptions {

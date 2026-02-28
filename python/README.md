@@ -149,6 +149,21 @@ response = await sdk.llm.chat(
 )
 print(response.content)
 
+# Multimodal Chat (text + file/image blocks)
+multimodal = await sdk.llm.chat(
+    messages=[
+        ChatMessage(
+            role="user",
+            content=[
+                {"type": "text", "text": "Summarize the attached document"},
+                {"type": "input_file", "file_url": "https://example.com/report.pdf"},
+                {"type": "input_image", "image_url": "https://example.com/chart.png"},
+            ],
+        )
+    ]
+)
+print(multimodal.content)
+
 # Streaming Chat
 async for chunk in sdk.llm.chat_stream(messages, options=options):
     print(chunk.text, end="", flush=True)

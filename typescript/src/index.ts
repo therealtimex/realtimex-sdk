@@ -196,6 +196,12 @@ export {
     LLMPermissionError,
     LLMProviderError,
     // Types
+    type ChatTextBlock,
+    type ChatImageUrlBlock,
+    type ChatFileBlock,
+    type ChatCustomBlock,
+    type ChatContentBlock,
+    type ChatMessageContent,
     type ChatMessage,
     type ChatOptions,
     type ChatResponse,
@@ -224,4 +230,3 @@ export {
     type AgentSessionInfo,
     type StreamChunkEvent,
 } from './modules/agent';
-

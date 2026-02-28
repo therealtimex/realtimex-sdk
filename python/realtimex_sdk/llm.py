@@ -10,7 +10,7 @@ Provides access to LLM capabilities:
 
 import json
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional, AsyncIterator, Iterator, Union
+from typing import List, Dict, Any, Optional, AsyncIterator, Iterator, Union, TypedDict, Literal
 import random
 import string
 import os
@@ -42,10 +42,42 @@ class LLMProviderError(Exception):
 
 # === Data Classes ===
 
+class _ChatImageUrlObjectRequired(TypedDict):
+    url: str
+
+
+class ChatImageUrlObject(_ChatImageUrlObjectRequired, total=False):
+    detail: Literal["auto", "low", "high"]
+
+
+class ChatTextBlock(TypedDict):
+    type: Literal["text", "input_text"]
+    text: str
+
+
+class ChatImageUrlBlock(TypedDict):
+    type: Literal["image_url", "input_image"]
+    image_url: Union[str, ChatImageUrlObject]
+
+
+class _ChatFileBlockRequired(TypedDict):
+    type: Literal["input_file", "file"]
+
+
+class ChatFileBlock(_ChatFileBlockRequired, total=False):
+    file_url: str
+    file_id: str
+    filename: str
+
+
+ChatKnownContentBlock = Union[ChatTextBlock, ChatImageUrlBlock, ChatFileBlock]
+ChatContentBlock = Union[ChatKnownContentBlock, Dict[str, Any]]
+ChatMessageContent = Union[str, List[ChatContentBlock]]
+
 @dataclass
 class ChatMessage:
     role: str  # 'system', 'user', 'assistant'
-    content: str
+    content: ChatMessageContent
 
 
 @dataclass

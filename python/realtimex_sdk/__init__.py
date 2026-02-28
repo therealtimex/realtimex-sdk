@@ -17,6 +17,13 @@ from .llm import (
     VectorStore,
     LLMPermissionError,
     LLMProviderError,
+    ChatImageUrlObject,
+    ChatTextBlock,
+    ChatImageUrlBlock,
+    ChatFileBlock,
+    ChatKnownContentBlock,
+    ChatContentBlock,
+    ChatMessageContent,
     ChatMessage,
     ChatOptions,
     ChatResponse,
@@ -33,7 +40,7 @@ from .llm import (
     VectorDeleteResponse,
 )
 
-__version__ = "1.1.0"
+__version__ = "1.3.3"
 __all__ = [
     "RealtimeXSDK",
     "SDKConfig",
@@ -52,6 +59,13 @@ __all__ = [
     "VectorStore",
     "LLMPermissionError",
     "LLMProviderError",
+    "ChatImageUrlObject",
+    "ChatTextBlock",
+    "ChatImageUrlBlock",
+    "ChatFileBlock",
+    "ChatKnownContentBlock",
+    "ChatContentBlock",
+    "ChatMessageContent",
     "ChatMessage",
     "ChatOptions",
     "ChatResponse",

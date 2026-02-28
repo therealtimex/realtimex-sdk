@@ -167,6 +167,19 @@ const response = await sdk.llm.chat(
 );
 console.log(response.response?.content);
 
+// Multimodal Chat (text + file/image blocks)
+const multimodal = await sdk.llm.chat([
+  {
+    role: 'user',
+    content: [
+      { type: 'text', text: 'Summarize the attached document' },
+      { type: 'input_file', file_url: 'https://example.com/report.pdf' },
+      { type: 'input_image', image_url: 'https://example.com/chart.png' }
+    ]
+  }
+]);
+console.log(multimodal.response?.content);
+
 // Streaming Chat
 for await (const chunk of sdk.llm.chatStream(messages, options)) {
   process.stdout.write(chunk.textResponse || '');

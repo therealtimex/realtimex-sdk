@@ -4,6 +4,14 @@ All notable changes to the RealtimeX SDK will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.3.3] - 2026-02-28
+
+### Fixed
+- **TypeScript multimodal chat typing**: `ChatMessage.content` now accepts both plain text and multimodal content blocks (text/image/file), preventing compile-time failures when sending file/image inputs.
+- **Python multimodal chat typing**: `ChatMessage.content` now supports multimodal content blocks in type hints, with stronger `TypedDict` models for common block shapes and a fallback for custom provider blocks.
+- **Cross-SDK parity**: Added/updated TypeScript and Python README examples for multimodal chat payloads and exported new content block types for SDK consumers.
+- **Version consistency**: Synchronized Python package runtime version export with package metadata for this release.
  
 ## [1.1.4] - 2026-01-26
  
