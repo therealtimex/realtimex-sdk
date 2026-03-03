@@ -17,6 +17,7 @@ from .port import PortModule
 from .llm import LLMModule
 from .tts import TTSModule
 from .stt import STTModule
+from .mcp import MCPModule
 
 
 @dataclass
@@ -81,6 +82,7 @@ class RealtimeXSDK:
         self.llm = LLMModule(realtimex_url, app_id, app_name, api_key)
         self.tts = TTSModule(realtimex_url, app_id, app_name, api_key)
         self.stt = STTModule(realtimex_url, app_id, app_name, api_key)
+        self.mcp = MCPModule(realtimex_url, app_id, app_name, api_key)
         self._registered = False
 
         # Auto-register with declared permissions (only for production mode)

@@ -12,6 +12,7 @@ from .task import TaskModule
 from .port import PortModule
 from .tts import TTSModule
 from .stt import STTModule
+from .mcp import MCPModule
 from .llm import (
     LLMModule,
     VectorStore,
@@ -80,4 +81,6 @@ __all__ = [
     "VectorQueryResponse",
     "VectorUpsertResponse",
     "VectorDeleteResponse",
+    # MCP Module
+    "MCPModule",
 ]
