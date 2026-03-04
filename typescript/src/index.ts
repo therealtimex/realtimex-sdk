@@ -19,6 +19,8 @@ import { MCPModule } from './modules/mcp';
 import { HttpClient } from './modules/http';
 import { ContractModule } from './modules/contract';
 import { ContractRuntime } from './core/runtime/ContractRuntime';
+import { DatabaseModule } from './modules/database';
+import { AuthModule } from './modules/auth';
 
 export class RealtimeXSDK {
     public activities: ActivitiesModule;
@@ -33,6 +35,8 @@ export class RealtimeXSDK {
     public mcp: MCPModule;
     public contract: ContractModule;
     public contractRuntime: ContractRuntime;
+    public database: DatabaseModule;
+    public auth: AuthModule;
     public readonly appId: string;
     public readonly appName: string | undefined;
     public readonly apiKey: string | undefined;
@@ -80,6 +84,8 @@ export class RealtimeXSDK {
             apiKey: this.apiKey,
             permissions: this.permissions,
         });
+        this.database = new DatabaseModule(this.realtimexUrl, this.appId, this.apiKey);
+        this.auth = new AuthModule(this.realtimexUrl, this.appId, this.apiKey);
 
         // Auto-register with declared permissions (only for production mode)
         if (this.permissions.length > 0 && this.appId && !this.apiKey) {
@@ -334,3 +340,15 @@ export type {
 
 // Re-export ACP adapter layer
 export * from "./acp";
+export {
+    DatabaseModule,
+    // Types
+    type DatabaseConfig,
+} from './modules/database';
+
+export {
+    AuthModule,
+    // Types
+    type AuthTokenResponse,
+    type SyncTokenResponse,
+} from './modules/auth';
