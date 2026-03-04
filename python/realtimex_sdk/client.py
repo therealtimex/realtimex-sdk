@@ -18,6 +18,8 @@ from .llm import LLMModule
 from .tts import TTSModule
 from .stt import STTModule
 from .mcp import MCPModule
+from .database import DatabaseModule
+from .auth import AuthModule
 
 
 @dataclass
@@ -83,6 +85,8 @@ class RealtimeXSDK:
         self.tts = TTSModule(realtimex_url, app_id, app_name, api_key)
         self.stt = STTModule(realtimex_url, app_id, app_name, api_key)
         self.mcp = MCPModule(realtimex_url, app_id, app_name, api_key)
+        self.database = DatabaseModule(realtimex_url, app_id, api_key)
+        self.auth = AuthModule(realtimex_url, app_id, api_key)
         self._registered = False
 
         # Auto-register with declared permissions (only for production mode)

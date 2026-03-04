@@ -13,6 +13,8 @@ from .port import PortModule
 from .tts import TTSModule
 from .stt import STTModule
 from .mcp import MCPModule
+from .database import DatabaseModule, DatabaseConfig
+from .auth import AuthModule, AuthTokenResponse, SyncTokenResponse
 from .llm import (
     LLMModule,
     VectorStore,
@@ -83,4 +85,11 @@ __all__ = [
     "VectorDeleteResponse",
     # MCP Module
     "MCPModule",
+    # Database Module
+    "DatabaseModule",
+    "DatabaseConfig",
+    # Auth Module
+    "AuthModule",
+    "AuthTokenResponse",
+    "SyncTokenResponse",
 ]
