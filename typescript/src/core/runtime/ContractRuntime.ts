@@ -326,6 +326,7 @@ export class ContractRuntime implements ContractRuntimeInterface {
                 tool_call_id: call.tool_call_id,
                 args: call.args,
                 context: {
+                    app_id: context.appId,
                     user_id: context.userId,
                     workspace_id: context.workspaceId || null,
                     request_id: context.requestId || null,
@@ -340,7 +341,9 @@ export class ContractRuntime implements ContractRuntimeInterface {
 
         return {
             app_name: this.appName,
-            app_id: this.appId || context.appId,
+            // In API-key dev mode, app_id should be omitted unless explicitly configured
+            // on the runtime. Passing an unknown app_id causes webhook trigger rejection.
+            app_id: this.appId || undefined,
             event: tool.trigger.event,
             event_id: eventId,
             payload,
