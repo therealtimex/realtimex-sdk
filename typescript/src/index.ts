@@ -18,6 +18,7 @@ import { AgentModule } from './modules/agent';
 import { MCPModule } from './modules/mcp';
 import { HttpClient } from './modules/http';
 import { ContractModule } from './modules/contract';
+import { ContractRuntime } from './core/runtime/ContractRuntime';
 
 export class RealtimeXSDK {
     public activities: ActivitiesModule;
@@ -31,6 +32,7 @@ export class RealtimeXSDK {
     public agent: AgentModule;
     public mcp: MCPModule;
     public contract: ContractModule;
+    public contractRuntime: ContractRuntime;
     public readonly appId: string;
     public readonly appName: string | undefined;
     public readonly apiKey: string | undefined;
@@ -71,6 +73,13 @@ export class RealtimeXSDK {
         this.agent = new AgentModule(this.httpClient);
         this.mcp = new MCPModule(this.realtimexUrl, this.appId, this.appName, this.apiKey);
         this.contract = new ContractModule(this.realtimexUrl, this.appName, this.appId, this.apiKey);
+        this.contractRuntime = new ContractRuntime({
+            baseUrl: this.realtimexUrl,
+            appId: this.appId || undefined,
+            appName: this.appName,
+            apiKey: this.apiKey,
+            permissions: this.permissions,
+        });
 
         // Auto-register with declared permissions (only for production mode)
         if (this.permissions.length > 0 && this.appId && !this.apiKey) {
@@ -265,3 +274,63 @@ export {
     type MCPTool,
     type MCPToolResult,
 } from './modules/mcp';
+
+// Re-export contract runtime skeleton (automatic contract-tool wiring)
+export {
+    ContractRuntime,
+    type ContractRuntimeOptions,
+} from './core/runtime/ContractRuntime';
+export { ContractClient, type ContractClientOptions } from './core/contract/ContractClient';
+export { ContractCache } from './core/contract/ContractCache';
+export { normalizeLocalAppContractV1 } from './core/contract/ContractValidator';
+export { ContractHttpClient, type ContractHttpClientConfig } from './core/transport/HttpClient';
+export { ToolProjector } from './core/tooling/ToolProjector';
+export { normalizeSchema } from './core/tooling/SchemaNormalizer';
+export { toStableToolName } from './core/tooling/ToolNamePolicy';
+export { RetryPolicy, type RetryPolicyOptions } from './core/runtime/RetryPolicy';
+export { ScopeGuard } from './core/auth/ScopeGuard';
+export { StaticAuthProvider, type AuthProvider, type StaticAuthProviderOptions } from './core/auth/AuthProvider';
+export {
+    ContractError,
+    ContractValidationError,
+    ToolValidationError,
+    ToolNotFoundError,
+    ScopeDeniedError,
+    RuntimeTransportError,
+} from './core/errors/ContractErrors';
+
+export { GeminiToolAdapter, type GeminiFunctionDeclaration, type GeminiToolCall, type GeminiToolResult } from './adapters/gemini/GeminiToolAdapter';
+export { ClaudeToolAdapter, type ClaudeToolDefinition, type ClaudeToolCall, type ClaudeToolResult } from './adapters/claude/ClaudeToolAdapter';
+export { CodexToolAdapter, type CodexToolDefinition, type CodexToolCall, type CodexToolResult } from './adapters/codex/CodexToolAdapter';
+
+export type {
+    ProviderKind,
+    ContractStrictness,
+    ContractCallbackRules,
+    ContractCapabilityTrigger,
+    ContractCapability,
+    LocalAppContractV1,
+    LegacyLocalAppContractShape,
+    ContractDiscoveryResponse,
+} from './core/types/contract';
+
+export type {
+    ProjectToolsInput,
+    CanonicalToolDefinition,
+    HostToolAdapter,
+} from './core/types/tooling';
+
+export type {
+    ToolCall,
+    ExecutionContext,
+    ExecutionResult,
+    LifecycleEventType,
+    RuntimeExecutionEvent,
+    GetToolsInput,
+    IngestExecutionEventInput,
+    ContractRuntimeInterface,
+} from './core/types/runtime';
+
+
+// Re-export ACP adapter layer
+export * from "./acp";
