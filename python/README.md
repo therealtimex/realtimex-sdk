@@ -266,6 +266,67 @@ threads = await sdk.api.get_threads("sales")
 task = await sdk.api.get_task("task-uuid")
 ```
 
+### Contract Discovery
+
+```python
+contract = await sdk.contract.get_local_app_v1()
+print(contract.get("version"))  # local-app-contract/v1
+print(contract.get("supported_events"))
+print(contract.get("callback", {}).get("signature_header"))  # x-rtx-contract-signature
+```
+
+### Worker Callback Lifecycle
+
+Use this when worker context includes `task_uuid`, `attempt_id`, and callback URL metadata.
+
+```python
+sdk.task.configure_contract(
+    callback_secret=os.environ.get("RTX_CONTRACT_CALLBACK_SECRET"),
+    sign_callbacks_by_default=True,
+)
+
+await sdk.task.claim(
+    task_uuid,
+    callback_url=callback_url,
+    machine_id=machine_id,
+    attempt_id=attempt_id,
+    user_email=user_email,
+)
+
+await sdk.task.start(
+    task_uuid,
+    machine_id=machine_id,
+    callback_url=callback_url,
+    attempt_id=attempt_id,
+)
+
+await sdk.task.progress(
+    task_uuid,
+    {"percent": 50, "message": "Halfway done"},
+    callback_url=callback_url,
+    machine_id=machine_id,
+    attempt_id=attempt_id,
+)
+
+await sdk.task.complete(
+    task_uuid,
+    {"summary": "Done"},
+    callback_url=callback_url,
+    machine_id=machine_id,
+    attempt_id=attempt_id,
+)
+```
+
+`TaskModule` automatically includes `event_id`, canonical `event`, and optional signature header for idempotent/signed callbacks.
+
+### Contract Compatibility Check
+
+Run the cross-language harness (Main App endpoint + TypeScript SDK + Python SDK):
+
+```bash
+RTX_API_KEY=sk-... RTX_CONTRACT_VERIFY_BASE_URL=http://127.0.0.1:3001 node scripts/verify-contract-compat.mjs
+```
+
 ### Error Handling
 
 The SDK provides specific exception classes for handling LLM-related issues:

@@ -13,6 +13,23 @@ from .port import PortModule
 from .tts import TTSModule
 from .stt import STTModule
 from .mcp import MCPModule
+from .contract import (
+    ContractModule,
+    LOCAL_APP_CONTRACT_VERSION,
+    CONTRACT_SIGNATURE_HEADER,
+    CONTRACT_EVENT_ID_HEADER,
+    CONTRACT_SIGNATURE_ALGORITHM,
+    CONTRACT_ATTEMPT_PREFIX,
+    normalize_contract_event,
+    normalize_attempt_id,
+    parse_attempt_run_id,
+    hash_contract_payload,
+    create_contract_event_id,
+    build_contract_signature_message,
+    sign_contract_event,
+    canonical_event_to_legacy_action,
+    build_contract_idempotency_key,
+)
 from .llm import (
     LLMModule,
     VectorStore,
@@ -41,7 +58,7 @@ from .llm import (
     VectorDeleteResponse,
 )
 
-__version__ = "1.3.3"
+__version__ = "1.3.4"
 __all__ = [
     "RealtimeXSDK",
     "SDKConfig",
@@ -53,6 +70,7 @@ __all__ = [
     "PortModule",
     "TTSModule",
     "STTModule",
+    "ContractModule",
     "PermissionDeniedError",
     "PermissionRequiredError",
     # LLM Module
@@ -83,4 +101,18 @@ __all__ = [
     "VectorDeleteResponse",
     # MCP Module
     "MCPModule",
+    "LOCAL_APP_CONTRACT_VERSION",
+    "CONTRACT_SIGNATURE_HEADER",
+    "CONTRACT_EVENT_ID_HEADER",
+    "CONTRACT_SIGNATURE_ALGORITHM",
+    "CONTRACT_ATTEMPT_PREFIX",
+    "normalize_contract_event",
+    "normalize_attempt_id",
+    "parse_attempt_run_id",
+    "hash_contract_payload",
+    "create_contract_event_id",
+    "build_contract_signature_message",
+    "sign_contract_event",
+    "canonical_event_to_legacy_action",
+    "build_contract_idempotency_key",
 ]

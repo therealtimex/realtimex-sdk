@@ -11,6 +11,10 @@ export interface SDKConfig {
     };
     defaultPort?: number; // Default port for PortModule (default: 8080)
     permissions?: string[]; // List of required permissions
+    contract?: {
+        callbackSecret?: string;
+        signCallbacksByDefault?: boolean;
+    };
 }
 
 export interface Activity {
@@ -33,15 +37,58 @@ export interface TriggerAgentPayload {
     workspace_slug?: string;
     thread_slug?: string;
     prompt?: string;
+    event_id?: string;
+    attempt_id?: string | number;
 }
 
 export interface TriggerAgentResponse {
     success: boolean;
     task_uuid?: string;
+    task_id?: string;
+    event_id?: string;
+    attempt_id?: string;
+    event_type?: ContractEventType | string;
+    contract_version?: string;
     calendar_event_uuid?: string;
     auto_run?: boolean;
     message?: string;
     error?: string;
+}
+
+export type ContractEventType =
+    | 'task.trigger'
+    | 'system.ping'
+    | 'task.claimed'
+    | 'task.started'
+    | 'task.progress'
+    | 'task.completed'
+    | 'task.failed'
+    | 'task.canceled';
+
+export interface ContractCallbackMetadata {
+    event_id_header?: string;
+    signature_header?: string;
+    signature_algorithm?: string;
+    signature_message?: string;
+    attempt_id_format?: string;
+    idempotency?: string;
+}
+
+export interface LocalAppContractDefinition {
+    id: string;
+    version: string;
+    events: Record<string, ContractEventType>;
+    supported_events: ContractEventType[];
+    supported_legacy_events: string[];
+    aliases: Record<string, ContractEventType>;
+    status_map: Record<string, string>;
+    legacy_action_map: Record<ContractEventType, string>;
+    callback?: ContractCallbackMetadata;
+}
+
+export interface LocalAppContractResponse {
+    success: boolean;
+    contract: LocalAppContractDefinition;
 }
 
 export interface Agent {
@@ -68,6 +115,7 @@ export interface Thread {
 
 export interface TaskRun {
     id: number;
+    attempt_id?: string;
     agent_name: string;
     workspace_slug: string;
     thread_slug?: string;

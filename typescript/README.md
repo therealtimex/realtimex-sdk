@@ -108,6 +108,67 @@ await sdk.webhook.triggerAgent({
 });
 ```
 
+### Contract Discovery
+
+```typescript
+// Read canonical contract metadata published by Main App
+const contract = await sdk.contract.getLocalAppV1();
+
+console.log(contract.version); // local-app-contract/v1
+console.log(contract.supported_events); // task.trigger, task.claimed, ...
+console.log(contract.callback?.signature_header); // x-rtx-contract-signature
+```
+
+### Worker Callback Lifecycle
+
+Use this when your worker receives `task_uuid`, `attempt_id`, and callback metadata from RealtimeX task context.
+
+```typescript
+sdk.task.configureContract({
+  callbackSecret: process.env.RTX_CONTRACT_CALLBACK_SECRET,
+  signCallbacksByDefault: true,
+});
+
+await sdk.task.claim(taskUuid, {
+  callbackUrl,
+  machineId,
+  attemptId,
+  userEmail,
+});
+
+await sdk.task.start(taskUuid, {
+  callbackUrl,
+  machineId,
+  attemptId,
+});
+
+await sdk.task.progress(taskUuid, { percent: 50, message: 'Halfway done' }, {
+  callbackUrl,
+  machineId,
+  attemptId,
+});
+
+await sdk.task.complete(taskUuid, { summary: 'Done' }, {
+  callbackUrl,
+  machineId,
+  attemptId,
+});
+```
+
+`TaskModule` auto-populates:
+- `event_id` for idempotency
+- canonical `event` names
+- optional HMAC signature header (`x-rtx-contract-signature`) when signing is enabled
+- legacy `action` alongside canonical `event` for compatibility when posting to callback URLs
+
+### Contract Compatibility Check
+
+Run the cross-language harness (Main App endpoint + TypeScript SDK + Python SDK):
+
+```bash
+RTX_API_KEY=sk-... RTX_CONTRACT_VERIFY_BASE_URL=http://127.0.0.1:3001 npm run contract:verify
+```
+
 ### Public APIs
 
 ```typescript

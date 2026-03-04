@@ -1,5 +1,6 @@
 import { TriggerAgentPayload, TriggerAgentResponse } from '../types';
 import { PermissionDeniedError } from './api';
+import { createContractEventId, normalizeAttemptId } from './contract';
 
 export class WebhookModule {
     private realtimexUrl: string;
@@ -99,7 +100,9 @@ export class WebhookModule {
             body: JSON.stringify({
                 app_name: this.appName,
                 app_id: this.appId,
-                event: 'trigger-agent',
+                event: 'task.trigger',
+                event_id: payload.event_id || createContractEventId(),
+                attempt_id: normalizeAttemptId(payload.attempt_id),
                 payload: {
                     raw_data: payload.raw_data,
                     auto_run: payload.auto_run ?? false,
@@ -118,7 +121,8 @@ export class WebhookModule {
             body: JSON.stringify({
                 app_name: this.appName,
                 app_id: this.appId,
-                event: 'ping'
+                event: 'system.ping',
+                event_id: createContractEventId(),
             }),
         });
     }

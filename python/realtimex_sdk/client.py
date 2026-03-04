@@ -18,6 +18,7 @@ from .llm import LLMModule
 from .tts import TTSModule
 from .stt import STTModule
 from .mcp import MCPModule
+from .contract import ContractModule
 
 
 @dataclass
@@ -29,6 +30,8 @@ class SDKConfig:
     api_key: Optional[str] = None  # For dev mode - API key from Settings > API Keys
     default_port: int = 8080
     permissions: list = field(default_factory=list)  # List of required permissions
+    contract_callback_secret: Optional[str] = None
+    contract_sign_callbacks_by_default: Optional[bool] = None
 
 
 class RealtimeXSDK:
@@ -83,7 +86,14 @@ class RealtimeXSDK:
         self.tts = TTSModule(realtimex_url, app_id, app_name, api_key)
         self.stt = STTModule(realtimex_url, app_id, app_name, api_key)
         self.mcp = MCPModule(realtimex_url, app_id, app_name, api_key)
+        self.contract = ContractModule(realtimex_url, app_name, app_id, api_key)
         self._registered = False
+
+        if config:
+            self.task.configure_contract(
+                callback_secret=config.contract_callback_secret,
+                sign_callbacks_by_default=config.contract_sign_callbacks_by_default,
+            )
 
         # Auto-register with declared permissions (only for production mode)
         # If loop is not running yet (common in NiceGUI/FastAPI), we'll retry later

@@ -2,6 +2,7 @@ import httpx
 import os
 from typing import Any, Dict, Optional
 from .api import PermissionDeniedError
+from .contract import create_contract_event_id, normalize_attempt_id
 
 
 class WebhookModule:
@@ -70,12 +71,14 @@ class WebhookModule:
         workspace_slug: Optional[str] = None,
         thread_slug: Optional[str] = None,
         prompt: Optional[str] = None,
+        event_id: Optional[str] = None,
+        attempt_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Trigger agent via webhook with automatic permission handling."""
         if auto_run:
-            if not agent_name or not workspace_slug or not thread_slug:
+            if not agent_name or not workspace_slug:
                 raise ValueError(
-                    "auto_run requires agent_name, workspace_slug, and thread_slug"
+                    "auto_run requires agent_name and workspace_slug"
                 )
 
         async def do_request():
@@ -92,7 +95,9 @@ class WebhookModule:
                     json={
                         "app_name": self.app_name,
                         "app_id": self.app_id,
-                        "event": "trigger-agent",
+                        "event": "task.trigger",
+                        "event_id": event_id or create_contract_event_id(),
+                        "attempt_id": normalize_attempt_id(attempt_id),
                         "payload": {
                             "raw_data": raw_data,
                             "auto_run": auto_run,
@@ -116,7 +121,8 @@ class WebhookModule:
                     json={
                         "app_name": self.app_name,
                         "app_id": self.app_id,
-                        "event": "ping",
+                        "event": "system.ping",
+                        "event_id": create_contract_event_id(),
                     },
                 )
                 return await self._handle_response(response, do_request)

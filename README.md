@@ -9,6 +9,7 @@ Official SDK for building **Local Apps** that integrate seamlessly with [Realtim
 - **Activity Management**: Easily insert, update, and query activities in your Supabase database.
 - **AI Agent Integration**: Trigger RealtimeX agents for automated processing or manual review.
 - **Platform APIs**: Access workspaces, agents, threads, and task statuses programmatically.
+- **Contract Discovery**: Read canonical local-app contract metadata and capabilities at runtime.
 - **AI capabilities**: Chat, streaming, and embeddings through RealtimeX LLM proxy.
 - **Managed Vector Storage**: Isolated vector storage for RAG patterns.
 - **Auto-Configuration**: Zero-config setup when running within the RealtimeX environment.
@@ -65,6 +66,7 @@ RealtimeX uses a **manifest-based permission system**. When initializing the SDK
 | `api.workspaces` | List workspaces | `sdk.api.getWorkspaces()` |
 | `api.threads` | List threads | `sdk.api.getThreads()` |
 | `api.task` | Get task status | `sdk.api.getTask()` |
+| `api.contracts` | Read contract definitions | `sdk.contract.getLocalAppV1()` / `sdk.contract.get_local_app_v1()` |
 | `webhook.trigger` | Trigger agents | `sdk.webhook.triggerAgent()` |
 | `llm.chat` | LLM Chat | `sdk.llm.chat()` / `sdk.llm.chatStream()` |
 | `llm.embed` | LLM Embeddings | `sdk.llm.embed()` |
@@ -132,6 +134,28 @@ async def main():
 
 asyncio.run(main())
 ```
+
+---
+
+## ✅ Contract Compatibility Harness
+
+Validate the live Main App contract endpoint against both SDK implementations (TypeScript + Python):
+
+```bash
+RTX_API_KEY=sk-... \
+RTX_CONTRACT_VERIFY_BASE_URL=http://127.0.0.1:3001 \
+node scripts/verify-contract-compat.mjs
+```
+
+You can also run from the TypeScript package:
+
+```bash
+npm --prefix typescript run contract:verify
+```
+
+Required:
+- Main App server is running and exposes `/contracts/local-app/v1`
+- `RTX_API_KEY` (recommended) or `RTX_APP_ID`
 
 ---
 
