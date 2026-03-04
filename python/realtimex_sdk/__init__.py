@@ -30,6 +30,8 @@ from .contract import (
     canonical_event_to_legacy_action,
     build_contract_idempotency_key,
 )
+from .database import DatabaseModule, DatabaseConfig
+from .auth import AuthModule, AuthTokenResponse, SyncTokenResponse
 from .llm import (
     LLMModule,
     VectorStore,
@@ -115,4 +117,11 @@ __all__ = [
     "sign_contract_event",
     "canonical_event_to_legacy_action",
     "build_contract_idempotency_key",
+    # Database Module
+    "DatabaseModule",
+    "DatabaseConfig",
+    # Auth Module
+    "AuthModule",
+    "AuthTokenResponse",
+    "SyncTokenResponse",
 ]
