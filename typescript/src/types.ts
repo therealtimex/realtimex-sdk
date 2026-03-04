@@ -45,6 +45,7 @@ export interface TriggerAgentResponse {
     success: boolean;
     task_uuid?: string;
     task_id?: string;
+    capability_id?: string;
     event_id?: string;
     attempt_id?: string;
     event_type?: ContractEventType | string;
@@ -74,21 +75,78 @@ export interface ContractCallbackMetadata {
     idempotency?: string;
 }
 
+export interface ContractCapabilityTrigger {
+    event: string;
+    route?: string;
+    payload_template?: Record<string, unknown>;
+}
+
+export interface ContractCapability {
+    capability_id: string;
+    name: string;
+    description?: string;
+    input_schema: Record<string, unknown>;
+    output_schema?: Record<string, unknown>;
+    permission?: string;
+    trigger?: ContractCapabilityTrigger;
+    tags?: string[];
+    examples?: string[];
+    risk_level?: 'low' | 'medium' | 'high' | null;
+    enabled?: boolean;
+}
+
 export interface LocalAppContractDefinition {
     id: string;
     version: string;
+    strictness?: 'compatible' | 'strict';
     events: Record<string, ContractEventType>;
     supported_events: ContractEventType[];
     supported_legacy_events: string[];
     aliases: Record<string, ContractEventType>;
     status_map: Record<string, string>;
     legacy_action_map: Record<ContractEventType, string>;
+    catalog_hash?: string;
+    capability_count?: number;
+    capabilities?: ContractCapability[];
     callback?: ContractCallbackMetadata;
 }
 
 export interface LocalAppContractResponse {
     success: boolean;
     contract: LocalAppContractDefinition;
+}
+
+export interface LocalAppCapabilitiesResponse {
+    success: boolean;
+    contract_version: string;
+    strictness?: 'compatible' | 'strict';
+    catalog_hash?: string;
+    count: number;
+    capabilities: ContractCapability[];
+}
+
+export interface LocalAppCapabilitySearchResponse extends LocalAppCapabilitiesResponse {
+    query: string;
+}
+
+export interface LocalAppCapabilityDetailResponse {
+    success: boolean;
+    contract_version: string;
+    strictness?: 'compatible' | 'strict';
+    catalog_hash?: string;
+    capability: ContractCapability;
+}
+
+export interface ContractInvokePayload {
+    capability_id: string;
+    args?: Record<string, unknown>;
+    auto_run?: boolean;
+    agent_name?: string;
+    workspace_slug?: string;
+    thread_slug?: string;
+    prompt?: string;
+    event_id?: string;
+    attempt_id?: string | number;
 }
 
 export interface Agent {

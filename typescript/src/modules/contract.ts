@@ -2,8 +2,14 @@ import { createHash, createHmac, randomUUID } from 'crypto';
 import { PermissionDeniedError } from './api';
 import {
     ContractEventType,
+    ContractCapability,
+    ContractInvokePayload,
     LocalAppContractDefinition,
     LocalAppContractResponse,
+    LocalAppCapabilitiesResponse,
+    LocalAppCapabilitySearchResponse,
+    LocalAppCapabilityDetailResponse,
+    TriggerAgentResponse,
 } from '../types';
 
 export const LOCAL_APP_CONTRACT_VERSION = 'local-app-contract/v1';
@@ -177,6 +183,8 @@ export class ContractModule {
     private readonly appId?: string;
     private readonly apiKey?: string;
     private cachedContract: LocalAppContractDefinition | null = null;
+    private cachedCapabilities: ContractCapability[] | null = null;
+    private cachedCapabilityCatalogHash: string | null = null;
 
     constructor(realtimexUrl: string, appName?: string, appId?: string, apiKey?: string) {
         this.realtimexUrl = realtimexUrl.replace(/\/$/, '');
@@ -203,18 +211,20 @@ export class ContractModule {
         }
     }
 
-    private async request<T>(path: string): Promise<T> {
+    private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
         const url = `${this.realtimexUrl}${path}`;
         const headers: Record<string, string> = {
             'Content-Type': 'application/json',
+            ...(options.headers as Record<string, string>),
         };
 
         if (this.apiKey) headers.Authorization = `Bearer ${this.apiKey}`;
         if (this.appId) headers['x-app-id'] = this.appId;
 
         const response = await fetch(url, {
-            method: 'GET',
+            method: options.method || 'GET',
             headers,
+            body: options.body,
         });
         const data = await response.json();
 
@@ -225,7 +235,7 @@ export class ContractModule {
 
             if (errorCode === 'PERMISSION_REQUIRED' && permission) {
                 const granted = await this.requestPermission(permission);
-                if (granted) return this.request<T>(path);
+                if (granted) return this.request<T>(path, options);
                 throw new PermissionDeniedError(permission, message);
             }
 
@@ -246,10 +256,104 @@ export class ContractModule {
 
         const data = await this.request<LocalAppContractResponse>('/contracts/local-app/v1');
         this.cachedContract = data.contract;
+        if (Array.isArray(data.contract?.capabilities)) {
+            this.cachedCapabilities = data.contract.capabilities;
+            this.cachedCapabilityCatalogHash = data.contract.catalog_hash || null;
+        }
         return data.contract;
+    }
+
+    async listCapabilities(forceRefresh = false): Promise<ContractCapability[]> {
+        if (!forceRefresh && this.cachedCapabilities) return this.cachedCapabilities;
+
+        const data = await this.request<LocalAppCapabilitiesResponse>(
+            '/contracts/local-app/v1/capabilities'
+        );
+        this.cachedCapabilities = Array.isArray(data.capabilities)
+            ? data.capabilities
+            : [];
+        this.cachedCapabilityCatalogHash = data.catalog_hash || null;
+        return this.cachedCapabilities;
+    }
+
+    async searchCapabilities(query: string): Promise<ContractCapability[]> {
+        const normalizedQuery = String(query || '').trim();
+        if (!normalizedQuery) {
+            throw new Error('searchCapabilities requires a non-empty query');
+        }
+        const encodedQuery = encodeURIComponent(normalizedQuery);
+        const data = await this.request<LocalAppCapabilitySearchResponse>(
+            `/contracts/local-app/v1/capabilities/search?q=${encodedQuery}`
+        );
+        return Array.isArray(data.capabilities) ? data.capabilities : [];
+    }
+
+    async describeCapability(capabilityId: string): Promise<ContractCapability> {
+        const normalizedCapabilityId = String(capabilityId || '').trim();
+        if (!normalizedCapabilityId) {
+            throw new Error('describeCapability requires a non-empty capability id');
+        }
+        const encodedCapabilityId = encodeURIComponent(normalizedCapabilityId);
+        const data = await this.request<LocalAppCapabilityDetailResponse>(
+            `/contracts/local-app/v1/capabilities/${encodedCapabilityId}`
+        );
+        return data.capability;
+    }
+
+    // Alias for agentic contract flow naming.
+    async search(query: string): Promise<ContractCapability[]> {
+        return this.searchCapabilities(query);
+    }
+
+    // Alias for agentic contract flow naming.
+    async describe(capabilityId: string): Promise<ContractCapability> {
+        return this.describeCapability(capabilityId);
+    }
+
+    async invoke(payload: ContractInvokePayload): Promise<TriggerAgentResponse> {
+        const capabilityId = String(payload?.capability_id || '').trim();
+        if (!capabilityId) {
+            throw new Error('invoke requires payload.capability_id');
+        }
+        if (payload.auto_run && (!payload.agent_name || !payload.workspace_slug)) {
+            throw new Error('auto_run requires agent_name and workspace_slug');
+        }
+
+        const args: Record<string, unknown> =
+            payload.args && typeof payload.args === 'object' && !Array.isArray(payload.args)
+                ? { ...payload.args }
+                : {};
+        if (!args.capability) {
+            args.capability = capabilityId;
+        }
+
+        return this.request<TriggerAgentResponse>('/webhooks/realtimex', {
+            method: 'POST',
+            body: JSON.stringify({
+                app_name: this.appName,
+                app_id: this.appId,
+                event: 'task.trigger',
+                event_id: payload.event_id || createContractEventId(),
+                attempt_id: normalizeAttemptId(payload.attempt_id),
+                payload: {
+                    raw_data: args,
+                    auto_run: payload.auto_run ?? false,
+                    agent_name: payload.agent_name,
+                    workspace_slug: payload.workspace_slug,
+                    thread_slug: payload.thread_slug,
+                    prompt: payload.prompt ?? '',
+                },
+            }),
+        });
+    }
+
+    getCachedCatalogHash(): string | null {
+        return this.cachedCapabilityCatalogHash;
     }
 
     clearCache(): void {
         this.cachedContract = null;
+        this.cachedCapabilities = null;
+        this.cachedCapabilityCatalogHash = null;
     }
 }
