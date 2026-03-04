@@ -5,6 +5,20 @@ All notable changes to the RealtimeX SDK will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.5-rc.1] - 2026-03-04
+
+### Added
+- **Local App Contract v1 module (TypeScript + Python)**: discover canonical contract schema via `getLocalAppV1()` / `get_local_app_v1()` and shared helpers for event normalization, attempt IDs, idempotency keys, and callback signing.
+- **Contract compatibility verifier**: new script `scripts/verify-contract-compat.mjs` to compare SDK contract surfaces with Main App `/contracts/local-app/v1`.
+
+### Changed
+- **Task lifecycle callbacks upgraded to canonical events**: task APIs now emit `task.claimed|started|progress|completed|failed|canceled`, always include `event_id`, and support canonical+legacy callback payloads for backward compatibility.
+- **Optional callback signing controls**: `callbackSecret` / `signCallbacksByDefault` config in both SDKs for signed callback rollouts.
+- **SDK exports parity**: MCP module and new Contract module are both exported from TypeScript and Python SDK clients.
+
+### Notes
+- This is a release candidate intended for Local App contract pilot validation before stable `1.3.5`.
+
 ## [1.3.3] - 2026-02-28
 
 ### Fixed

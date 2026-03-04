@@ -58,7 +58,7 @@ from .llm import (
     VectorDeleteResponse,
 )
 
-__version__ = "1.3.4"
+__version__ = "1.3.5rc1"
 __all__ = [
     "RealtimeXSDK",
     "SDKConfig",
