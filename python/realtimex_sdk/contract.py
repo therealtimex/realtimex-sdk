@@ -60,6 +60,7 @@ _LEGACY_ACTION_MAP: Dict[str, str] = {
     "task.failed": "fail",
     "task.canceled": "cancel",
 }
+MAX_PERMISSION_REQUEST_RETRIES = 1
 
 
 def normalize_contract_event(event_like: Optional[str]) -> Optional[str]:
@@ -231,7 +232,7 @@ class ContractModule:
         except Exception:
             return False
 
-    async def _request(self, endpoint: str) -> Dict[str, Any]:
+    async def _request(self, endpoint: str, permission_retry_count: int = 0) -> Dict[str, Any]:
         headers = {"Content-Type": "application/json"}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
@@ -248,9 +249,11 @@ class ContractModule:
                 message = data.get("message")
 
                 if error_code == "PERMISSION_REQUIRED" and permission:
+                    if permission_retry_count >= MAX_PERMISSION_REQUEST_RETRIES:
+                        raise PermissionDeniedError(permission, message, "PERMISSION_REQUIRED")
                     granted = await self._request_permission(permission)
                     if granted:
-                        return await self._request(endpoint)
+                        return await self._request(endpoint, permission_retry_count + 1)
                     raise PermissionDeniedError(permission, message)
 
                 if error_code == "PERMISSION_DENIED":

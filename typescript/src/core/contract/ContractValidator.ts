@@ -67,7 +67,14 @@ function normalizeTrigger(value: unknown): ContractCapability['trigger'] {
         return { event: 'task.trigger' };
     }
 
-    const event = value.event === 'task.trigger' ? 'task.trigger' : 'task.trigger';
+    const rawEvent =
+        typeof value.event === 'string' && value.event.trim().length > 0
+            ? value.event.trim()
+            : '';
+    if (rawEvent && rawEvent !== 'task.trigger') {
+        throw new ContractValidationError('Unsupported trigger event', { event: rawEvent });
+    }
+    const event = 'task.trigger' as const;
     const route = typeof value.route === 'string' && value.route.trim().length > 0 ? value.route : undefined;
     const payloadTemplate = isRecord(value.payload_template) ? value.payload_template : undefined;
 
@@ -76,6 +83,26 @@ function normalizeTrigger(value: unknown): ContractCapability['trigger'] {
         route,
         payload_template: payloadTemplate,
     };
+}
+
+function normalizeExecutionMode(
+    value: unknown
+): ContractCapability['execution_mode'] | undefined {
+    if (typeof value !== 'string') return undefined;
+    const normalized = value.trim().toLowerCase();
+    if (
+        normalized === 'delegate_only' ||
+        normalized === 'assist_then_delegate' ||
+        normalized === 'agent_only'
+    ) {
+        return normalized;
+    }
+    return undefined;
+}
+
+function asOptionalStringArray(value: unknown): string[] | undefined {
+    const values = asStringArray(value);
+    return values.length > 0 ? values : undefined;
 }
 
 function normalizeCapability(value: unknown): ContractCapability {
@@ -98,6 +125,9 @@ function normalizeCapability(value: unknown): ContractCapability {
         });
     }
 
+    const rawRiskLevel =
+        value.risk_level !== undefined ? value.risk_level : value.riskLevel;
+
     return {
         capability_id: capabilityId,
         name,
@@ -106,6 +136,47 @@ function normalizeCapability(value: unknown): ContractCapability {
         output_schema: isRecord(value.output_schema) ? value.output_schema : undefined,
         permission,
         trigger: normalizeTrigger(value.trigger),
+        execution_mode: normalizeExecutionMode(
+            value.execution_mode ?? value.executionMode
+        ),
+        approval_required:
+            typeof value.approval_required === 'boolean'
+                ? value.approval_required
+                : typeof value.approvalRequired === 'boolean'
+                ? value.approvalRequired
+                : undefined,
+        approval_policy: isRecord(value.approval_policy)
+            ? value.approval_policy
+            : isRecord(value.approvalPolicy)
+            ? value.approvalPolicy
+            : undefined,
+        allowed_preprocessing: asOptionalStringArray(
+            value.allowed_preprocessing ?? value.allowedPreprocessing
+        ),
+        allowed_side_effects: asOptionalStringArray(
+            value.allowed_side_effects ?? value.allowedSideEffects
+        ),
+        network_policy: isRecord(value.network_policy)
+            ? value.network_policy
+            : isRecord(value.networkPolicy)
+            ? value.networkPolicy
+            : undefined,
+        artifact_policy: isRecord(value.artifact_policy)
+            ? value.artifact_policy
+            : isRecord(value.artifactPolicy)
+            ? value.artifactPolicy
+            : undefined,
+        tags: asOptionalStringArray(value.tags),
+        examples: asOptionalStringArray(value.examples),
+        risk_level:
+            rawRiskLevel === 'low' ||
+            rawRiskLevel === 'medium' ||
+            rawRiskLevel === 'high' ||
+            rawRiskLevel === null
+                ? (rawRiskLevel as ContractCapability['risk_level'])
+                : undefined,
+        enabled: typeof value.enabled === 'boolean' ? value.enabled : undefined,
+        metadata: isRecord(value.metadata) ? value.metadata : undefined,
     };
 }
 

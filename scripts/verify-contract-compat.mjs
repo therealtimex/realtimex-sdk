@@ -38,21 +38,39 @@ function sortedUnique(values) {
   return Array.from(new Set(values || [])).sort();
 }
 
+function resolveContractVersion(contract) {
+  return (
+    contract?.contract_version ||
+    contract?.version ||
+    contract?.id ||
+    ""
+  );
+}
+
+function resolveSupportedEvents(contract) {
+  if (Array.isArray(contract?.supported_contract_events)) {
+    return contract.supported_contract_events;
+  }
+  if (Array.isArray(contract?.supported_events)) {
+    return contract.supported_events;
+  }
+  return [];
+}
+
 function assertContractShape(contract, label) {
   if (!contract || typeof contract !== "object") {
     fail(`${label} did not return a valid contract object.`);
   }
 
-  if (contract.version !== LOCAL_APP_CONTRACT_VERSION) {
+  const contractVersion = resolveContractVersion(contract);
+  if (contractVersion !== LOCAL_APP_CONTRACT_VERSION) {
     fail(
       `${label} returned unexpected contract version.`,
-      `Expected: ${LOCAL_APP_CONTRACT_VERSION}\nReceived: ${String(contract.version)}`
+      `Expected: ${LOCAL_APP_CONTRACT_VERSION}\nReceived: ${String(contractVersion)}`
     );
   }
 
-  const supportedEvents = Array.isArray(contract.supported_events)
-    ? contract.supported_events
-    : [];
+  const supportedEvents = resolveSupportedEvents(contract);
 
   const missingEvents = REQUIRED_EVENTS.filter(
     (eventName) => !supportedEvents.includes(eventName)
@@ -233,8 +251,24 @@ const tsSdk = new tsModule.RealtimeXSDK({
 
 const tsContract = await tsSdk.contract.getLocalAppV1(true);
 assertContractShape(tsContract, "TypeScript SDK");
-compareEventSets(mainAppContract.supported_events, tsContract.supported_events, "TypeScript SDK");
+compareEventSets(
+  resolveSupportedEvents(mainAppContract),
+  resolveSupportedEvents(tsContract),
+  "TypeScript SDK"
+);
 logInfo("TypeScript SDK contract check passed.");
+
+const hashParityPayload = {
+  b: 1,
+  a: {
+    z: 9,
+    y: [3, { k: "v" }],
+  },
+};
+const tsHash = tsModule.hashContractPayload(hashParityPayload);
+if (typeof tsHash !== "string" || tsHash.length === 0) {
+  fail("TypeScript hashContractPayload did not return a digest.");
+}
 
 logInfo("Checking contract fetch through Python SDK.");
 const pythonScript = `
@@ -262,7 +296,15 @@ async def main():
     )
     sdk = RealtimeXSDK(config=config)
     contract = await sdk.contract.get_local_app_v1(force_refresh=True)
-    print(json.dumps({"ok": True, "contract": contract}))
+    hash_payload = {
+        "b": 1,
+        "a": {
+            "z": 9,
+            "y": [3, {"k": "v"}],
+        },
+    }
+    from realtimex_sdk import hash_contract_payload
+    print(json.dumps({"ok": True, "contract": contract, "hash": hash_contract_payload(hash_payload)}))
 
 asyncio.run(main())
 `;
@@ -312,10 +354,28 @@ if (!pyPayload || pyPayload.ok !== true) {
 
 const pyContract = pyPayload.contract;
 assertContractShape(pyContract, "Python SDK");
-compareEventSets(mainAppContract.supported_events, pyContract.supported_events, "Python SDK");
+compareEventSets(
+  resolveSupportedEvents(mainAppContract),
+  resolveSupportedEvents(pyContract),
+  "Python SDK"
+);
 logInfo("Python SDK contract check passed.");
+
+if (typeof pyPayload.hash !== "string" || pyPayload.hash.length === 0) {
+  fail("Python SDK hash_contract_payload did not return a digest.");
+}
+
+if (pyPayload.hash !== tsHash) {
+  fail(
+    "Cross-language contract payload hash mismatch.",
+    `TypeScript: ${tsHash}\nPython: ${pyPayload.hash}`
+  );
+}
+logInfo("Cross-language hash parity check passed.");
 
 console.log("");
 console.log("Contract compatibility checks passed.");
 console.log(`Main App: ${LOCAL_APP_CONTRACT_VERSION} @ ${endpointUrl}`);
-console.log(`Event count: ${sortedUnique(mainAppContract.supported_events).length}`);
+console.log(
+  `Event count: ${sortedUnique(resolveSupportedEvents(mainAppContract)).length}`
+);

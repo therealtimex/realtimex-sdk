@@ -16,6 +16,12 @@ export interface CanonicalToolDefinition {
     permission: string;
     capability_id: string;
     trigger: ContractCapability['trigger'];
+    execution_mode?: ContractCapability['execution_mode'];
+    approval_required?: ContractCapability['approval_required'];
+    approval_policy?: ContractCapability['approval_policy'];
+    tags?: ContractCapability['tags'];
+    examples?: ContractCapability['examples'];
+    risk_level?: ContractCapability['risk_level'];
 }
 
 export interface HostToolAdapter<TProviderTool, TProviderToolCall, TProviderResult> {

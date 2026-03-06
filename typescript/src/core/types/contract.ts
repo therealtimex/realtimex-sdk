@@ -25,6 +25,18 @@ export interface ContractCapability {
     output_schema?: Record<string, unknown>;
     permission: string;
     trigger: ContractCapabilityTrigger;
+    execution_mode?: 'delegate_only' | 'assist_then_delegate' | 'agent_only';
+    approval_required?: boolean;
+    approval_policy?: Record<string, unknown>;
+    allowed_preprocessing?: string[];
+    allowed_side_effects?: string[];
+    network_policy?: Record<string, unknown>;
+    artifact_policy?: Record<string, unknown>;
+    tags?: string[];
+    examples?: string[];
+    risk_level?: 'low' | 'medium' | 'high' | null;
+    enabled?: boolean;
+    metadata?: Record<string, unknown>;
 }
 
 export interface LocalAppContractV1 {

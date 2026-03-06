@@ -6,6 +6,8 @@ from typing import Any, Dict, List, Optional
 import httpx
 import os
 
+MAX_PERMISSION_REQUEST_RETRIES = 1
+
 
 class PermissionDeniedError(Exception):
     """Raised when a permission is permanently denied."""
@@ -60,7 +62,13 @@ class ApiModule:
             print(f"[SDK] Permission request failed: {e}")
             return False
     
-    async def _api_call(self, method: str, endpoint: str, **kwargs) -> Dict[str, Any]:
+    async def _api_call(
+        self,
+        method: str,
+        endpoint: str,
+        permission_retry_count: int = 0,
+        **kwargs
+    ) -> Dict[str, Any]:
         """
         Make an API call with automatic permission handling.
         - PERMISSION_REQUIRED: Request permission and retry
@@ -77,12 +85,20 @@ class ApiModule:
                 message = data.get("message")
                 
                 if error_code == "PERMISSION_REQUIRED" and permission:
+                    if permission_retry_count >= MAX_PERMISSION_REQUEST_RETRIES:
+                        raise PermissionDeniedError(permission, message, "PERMISSION_REQUIRED")
+
                     # Try to get permission from user
                     granted = await self._request_permission(permission)
                     
                     if granted:
                         # Retry the original request
-                        return await self._api_call(method, endpoint, **kwargs)
+                        return await self._api_call(
+                            method,
+                            endpoint,
+                            permission_retry_count + 1,
+                            **kwargs
+                        )
                     else:
                         raise PermissionDeniedError(permission, message)
                 

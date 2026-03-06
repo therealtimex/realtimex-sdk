@@ -17,6 +17,7 @@ export const CONTRACT_SIGNATURE_HEADER = 'x-rtx-contract-signature';
 export const CONTRACT_EVENT_ID_HEADER = 'x-rtx-event-id';
 export const CONTRACT_SIGNATURE_ALGORITHM = 'sha256';
 export const CONTRACT_ATTEMPT_PREFIX = 'run-';
+const MAX_PERMISSION_REQUEST_RETRIES = 1;
 
 const CONTRACT_EVENT_ALIASES: Record<string, ContractEventType> = {
     'trigger-agent': 'task.trigger',
@@ -102,7 +103,19 @@ export function parseAttemptRunId(attemptLike?: string | number | null): number 
 export function hashContractPayload(payload: unknown): string {
     const normalized =
         payload && typeof payload === 'object' ? payload : { value: payload ?? null };
-    return createHash('sha256').update(JSON.stringify(normalized)).digest('hex');
+    return createHash('sha256').update(stableJsonStringify(normalized)).digest('hex');
+}
+
+function stableJsonStringify(value: unknown): string {
+    if (Array.isArray(value)) {
+        return `[${value.map((item) => stableJsonStringify(item)).join(',')}]`;
+    }
+    if (value && typeof value === 'object') {
+        const record = value as Record<string, unknown>;
+        const keys = Object.keys(record).sort();
+        return `{${keys.map((key) => `${JSON.stringify(key)}:${stableJsonStringify(record[key])}`).join(',')}}`;
+    }
+    return JSON.stringify(value ?? null);
 }
 
 export function createContractEventId(): string {
@@ -173,7 +186,7 @@ export function buildContractIdempotencyKey({
         payload_hash: hashContractPayload(payload ?? {}),
     };
 
-    const token = createHash('sha256').update(JSON.stringify(hashInput)).digest('hex');
+    const token = createHash('sha256').update(stableJsonStringify(hashInput)).digest('hex');
     return `${taskId}:${canonicalEvent}:hash:${token}`;
 }
 
@@ -211,7 +224,11 @@ export class ContractModule {
         }
     }
 
-    private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
+    private async request<T>(
+        path: string,
+        options: RequestInit = {},
+        permissionRetryCount = 0
+    ): Promise<T> {
         const url = `${this.realtimexUrl}${path}`;
         const headers: Record<string, string> = {
             'Content-Type': 'application/json',
@@ -234,8 +251,11 @@ export class ContractModule {
             const message = data.message;
 
             if (errorCode === 'PERMISSION_REQUIRED' && permission) {
+                if (permissionRetryCount >= MAX_PERMISSION_REQUEST_RETRIES) {
+                    throw new PermissionDeniedError(permission, message, 'PERMISSION_REQUIRED');
+                }
                 const granted = await this.requestPermission(permission);
-                if (granted) return this.request<T>(path, options);
+                if (granted) return this.request<T>(path, options, permissionRetryCount + 1);
                 throw new PermissionDeniedError(permission, message);
             }
 
@@ -323,8 +343,8 @@ export class ContractModule {
             payload.args && typeof payload.args === 'object' && !Array.isArray(payload.args)
                 ? { ...payload.args }
                 : {};
-        if (!args.capability) {
-            args.capability = capabilityId;
+        if (!args.capability_id) {
+            args.capability_id = capabilityId;
         }
 
         return this.request<TriggerAgentResponse>('/webhooks/realtimex', {

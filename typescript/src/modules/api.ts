@@ -4,6 +4,8 @@
 
 import { Agent, Workspace, Thread, Task } from '../types';
 
+const MAX_PERMISSION_REQUEST_RETRIES = 1;
+
 /**
  * Error thrown when a permission is permanently denied
  */
@@ -84,7 +86,12 @@ export class ApiModule {
     /**
      * Make an API call with automatic permission handling
      */
-    protected async apiCall<T>(method: string, endpoint: string, options?: RequestInit): Promise<T> {
+    protected async apiCall<T>(
+        method: string,
+        endpoint: string,
+        options?: RequestInit,
+        permissionRetryCount = 0
+    ): Promise<T> {
         const url = `${this.realtimexUrl}${endpoint}`;
         const response = await fetch(url, {
             method,
@@ -100,10 +107,19 @@ export class ApiModule {
 
             if (errorCode === 'PERMISSION_REQUIRED' && permission) {
                 // Try to get permission from user
+                if (permissionRetryCount >= MAX_PERMISSION_REQUEST_RETRIES) {
+                    throw new PermissionDeniedError(permission, message, 'PERMISSION_REQUIRED');
+                }
+
                 const granted = await this.requestPermission(permission);
 
                 if (granted) {
-                    return this.apiCall<T>(method, endpoint, options);
+                    return this.apiCall<T>(
+                        method,
+                        endpoint,
+                        options,
+                        permissionRetryCount + 1
+                    );
                 } else {
                     throw new PermissionDeniedError(permission, message);
                 }

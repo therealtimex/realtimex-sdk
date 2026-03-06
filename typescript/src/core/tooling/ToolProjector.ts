@@ -20,6 +20,12 @@ export class ToolProjector {
                 permission: capability.permission,
                 capability_id: capability.capability_id,
                 trigger: capability.trigger,
+                execution_mode: capability.execution_mode,
+                approval_required: capability.approval_required,
+                approval_policy: capability.approval_policy,
+                tags: capability.tags,
+                examples: capability.examples,
+                risk_level: capability.risk_level,
             };
         });
     }

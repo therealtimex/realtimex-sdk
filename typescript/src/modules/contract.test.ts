@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ContractModule } from './contract';
+import { ContractModule, hashContractPayload } from './contract';
+import { PermissionDeniedError } from './api';
 
 function jsonResponse(body: unknown, status = 200): Response {
     return new Response(JSON.stringify(body), {
@@ -171,9 +172,60 @@ describe('ContractModule capability discovery', () => {
         const parsedBody = JSON.parse(String(requestInit?.body || '{}'));
         expect(parsedBody.event).toBe('task.trigger');
         expect(parsedBody.payload?.raw_data).toMatchObject({
-            capability: 'folio.documents.add',
+            capability_id: 'folio.documents.add',
             file_path: '/tmp/doc.pdf',
         });
+    });
+
+    it('uses stable hash serialization regardless of object key order', () => {
+        const left = hashContractPayload({ b: 1, a: 2 });
+        const right = hashContractPayload({ a: 2, b: 1 });
+        expect(left).toBe(right);
+    });
+
+    it('guards permission-required recursion to one retry', async () => {
+        const fetchMock = vi.spyOn(globalThis, 'fetch');
+        fetchMock
+            // initial request gets permission required
+            .mockResolvedValueOnce(
+                jsonResponse(
+                    {
+                        error: 'PERMISSION_REQUIRED',
+                        permission: 'api.contracts',
+                        message: 'Need contracts permission',
+                    },
+                    403
+                )
+            )
+            // permission request is granted
+            .mockResolvedValueOnce(
+                jsonResponse({
+                    granted: true,
+                })
+            )
+            // retry still returns permission required
+            .mockResolvedValueOnce(
+                jsonResponse(
+                    {
+                        error: 'PERMISSION_REQUIRED',
+                        permission: 'api.contracts',
+                        message: 'Need contracts permission',
+                    },
+                    403
+                )
+            );
+
+        const module = new ContractModule(
+            'http://localhost:3001',
+            'Folio',
+            'app-1',
+            'dev-api-key'
+        );
+
+        await expect(module.listCapabilities()).rejects.toBeInstanceOf(
+            PermissionDeniedError
+        );
+        expect(fetchMock).toHaveBeenCalledTimes(3);
     });
 
     it('validates invoke auto_run requirements', async () => {
