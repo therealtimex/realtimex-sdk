@@ -32,6 +32,7 @@ from .contract import (
 )
 from .database import DatabaseModule, DatabaseConfig
 from .auth import AuthModule, AuthTokenResponse, SyncTokenResponse
+from .log import LogModule
 from .llm import (
     LLMModule,
     VectorStore,
@@ -124,4 +125,6 @@ __all__ = [
     "AuthModule",
     "AuthTokenResponse",
     "SyncTokenResponse",
+    # Log Module
+    "LogModule",
 ]

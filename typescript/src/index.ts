@@ -21,6 +21,7 @@ import { ContractModule } from './modules/contract';
 import { ContractRuntime } from './core/runtime/ContractRuntime';
 import { DatabaseModule } from './modules/database';
 import { AuthModule } from './modules/auth';
+import { LogModule } from './modules/log';
 
 export class RealtimeXSDK {
     public activities: ActivitiesModule;
@@ -37,6 +38,7 @@ export class RealtimeXSDK {
     public contractRuntime: ContractRuntime;
     public database: DatabaseModule;
     public auth: AuthModule;
+    public log: LogModule;
     public readonly appId: string;
     public readonly appName: string | undefined;
     public readonly apiKey: string | undefined;
@@ -86,6 +88,8 @@ export class RealtimeXSDK {
         });
         this.database = new DatabaseModule(this.realtimexUrl, this.appId, this.apiKey);
         this.auth = new AuthModule(this.realtimexUrl, this.appId, this.apiKey);
+        this.log = new LogModule(this.realtimexUrl, this.appId, this.apiKey);
+        this.llm.setLogger(this.log);
 
         // Auto-register with declared permissions (only for production mode)
         if (this.permissions.length > 0 && this.appId && !this.apiKey) {
@@ -352,3 +356,5 @@ export {
     type AuthTokenResponse,
     type SyncTokenResponse,
 } from './modules/auth';
+
+export { LogModule, type LogLevel, type LogSource, type LogEntry, type LogResponse } from './modules/log';

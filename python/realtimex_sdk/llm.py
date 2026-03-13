@@ -238,18 +238,22 @@ class VectorProvidersResponse:
 class VectorStore:
     """
     Vector storage operations for RAG workflows.
-    
+
     Example:
         await sdk.llm.vectors.upsert([
             VectorRecord(id="chunk-1", vector=[0.1, 0.2, ...], metadata={"text": "Hello"})
         ], workspace_id="ws-123")
     """
-    
+
     def __init__(self, base_url: str, app_id: str, app_name: str = "Local App", api_key: Optional[str] = None):
         self._base_url = base_url.rstrip("/")
         self._app_id = app_id
         self._app_name = app_name
         self._api_key = api_key
+        self._logger = None
+
+    def set_logger(self, logger) -> None:
+        self._logger = logger
     
     @property
     def _headers(self) -> Dict[str, str]:
@@ -334,13 +338,18 @@ class VectorStore:
             "workspaceId": workspace_id
         }
         
-        data = await self._request(
-            "POST", 
-            "/sdk/llm/vectors/upsert",
-            json=payload,
-            timeout=60.0
-        )
-        
+        try:
+            data = await self._request(
+                "POST",
+                "/sdk/llm/vectors/upsert",
+                json=payload,
+                timeout=60.0
+            )
+        except Exception as e:
+            if self._logger:
+                self._logger.error(f"Vector upsert failed: {e}", {"workspace_id": workspace_id}, "vector-db")
+            raise
+
         return VectorUpsertResponse(
             success=data.get("success", False),
             upserted=data.get("upserted", 0),
@@ -381,13 +390,18 @@ class VectorStore:
         if document_id:
             payload["filter"]["documentId"] = document_id
         
-        data = await self._request(
-            "POST",
-            "/sdk/llm/vectors/query",
-            json=payload,
-            timeout=60.0
-        )
-        
+        try:
+            data = await self._request(
+                "POST",
+                "/sdk/llm/vectors/query",
+                json=payload,
+                timeout=60.0
+            )
+        except Exception as e:
+            if self._logger:
+                self._logger.error(f"Vector query failed: {e}", {"workspace_id": workspace_id}, "vector-db")
+            raise
+
         results = [
             VectorQueryResult(
                 id=r.get("id", ""),
@@ -429,8 +443,13 @@ class VectorStore:
             "workspaceId": workspace_id
         }
         
-        data = await self._request("POST", "/sdk/llm/vectors/delete", json=payload, timeout=60.0)
-        
+        try:
+            data = await self._request("POST", "/sdk/llm/vectors/delete", json=payload, timeout=60.0)
+        except Exception as e:
+            if self._logger:
+                self._logger.error(f"Vector delete failed: {e}", {"workspace_id": workspace_id}, "vector-db")
+            raise
+
         return VectorDeleteResponse(
             success=data.get("success", False),
             deleted=data.get("deleted", 0),
@@ -564,8 +583,13 @@ class LLMModule:
         self._app_id = app_id
         self._app_name = app_name
         self._api_key = api_key
+        self._logger = None
         self.vectors = VectorStore(base_url, app_id, app_name, api_key)
-    
+
+    def set_logger(self, logger) -> None:
+        self._logger = logger
+        self.vectors.set_logger(logger)
+
     @property
     def _headers(self) -> Dict[str, str]:
         headers = {"Content-Type": "application/json"}
@@ -574,7 +598,7 @@ class LLMModule:
         if self._app_id:
             headers["x-app-id"] = self._app_id
         return headers
-    
+
     async def _request_permission(self, permission: str) -> bool:
         """Request a single permission from Electron via internal API."""
         try:
@@ -698,8 +722,13 @@ class LLMModule:
             "response_format": opts.response_format,
         }
         
-        data = await self._request("POST", "/sdk/llm/chat", json=payload, timeout=120.0)
-        
+        try:
+            data = await self._request("POST", "/sdk/llm/chat", json=payload, timeout=120.0)
+        except Exception as e:
+            if self._logger:
+                self._logger.error(f"LLM chat failed: {e}", {"provider": opts.provider, "model": opts.model}, "llm")
+            raise
+
         resp_data = data.get("response", {})
         metrics_data = resp_data.get("metrics", {})
         
@@ -767,9 +796,15 @@ class LLMModule:
                                     yield chunk
                                 return
                             raise PermissionDeniedError(permission)
-                        raise LLMProviderError(error_data.get("error", "Stream request failed"))
+                        stream_err = LLMProviderError(error_data.get("error", "Stream request failed"))
+                        if self._logger:
+                            self._logger.error(f"LLM stream failed: {stream_err}", {"provider": opts.provider}, "llm")
+                        raise stream_err
                     except json.JSONDecodeError:
-                        raise LLMProviderError(f"Stream failed: {data.decode()}")
+                        decode_err = LLMProviderError(f"Stream failed: {data.decode()}")
+                        if self._logger:
+                            self._logger.error(f"LLM stream failed: {decode_err}", {"provider": opts.provider}, "llm")
+                        raise decode_err
                 
                 buffer = ""
                 is_error_event = False
@@ -798,10 +833,13 @@ class LLMModule:
                                 
                                 if is_error_event:
                                     is_error_event = False
-                                    raise LLMProviderError(
+                                    event_err = LLMProviderError(
                                         data.get("error", "Stream error"),
                                         code=data.get("code", "LLM_STREAM_ERROR")
                                     )
+                                    if self._logger:
+                                        self._logger.error(f"LLM stream failed: {event_err}", {"provider": opts.provider}, "llm")
+                                    raise event_err
                                 
                                 yield StreamChunk(
                                     text=data.get("textResponse", ""),
@@ -840,8 +878,13 @@ class LLMModule:
             "model": model,
         }
         
-        data = await self._request("POST", "/sdk/llm/embed", json=payload, timeout=60.0)
-        
+        try:
+            data = await self._request("POST", "/sdk/llm/embed", json=payload, timeout=60.0)
+        except Exception as e:
+            if self._logger:
+                self._logger.error(f"LLM embed failed: {e}", {"provider": provider}, "llm")
+            raise
+
         return EmbedResponse(
             success=data.get("success", False),
             embeddings=data.get("embeddings"),

@@ -9,6 +9,7 @@
  */
 
 import { PermissionDeniedError, PermissionRequiredError } from './api';
+import type { LogModule } from './log';
 
 // === Types ===
 
@@ -249,12 +250,18 @@ export class LLMProviderError extends Error {
 // === Vector Store Sub-module ===
 
 export class VectorStore {
+    private logger?: LogModule;
+
     constructor(
         private baseUrl: string,
         private appId: string,
         private appName: string = 'Local App',
         private apiKey?: string
     ) { }
+
+    setLogger(logger: LogModule): void {
+        this.logger = logger;
+    }
 
     private get headers(): Record<string, string> {
         const headers: Record<string, string> = {
@@ -332,10 +339,15 @@ export class VectorStore {
      * ```
      */
     async upsert(vectors: VectorRecord[], options: VectorUpsertOptions = {}): Promise<VectorUpsertResponse> {
-        return this.request<VectorUpsertResponse>('POST', '/sdk/llm/vectors/upsert', {
-            vectors,
-            workspaceId: options.workspaceId,
-        });
+        try {
+            return await this.request<VectorUpsertResponse>('POST', '/sdk/llm/vectors/upsert', {
+                vectors,
+                workspaceId: options.workspaceId,
+            });
+        } catch (error: any) {
+            this.logger?.error(`Vector upsert failed: ${error.message}`, { workspaceId: options.workspaceId }, "vector-db");
+            throw error;
+        }
     }
 
     /**
@@ -351,12 +363,17 @@ export class VectorStore {
      * ```
      */
     async query(vector: number[], options: VectorQueryOptions = {}): Promise<VectorQueryResponse> {
-        return this.request<VectorQueryResponse>('POST', '/sdk/llm/vectors/query', {
-            vector,
-            topK: options.topK ?? 5,
-            filter: options.filter,
-            workspaceId: options.workspaceId,
-        });
+        try {
+            return await this.request<VectorQueryResponse>('POST', '/sdk/llm/vectors/query', {
+                vector,
+                topK: options.topK ?? 5,
+                filter: options.filter,
+                workspaceId: options.workspaceId,
+            });
+        } catch (error: any) {
+            this.logger?.error(`Vector query failed: ${error.message}`, { workspaceId: options.workspaceId }, "vector-db");
+            throw error;
+        }
     }
 
     /**
@@ -371,7 +388,12 @@ export class VectorStore {
      * ```
      */
     async delete(options: VectorDeleteOptions): Promise<VectorDeleteResponse> {
-        return this.request<VectorDeleteResponse>('POST', '/sdk/llm/vectors/delete', options);
+        try {
+            return await this.request<VectorDeleteResponse>('POST', '/sdk/llm/vectors/delete', options);
+        } catch (error: any) {
+            this.logger?.error(`Vector delete failed: ${error.message}`, { workspaceId: options.workspaceId }, "vector-db");
+            throw error;
+        }
     }
 
     /**
@@ -427,6 +449,7 @@ export class VectorStore {
 
 export class LLMModule {
     public vectors: VectorStore;
+    private logger?: LogModule;
 
     constructor(
         private baseUrl: string,
@@ -435,6 +458,11 @@ export class LLMModule {
         private apiKey?: string
     ) {
         this.vectors = new VectorStore(baseUrl, appId, appName, apiKey);
+    }
+
+    setLogger(logger: LogModule): void {
+        this.logger = logger;
+        this.vectors.setLogger(logger);
     }
 
     private get headers(): Record<string, string> {
@@ -545,14 +573,19 @@ export class LLMModule {
      * ```
      */
     async chat(messages: ChatMessage[], options: ChatOptions = {}): Promise<ChatResponse> {
-        return this.request<ChatResponse>('POST', '/sdk/llm/chat', {
-            messages,
-            model: options.model,
-            provider: options.provider,
-            temperature: options.temperature ?? 0.7,
-            max_tokens: options.max_tokens ?? 1000,
-            response_format: options.response_format,
-        });
+        try {
+            return await this.request<ChatResponse>('POST', '/sdk/llm/chat', {
+                messages,
+                model: options.model,
+                provider: options.provider,
+                temperature: options.temperature ?? 0.7,
+                max_tokens: options.max_tokens ?? 1000,
+                response_format: options.response_format,
+            });
+        } catch (error: any) {
+            this.logger?.error(`LLM chat failed: ${error.message}`, { provider: options.provider, model: options.model }, "llm");
+            throw error;
+        }
     }
 
     /**
@@ -598,7 +631,9 @@ export class LLMModule {
                 }
                 throw new PermissionDeniedError(permission);
             }
-            throw new LLMProviderError(errorData.error || 'Stream request failed');
+            const streamErr = new LLMProviderError(errorData.error || 'Stream request failed');
+            this.logger?.error(`LLM stream failed: ${streamErr.message}`, { provider: options.provider }, "llm");
+            throw streamErr;
         }
 
         const reader = response.body?.getReader();
@@ -664,7 +699,10 @@ export class LLMModule {
                             if (jsonStr !== '[DONE]') {
                                 console.warn('[LLM Stream] Parse error:', jsonStr);
                             }
-                            if (parseError instanceof LLMProviderError) throw parseError;
+                            if (parseError instanceof LLMProviderError) {
+                                this.logger?.error(`LLM stream failed: ${parseError.message}`, { provider: options.provider }, "llm");
+                                throw parseError;
+                            }
                         }
                     }
                 }
@@ -689,11 +727,16 @@ export class LLMModule {
     async embed(input: string | string[], options: EmbedOptions = {}): Promise<EmbedResponse> {
         const inputArray = Array.isArray(input) ? input : [input];
 
-        return this.request<EmbedResponse>('POST', '/sdk/llm/embed', {
-            input: inputArray,
-            provider: options.provider,
-            model: options.model,
-        });
+        try {
+            return await this.request<EmbedResponse>('POST', '/sdk/llm/embed', {
+                input: inputArray,
+                provider: options.provider,
+                model: options.model,
+            });
+        } catch (error: any) {
+            this.logger?.error(`LLM embed failed: ${error.message}`, { provider: options.provider }, "llm");
+            throw error;
+        }
     }
 
     /**

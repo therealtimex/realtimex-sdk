@@ -21,6 +21,7 @@ from .mcp import MCPModule
 from .contract import ContractModule
 from .database import DatabaseModule
 from .auth import AuthModule
+from .log import LogModule
 
 
 @dataclass
@@ -91,6 +92,8 @@ class RealtimeXSDK:
         self.contract = ContractModule(realtimex_url, app_name, app_id, api_key)
         self.database = DatabaseModule(realtimex_url, app_id, api_key)
         self.auth = AuthModule(realtimex_url, app_id, api_key)
+        self.log = LogModule(realtimex_url, app_id or "", api_key)
+        self.llm.set_logger(self.log)
         self._registered = False
 
         if config:
