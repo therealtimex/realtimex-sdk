@@ -20,7 +20,7 @@ export interface AcpAgentInfo {
   handles: string[];
   installed: boolean;
   authReady: boolean;
-  version?: string;
+  version?: string | null;
   status: "installed" | "not_installed";
 }
 
@@ -295,14 +295,15 @@ async function* parseNamedSSEStream(
           currentEvent = line.slice(7).trim();
         } else if (line.startsWith("data: ")) {
           const jsonStr = line.slice(6);
+          const eventType = currentEvent || undefined;
+          currentEvent = "";
+          if (!eventType) continue; // drop frames without a named event
           try {
             const data = JSON.parse(jsonStr);
-            const type = (currentEvent || data.type || "unknown") as AcpStreamEvent["type"];
-            yield { type, data };
+            yield { type: eventType as AcpStreamEvent["type"], data };
           } catch {
             // skip malformed JSON
           }
-          currentEvent = "";
         } else if (line === "") {
           // empty line resets event per SSE spec
           currentEvent = "";
