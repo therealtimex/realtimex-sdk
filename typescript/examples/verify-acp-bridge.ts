@@ -160,26 +160,15 @@ async function main() {
   }
 
   // -----------------------------------------------------------------------
-  // Step 5: Streaming chat (uses a fresh session — the ACP onRuntimeEvent
-  // callback for text_delta is only reliably fired on the first turn of a
-  // session for some CLI agents)
+  // Step 5: Streaming chat (same session — verifies multi-turn works)
   // -----------------------------------------------------------------------
   section("Step 5: Streaming Chat (SSE)");
-  let streamSessionKey: string | undefined;
   try {
-    const streamSession = await sdk.acpAgent.createSession({
-      agent_id: AGENT_ID,
-      cwd: CWD,
-      label: "verify-stream",
-      approvalPolicy: "approve-all",
-    });
-    streamSessionKey = streamSession.session_key;
-    info(`Stream session: ${streamSessionKey}`);
     info('Sending: "Say hello in 3 languages, one per line."');
     const eventCounts: Record<string, number> = {};
     let fullText = "";
 
-    for await (const event of sdk.acpAgent.streamChat(streamSessionKey, "Say hello in 3 languages, one per line.")) {
+    for await (const event of sdk.acpAgent.streamChat(sessionKey, "Say hello in 3 languages, one per line.")) {
       eventCounts[event.type] = (eventCounts[event.type] || 0) + 1;
       if (event.type === "text_delta") {
         fullText += (event.data.text as string) || "";
@@ -195,10 +184,6 @@ async function main() {
     }
   } catch (err) {
     fail("streamChat() failed", err);
-  } finally {
-    if (streamSessionKey) {
-      await sdk.acpAgent.closeSession(streamSessionKey).catch(() => null);
-    }
   }
 
   // -----------------------------------------------------------------------
