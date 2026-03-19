@@ -22,6 +22,12 @@ export interface AcpAgentInfo {
   authReady: boolean;
   version?: string | null;
   status: "installed" | "not_installed";
+  /** Present when listAgents({ includeModels: true }). */
+  models?: Array<{ id: string; name?: string }>;
+  /** "provider_api" | "fallback" — how models were resolved. */
+  modelSource?: string | null;
+  /** Non-null if model fetch failed and fell back. */
+  modelError?: string | null;
 }
 
 export interface AcpSessionOptions {

@@ -29,6 +29,9 @@ class AcpAgentInfo:
     authReady: bool = False
     version: Optional[str] = None
     status: str = "not_installed"
+    models: Optional[List[Dict[str, Any]]] = None
+    modelSource: Optional[str] = None
+    modelError: Optional[str] = None
 
 
 @dataclass
@@ -127,6 +130,9 @@ class AcpAgentModule:
                 authReady=a.get("authReady", False),
                 version=a.get("version"),
                 status=a.get("status", "not_installed"),
+                models=a.get("models"),
+                modelSource=a.get("source"),
+                modelError=a.get("error"),
             ))
         return agents
 
@@ -142,13 +148,13 @@ class AcpAgentModule:
         approval_policy: Optional[str] = None,
     ) -> AcpSession:
         body: Dict[str, Any] = {"agent_id": agent_id}
-        if cwd:
+        if cwd is not None:
             body["cwd"] = cwd
-        if label:
+        if label is not None:
             body["label"] = label
-        if model:
+        if model is not None:
             body["model"] = model
-        if approval_policy:
+        if approval_policy is not None:
             body["approvalPolicy"] = approval_policy
         data = await self._request("POST", "/sdk/acp/session", json=body)
         s = data["session"]
