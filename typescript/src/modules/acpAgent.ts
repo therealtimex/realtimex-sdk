@@ -28,6 +28,7 @@ export interface AcpSessionOptions {
   agent_id: string;
   cwd?: string;
   label?: string;
+  model?: string;
   approvalPolicy?: "approve-all" | "approve-reads" | "deny-all";
 }
 
@@ -105,9 +106,10 @@ export class AcpAgentModule {
     this.httpClient = httpClient;
   }
 
-  /** List available CLI agents with installation/auth status. */
-  async listAgents(): Promise<AcpAgentInfo[]> {
-    const response = await this.httpClient.fetch("/sdk/acp/agents");
+  /** List available CLI agents. Pass includeModels to get model lists per agent. */
+  async listAgents(opts?: { includeModels?: boolean }): Promise<AcpAgentInfo[]> {
+    const qs = opts?.includeModels ? "?includeModels=true" : "";
+    const response = await this.httpClient.fetch(`/sdk/acp/agents${qs}`);
     const data = await parseJsonResponse<{ agents: AcpAgentInfo[] }>(
       response,
       "Failed to list agents"

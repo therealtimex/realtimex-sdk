@@ -114,8 +114,9 @@ class AcpAgentModule:
 
     # -- Discovery --
 
-    async def list_agents(self) -> List[AcpAgentInfo]:
-        data = await self._request("GET", "/sdk/acp/agents")
+    async def list_agents(self, *, include_models: bool = False) -> List[AcpAgentInfo]:
+        qs = "?includeModels=true" if include_models else ""
+        data = await self._request("GET", f"/sdk/acp/agents{qs}")
         agents = []
         for a in data.get("agents", []):
             agents.append(AcpAgentInfo(
@@ -137,6 +138,7 @@ class AcpAgentModule:
         *,
         cwd: Optional[str] = None,
         label: Optional[str] = None,
+        model: Optional[str] = None,
         approval_policy: Optional[str] = None,
     ) -> AcpSession:
         body: Dict[str, Any] = {"agent_id": agent_id}
@@ -144,6 +146,8 @@ class AcpAgentModule:
             body["cwd"] = cwd
         if label:
             body["label"] = label
+        if model:
+            body["model"] = model
         if approval_policy:
             body["approvalPolicy"] = approval_policy
         data = await self._request("POST", "/sdk/acp/session", json=body)
@@ -272,11 +276,12 @@ class AcpAgentModule:
         *,
         cwd: Optional[str] = None,
         label: Optional[str] = None,
+        model: Optional[str] = None,
         approval_policy: Optional[str] = None,
     ) -> tuple:
         """Create session + first sync chat. Returns (AcpSession, AcpChatResponse)."""
         session = await self.create_session(
-            agent_id, cwd=cwd, label=label, approval_policy=approval_policy
+            agent_id, cwd=cwd, label=label, model=model, approval_policy=approval_policy
         )
         response = await self.chat(session.session_key, message)
         return session, response
