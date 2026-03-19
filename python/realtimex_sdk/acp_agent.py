@@ -30,8 +30,8 @@ class AcpAgentInfo:
     version: Optional[str] = None
     status: str = "not_installed"
     models: Optional[List[Dict[str, Any]]] = None
-    modelSource: Optional[str] = None
-    modelError: Optional[str] = None
+    source: Optional[str] = None
+    error: Optional[str] = None
 
 
 @dataclass
@@ -131,8 +131,8 @@ class AcpAgentModule:
                 version=a.get("version"),
                 status=a.get("status", "not_installed"),
                 models=a.get("models"),
-                modelSource=a.get("source"),
-                modelError=a.get("error"),
+                source=a.get("source"),
+                error=a.get("error"),
             ))
         return agents
 
@@ -224,9 +224,9 @@ class AcpAgentModule:
                     body = await resp.aread()
                     try:
                         data = json.loads(body)
-                        raise AcpError(data.get("error", "Stream failed"), data.get("code", "STREAM_ERROR"))
-                    except (json.JSONDecodeError, AcpError):
-                        raise
+                    except json.JSONDecodeError:
+                        raise AcpError(f"Stream failed (HTTP {resp.status_code})", "STREAM_ERROR")
+                    raise AcpError(data.get("error", "Stream failed"), data.get("code", "STREAM_ERROR"))
 
                 current_event = ""
                 buffer = ""

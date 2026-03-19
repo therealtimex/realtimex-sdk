@@ -25,9 +25,9 @@ export interface AcpAgentInfo {
   /** Present when listAgents({ includeModels: true }). */
   models?: Array<{ id: string; name?: string }>;
   /** "provider_api" | "fallback" — how models were resolved. */
-  modelSource?: string | null;
+  source?: string | null;
   /** Non-null if model fetch failed and fell back. */
-  modelError?: string | null;
+  error?: string | null;
 }
 
 export interface AcpSessionOptions {
