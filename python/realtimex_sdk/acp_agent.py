@@ -197,17 +197,22 @@ class AcpAgentModule:
 
     # -- Turn execution --
 
-    async def chat(self, session_key: str, message: str) -> AcpChatResponse:
+    async def chat(
+        self, session_key: str, message: str, attachments: Optional[List[Dict[str, Any]]] = None
+    ) -> AcpChatResponse:
+        body: Dict[str, Any] = {"message": message}
+        if attachments:
+            body["attachments"] = attachments
         data = await self._request(
             "POST",
             f"/sdk/acp/session/{self._encode_key(session_key)}/chat",
-            json={"message": message},
+            json=body,
         )
         r = data["response"]
         return AcpChatResponse(text=r.get("text", ""), stop_reason=r.get("stop_reason"))
 
     async def stream_chat(
-        self, session_key: str, message: str
+        self, session_key: str, message: str, attachments: Optional[List[Dict[str, Any]]] = None
     ) -> AsyncIterator[AcpStreamEvent]:
         if httpx is None:
             raise ImportError("httpx is required: pip install httpx")
@@ -217,7 +222,7 @@ class AcpAgentModule:
                 "POST",
                 f"{self._base_url}/sdk/acp/session/{self._encode_key(session_key)}/chat/stream",
                 headers=self._headers,
-                json={"message": message},
+                json={"message": message, **({"attachments": attachments} if attachments else {})},
                 timeout=300.0,
             ) as resp:
                 if not resp.is_success:

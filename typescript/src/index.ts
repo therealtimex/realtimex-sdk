@@ -284,6 +284,7 @@ export {
     type AcpSession,
     type AcpSessionStatus,
     type AcpRuntimeOptionPatch,
+    type AcpAttachment,
     type AcpChatResponse,
     type AcpStreamEvent,
     type AcpPermissionDecision,

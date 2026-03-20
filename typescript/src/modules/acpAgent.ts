@@ -61,6 +61,11 @@ export interface AcpRuntimeOptionPatch {
   extras?: Record<string, string>;
 }
 
+export interface AcpAttachment {
+  contentString: string;  // data URI, e.g. "data:image/png;base64,..."
+  mime: string;           // e.g. "image/png"
+}
+
 export interface AcpChatResponse {
   text: string;
   stop_reason?: string;
@@ -186,10 +191,16 @@ export class AcpAgentModule {
    * Synchronous turn — waits for completion, returns full response.
    * Requires approvalPolicy set on the session (via create or patchSession).
    */
-  async chat(sessionKey: string, message: string): Promise<AcpChatResponse> {
+  async chat(
+    sessionKey: string,
+    message: string,
+    attachments?: AcpAttachment[]
+  ): Promise<AcpChatResponse> {
+    const body: Record<string, unknown> = { message };
+    if (attachments?.length) body.attachments = attachments;
     const response = await this.httpClient.fetch(
       `/sdk/acp/session/${encodeSessionKey(sessionKey)}/chat`,
-      { method: "POST", body: JSON.stringify({ message }) }
+      { method: "POST", body: JSON.stringify(body) }
     );
     const data = await parseJsonResponse<{ response: AcpChatResponse }>(
       response,
@@ -219,11 +230,14 @@ export class AcpAgentModule {
    */
   async *streamChat(
     sessionKey: string,
-    message: string
+    message: string,
+    attachments?: AcpAttachment[]
   ): AsyncIterableIterator<AcpStreamEvent> {
+    const body: Record<string, unknown> = { message };
+    if (attachments?.length) body.attachments = attachments;
     const response = await this.httpClient.fetch(
       `/sdk/acp/session/${encodeSessionKey(sessionKey)}/chat/stream`,
-      { method: "POST", body: JSON.stringify({ message }) }
+      { method: "POST", body: JSON.stringify(body) }
     );
 
     if (!response.ok) {
