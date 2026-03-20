@@ -32,6 +32,15 @@ from .contract import (
 )
 from .database import DatabaseModule, DatabaseConfig
 from .auth import AuthModule, AuthTokenResponse, SyncTokenResponse
+from .acp_agent import (
+    AcpAgentModule,
+    AcpAgentInfo,
+    AcpSession,
+    AcpSessionStatus,
+    AcpChatResponse,
+    AcpStreamEvent,
+    AcpError,
+)
 from .llm import (
     LLMModule,
     VectorStore,
@@ -124,4 +133,12 @@ __all__ = [
     "AuthModule",
     "AuthTokenResponse",
     "SyncTokenResponse",
+    # ACP Agent Module
+    "AcpAgentModule",
+    "AcpAgentInfo",
+    "AcpSession",
+    "AcpSessionStatus",
+    "AcpChatResponse",
+    "AcpStreamEvent",
+    "AcpError",
 ]

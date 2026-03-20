@@ -15,6 +15,7 @@ import { LLMModule } from './modules/llm';
 import { TTSModule } from './modules/tts';
 import { STTModule } from './modules/stt';
 import { AgentModule } from './modules/agent';
+import { AcpAgentModule } from './modules/acpAgent';
 import { MCPModule } from './modules/mcp';
 import { HttpClient } from './modules/http';
 import { ContractModule } from './modules/contract';
@@ -32,6 +33,7 @@ export class RealtimeXSDK {
     public tts: TTSModule;
     public stt: STTModule;
     public agent: AgentModule;
+    public acpAgent: AcpAgentModule;
     public mcp: MCPModule;
     public contract: ContractModule;
     public contractRuntime: ContractRuntime;
@@ -75,6 +77,7 @@ export class RealtimeXSDK {
         this.tts = new TTSModule(this.realtimexUrl, this.appId, this.appName, this.apiKey);
         this.stt = new STTModule(this.realtimexUrl, this.appId, this.appName, this.apiKey);
         this.agent = new AgentModule(this.httpClient);
+        this.acpAgent = new AcpAgentModule(this.httpClient);
         this.mcp = new MCPModule(this.realtimexUrl, this.appId, this.appName, this.apiKey);
         this.contract = new ContractModule(this.realtimexUrl, this.appName, this.appId, this.apiKey);
         this.contractRuntime = new ContractRuntime({
@@ -272,6 +275,20 @@ export {
     type AgentSessionInfo,
     type StreamChunkEvent,
 } from './modules/agent';
+
+export {
+    AcpAgentModule,
+    // Types
+    type AcpAgentInfo,
+    type AcpSessionOptions,
+    type AcpSession,
+    type AcpSessionStatus,
+    type AcpRuntimeOptionPatch,
+    type AcpAttachment,
+    type AcpChatResponse,
+    type AcpStreamEvent,
+    type AcpPermissionDecision,
+} from './modules/acpAgent';
 
 export {
     MCPModule,

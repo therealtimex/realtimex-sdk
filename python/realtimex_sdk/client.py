@@ -21,6 +21,7 @@ from .mcp import MCPModule
 from .contract import ContractModule
 from .database import DatabaseModule
 from .auth import AuthModule
+from .acp_agent import AcpAgentModule
 
 
 @dataclass
@@ -91,6 +92,7 @@ class RealtimeXSDK:
         self.contract = ContractModule(realtimex_url, app_name, app_id, api_key)
         self.database = DatabaseModule(realtimex_url, app_id, api_key)
         self.auth = AuthModule(realtimex_url, app_id, api_key)
+        self.acp_agent = AcpAgentModule(realtimex_url, app_id, api_key)
         self._registered = False
 
         if config:
