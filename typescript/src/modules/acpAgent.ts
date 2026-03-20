@@ -62,8 +62,8 @@ export interface AcpRuntimeOptionPatch {
 }
 
 export interface AcpAttachment {
-  contentString: string;  // data URI, e.g. "data:image/png;base64,..."
-  mime: string;           // e.g. "image/png"
+  contentString: string; // data URI, e.g. "data:image/png;base64,..."
+  mime: string; // e.g. "image/png"
 }
 
 export interface AcpChatResponse {
@@ -118,7 +118,9 @@ export class AcpAgentModule {
   }
 
   /** List available CLI agents. Pass includeModels to get model lists per agent. */
-  async listAgents(opts?: { includeModels?: boolean }): Promise<AcpAgentInfo[]> {
+  async listAgents(opts?: {
+    includeModels?: boolean;
+  }): Promise<AcpAgentInfo[]> {
     const qs = opts?.includeModels ? "?includeModels=true" : "";
     const response = await this.httpClient.fetch(`/sdk/acp/agents${qs}`);
     const data = await parseJsonResponse<{ agents: AcpAgentInfo[] }>(

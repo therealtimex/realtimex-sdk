@@ -20,6 +20,7 @@ except ImportError:
 # Data classes
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class AcpAgentInfo:
     id: str
@@ -66,6 +67,7 @@ class AcpStreamEvent:
 # Errors
 # ---------------------------------------------------------------------------
 
+
 class AcpError(Exception):
     def __init__(self, message: str, code: str = "ACP_ERROR"):
         self.code = code
@@ -75,6 +77,7 @@ class AcpError(Exception):
 # ---------------------------------------------------------------------------
 # Module
 # ---------------------------------------------------------------------------
+
 
 class AcpAgentModule:
     """CLI-based agent sessions via the ACP bridge endpoints."""
@@ -122,18 +125,20 @@ class AcpAgentModule:
         data = await self._request("GET", f"/sdk/acp/agents{qs}")
         agents = []
         for a in data.get("agents", []):
-            agents.append(AcpAgentInfo(
-                id=a.get("id", ""),
-                label=a.get("label", ""),
-                handles=a.get("handles", []),
-                installed=a.get("installed", False),
-                authReady=a.get("authReady", False),
-                version=a.get("version"),
-                status=a.get("status", "not_installed"),
-                models=a.get("models"),
-                source=a.get("source"),
-                error=a.get("error"),
-            ))
+            agents.append(
+                AcpAgentInfo(
+                    id=a.get("id", ""),
+                    label=a.get("label", ""),
+                    handles=a.get("handles", []),
+                    installed=a.get("installed", False),
+                    authReady=a.get("authReady", False),
+                    version=a.get("version"),
+                    status=a.get("status", "not_installed"),
+                    models=a.get("models"),
+                    source=a.get("source"),
+                    error=a.get("error"),
+                )
+            )
         return agents
 
     # -- Session lifecycle --
@@ -159,12 +164,17 @@ class AcpAgentModule:
         data = await self._request("POST", "/sdk/acp/session", json=body)
         s = data["session"]
         return AcpSession(
-            session_key=s["session_key"], agent_id=s["agent_id"],
-            state=s["state"], backend_id=s["backend_id"], created_at=s["created_at"],
+            session_key=s["session_key"],
+            agent_id=s["agent_id"],
+            state=s["state"],
+            backend_id=s["backend_id"],
+            created_at=s["created_at"],
         )
 
     async def get_session(self, session_key: str) -> AcpSessionStatus:
-        data = await self._request("GET", f"/sdk/acp/session/{self._encode_key(session_key)}")
+        data = await self._request(
+            "GET", f"/sdk/acp/session/{self._encode_key(session_key)}"
+        )
         return self._parse_session_status(data["session"])
 
     async def list_sessions(self) -> List[AcpSessionStatus]:
@@ -174,8 +184,10 @@ class AcpAgentModule:
     @staticmethod
     def _parse_session_status(s: Dict[str, Any]) -> AcpSessionStatus:
         return AcpSessionStatus(
-            session_key=s["session_key"], agent_id=s["agent_id"],
-            state=s["state"], backend_id=s["backend_id"],
+            session_key=s["session_key"],
+            agent_id=s["agent_id"],
+            state=s["state"],
+            backend_id=s["backend_id"],
             created_at=s.get("created_at", ""),
             runtime_options=s.get("runtime_options", {}),
             last_activity_at=s.get("last_activity_at"),
@@ -189,16 +201,23 @@ class AcpAgentModule:
             json=options,
         )
 
-    async def close_session(self, session_key: str, reason: Optional[str] = None) -> None:
+    async def close_session(
+        self, session_key: str, reason: Optional[str] = None
+    ) -> None:
         kwargs: Dict[str, Any] = {}
         if reason:
             kwargs["json"] = {"reason": reason}
-        await self._request("DELETE", f"/sdk/acp/session/{self._encode_key(session_key)}", **kwargs)
+        await self._request(
+            "DELETE", f"/sdk/acp/session/{self._encode_key(session_key)}", **kwargs
+        )
 
     # -- Turn execution --
 
     async def chat(
-        self, session_key: str, message: str, attachments: Optional[List[Dict[str, Any]]] = None
+        self,
+        session_key: str,
+        message: str,
+        attachments: Optional[List[Dict[str, Any]]] = None,
     ) -> AcpChatResponse:
         body: Dict[str, Any] = {"message": message}
         if attachments:
@@ -212,7 +231,10 @@ class AcpAgentModule:
         return AcpChatResponse(text=r.get("text", ""), stop_reason=r.get("stop_reason"))
 
     async def stream_chat(
-        self, session_key: str, message: str, attachments: Optional[List[Dict[str, Any]]] = None
+        self,
+        session_key: str,
+        message: str,
+        attachments: Optional[List[Dict[str, Any]]] = None,
     ) -> AsyncIterator[AcpStreamEvent]:
         if httpx is None:
             raise ImportError("httpx is required: pip install httpx")
@@ -222,7 +244,10 @@ class AcpAgentModule:
                 "POST",
                 f"{self._base_url}/sdk/acp/session/{self._encode_key(session_key)}/chat/stream",
                 headers=self._headers,
-                json={"message": message, **({"attachments": attachments} if attachments else {})},
+                json={
+                    "message": message,
+                    **({"attachments": attachments} if attachments else {}),
+                },
                 timeout=300.0,
             ) as resp:
                 if not resp.is_success:
@@ -230,8 +255,13 @@ class AcpAgentModule:
                     try:
                         data = json.loads(body)
                     except json.JSONDecodeError:
-                        raise AcpError(f"Stream failed (HTTP {resp.status_code})", "STREAM_ERROR")
-                    raise AcpError(data.get("error", "Stream failed"), data.get("code", "STREAM_ERROR"))
+                        raise AcpError(
+                            f"Stream failed (HTTP {resp.status_code})", "STREAM_ERROR"
+                        )
+                    raise AcpError(
+                        data.get("error", "Stream failed"),
+                        data.get("code", "STREAM_ERROR"),
+                    )
 
                 current_event = ""
                 buffer = ""
@@ -262,7 +292,9 @@ class AcpAgentModule:
         kwargs: Dict[str, Any] = {}
         if reason:
             kwargs["json"] = {"reason": reason}
-        await self._request("POST", f"/sdk/acp/session/{self._encode_key(session_key)}/cancel", **kwargs)
+        await self._request(
+            "POST", f"/sdk/acp/session/{self._encode_key(session_key)}/cancel", **kwargs
+        )
 
     async def resolve_permission(
         self,

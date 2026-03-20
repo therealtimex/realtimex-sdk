@@ -30,10 +30,14 @@ function sseResponse(chunks: string[]): Response {
 }
 
 /** Minimal mock of HttpClient — skips token refresh, just delegates to mockFetch. */
-function createMockHttpClient(): { httpClient: HttpClient; mockFetch: ReturnType<typeof vi.fn> } {
+function createMockHttpClient(): {
+  httpClient: HttpClient;
+  mockFetch: ReturnType<typeof vi.fn>;
+} {
   const mockFetch = vi.fn<[string, RequestInit?], Promise<Response>>();
   const httpClient = {
-    fetch: (endpoint: string, options?: RequestInit) => mockFetch(endpoint, options),
+    fetch: (endpoint: string, options?: RequestInit) =>
+      mockFetch(endpoint, options),
   } as unknown as HttpClient;
   return { httpClient, mockFetch };
 }
@@ -104,7 +108,10 @@ describe("AcpAgentModule", () => {
     it("URL-encodes session key with colons", async () => {
       const { httpClient, mockFetch } = createMockHttpClient();
       mockFetch.mockResolvedValue(
-        jsonResponse({ success: true, session: { session_key: "agent:claude:acp:uuid-1" } })
+        jsonResponse({
+          success: true,
+          session: { session_key: "agent:claude:acp:uuid-1" },
+        })
       );
 
       const module = new AcpAgentModule(httpClient);
@@ -179,7 +186,9 @@ describe("AcpAgentModule", () => {
 
     it("throws on non-ok response", async () => {
       const { httpClient, mockFetch } = createMockHttpClient();
-      mockFetch.mockResolvedValue(jsonResponse({ error: "Session not found" }, 404));
+      mockFetch.mockResolvedValue(
+        jsonResponse({ error: "Session not found" }, 404)
+      );
 
       const module = new AcpAgentModule(httpClient);
       await expect(async () => {
@@ -193,7 +202,9 @@ describe("AcpAgentModule", () => {
   describe("resolvePermission", () => {
     it("sends camelCase fields", async () => {
       const { httpClient, mockFetch } = createMockHttpClient();
-      mockFetch.mockResolvedValue(jsonResponse({ success: true, resolved: true }));
+      mockFetch.mockResolvedValue(
+        jsonResponse({ success: true, resolved: true })
+      );
 
       const module = new AcpAgentModule(httpClient);
       const result = await module.resolvePermission("sk-1", {
@@ -241,7 +252,11 @@ describe("AcpAgentModule", () => {
         .mockResolvedValueOnce(
           jsonResponse({
             success: true,
-            session: { session_key: "sk-new", agent_id: "claude", state: "ready" },
+            session: {
+              session_key: "sk-new",
+              agent_id: "claude",
+              state: "ready",
+            },
           })
         )
         .mockResolvedValueOnce(
