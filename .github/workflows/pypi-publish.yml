@@ -4,9 +4,19 @@ on:
   push:
     tags:
       - 'v*'  # Trigger on version tags (e.g., v1.0.8)
-  release:
-    types: [published]
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g., 1.0.0). Defaults to pyproject.toml version.'
+        required: false
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: publish-pypi-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   build-and-publish:
@@ -19,17 +29,42 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
       
       - name: Install build tools
         run: |
           python -m pip install --upgrade pip
-          pip install build twine
+          pip install -e ".[dev]" build
+
+      - name: Resolve target version
+        id: version
+        shell: bash
+        run: |
+          PYPROJECT_VERSION="$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
+
+          if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
+            TARGET_VERSION="${GITHUB_REF_NAME#v}"
+          else
+            INPUT_VERSION="${{ github.event.inputs.version }}"
+            TARGET_VERSION="${INPUT_VERSION:-$PYPROJECT_VERSION}"
+          fi
+
+          echo "pyproject_version=${PYPROJECT_VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "target_version=${TARGET_VERSION}" >> "${GITHUB_OUTPUT}"
+
+      - name: Validate version consistency
+        shell: bash
+        run: |
+          if [[ "${{ steps.version.outputs.target_version }}" != "${{ steps.version.outputs.pyproject_version }}" ]]; then
+            echo "::error::Version mismatch. target=${{ steps.version.outputs.target_version }} pyproject.toml=${{ steps.version.outputs.pyproject_version }}"
+            exit 1
+          fi
+      
+      - name: Run tests
+        run: pytest -q
       
       - name: Build package
         run: python -m build
       
-      - name: Publish to PyPI
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
-        run: twine upload dist/*
+      - name: Publish to PyPI (trusted publishing)
+        uses: pypa/gh-action-pypi-publish@release/v1
