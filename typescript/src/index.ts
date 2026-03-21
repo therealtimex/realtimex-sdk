@@ -1,8 +1,9 @@
 /**
  * RealtimeX Local App SDK
- * 
+ *
  * SDK for building Local Apps that integrate with RealtimeX
- * All operations go through RealtimeX Main App proxy
+ * Platform APIs use RealtimeX Main App; local contract execution can run
+ * directly through the Local App contract router exposed by the SDK.
  */
 
 import { SDKConfig } from './types';
@@ -77,6 +78,53 @@ export class RealtimeXSDK {
         this.agent = new AgentModule(this.httpClient);
         this.mcp = new MCPModule(this.realtimexUrl, this.appId, this.appName, this.apiKey);
         this.contract = new ContractModule(this.realtimexUrl, this.appName, this.appId, this.apiKey);
+        if (
+            config.contract?.autoMigrateCapabilities !== false &&
+            Array.isArray(config.contract?.capabilities)
+        ) {
+            const report = this.contract.setLocalCapabilityManifest(
+                config.contract.capabilities,
+                {
+                    strict: Boolean(config.contract?.strictCapabilityMigration),
+                }
+            );
+
+            if (report.warnings.length > 0) {
+                const warningSummary = report.warnings
+                    .slice(0, 5)
+                    .map(
+                        (entry) =>
+                            `[${entry.code}] #${entry.index}${entry.capability_id ? ` ${entry.capability_id}` : ''}: ${entry.message}`
+                    )
+                    .join(' | ');
+                console.warn(
+                    `[RealtimeX SDK] Capability migration produced ${report.warnings.length} warning(s). ${warningSummary}`
+                );
+            }
+
+            if (config.contract?.autoSyncCapabilities !== false) {
+                if (this.apiKey || this.appId) {
+                    void this.contract
+                        .syncLocalCapabilities()
+                        .then((syncResult) => {
+                            if (syncResult?.success) {
+                                console.info(
+                                    `[RealtimeX SDK] Capability sync completed (${syncResult.capability_count || 0} capabilities).`
+                                );
+                            }
+                        })
+                        .catch((error) => {
+                            console.warn(
+                                `[RealtimeX SDK] Capability sync skipped: ${error?.message || String(error)}`
+                            );
+                        });
+                } else {
+                    console.warn(
+                        '[RealtimeX SDK] Capability sync skipped: missing app identity (apiKey or appId).'
+                    );
+                }
+            }
+        }
         this.contractRuntime = new ContractRuntime({
             baseUrl: this.realtimexUrl,
             appId: this.appId || undefined,
@@ -230,6 +278,7 @@ export {
     signContractEvent,
     canonicalEventToLegacyAction,
     buildContractIdempotencyKey,
+    compileCapabilities,
     type ContractSignInput,
 } from './modules/contract';
 export {

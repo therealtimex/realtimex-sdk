@@ -2,12 +2,15 @@
 RealtimeX SDK Client
 
 SDK for building Local Apps that integrate with RealtimeX.
-All operations go through RealtimeX Main App proxy.
+Platform APIs use RealtimeX Main App; local contract execution can run
+directly through the Local App contract router exposed by the SDK.
 """
 
+import asyncio
 import os
+import threading
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Any, Dict, List, Optional
 
 from .activities import ActivitiesModule
 from .webhook import WebhookModule
@@ -34,6 +37,17 @@ class SDKConfig:
     permissions: list = field(default_factory=list)  # List of required permissions
     contract_callback_secret: Optional[str] = None
     contract_sign_callbacks_by_default: Optional[bool] = None
+    contract_capabilities: Optional[List[Dict[str, Any]]] = None
+    contract_auto_migrate_capabilities: bool = True
+    contract_strict_capability_migration: bool = False
+    contract_auto_sync_capabilities: bool = True
+    contract_auto_publish_skills: bool = False
+    contract_skill_root_dir: Optional[str] = None
+    contract_skill_base_url: Optional[str] = None
+    contract_skill_preflight_path: Optional[str] = None
+    contract_skill_invoke_path: Optional[str] = None
+    contract_skill_health_path: Optional[str] = None
+    contract_skill_cleanup_stale_skills: bool = True
 
 
 class RealtimeXSDK:
@@ -98,17 +112,95 @@ class RealtimeXSDK:
                 callback_secret=config.contract_callback_secret,
                 sign_callbacks_by_default=config.contract_sign_callbacks_by_default,
             )
+            self._configure_contract_capabilities(config)
 
         # Auto-register with declared permissions (only for production mode)
-        # If loop is not running yet (common in NiceGUI/FastAPI), we'll retry later
         if self.permissions and self.app_id and not self.api_key:
+            self._schedule_background_coroutine(self.register(), "Auto-registration failed")
+
+    def _schedule_background_coroutine(self, coroutine, error_prefix: str) -> None:
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        if loop and loop.is_running():
+            task = loop.create_task(coroutine)
+
+            def _handle_task_done(completed_task):
+                try:
+                    completed_task.result()
+                except Exception as error:
+                    print(f"[RealtimeX SDK] {error_prefix}: {error}")
+
+            task.add_done_callback(_handle_task_done)
+            return
+
+        def _runner():
             try:
-                import asyncio
-                loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    loop.create_task(self.register())
-            except Exception:
-                pass
+                asyncio.run(coroutine)
+            except Exception as error:
+                print(f"[RealtimeX SDK] {error_prefix}: {error}")
+
+        thread = threading.Thread(target=_runner, daemon=True)
+        thread.start()
+
+    def _configure_contract_capabilities(self, config: SDKConfig) -> None:
+        if config.contract_auto_migrate_capabilities is False:
+            return
+        if not isinstance(config.contract_capabilities, list):
+            return
+
+        report = self.contract.set_local_capability_manifest(
+            capabilities=config.contract_capabilities,
+            strict=bool(config.contract_strict_capability_migration),
+        )
+
+        warnings = report.get("warnings", [])
+        if warnings:
+            warning_summary = " | ".join(
+                f'[{entry.get("code")}] #{entry.get("index")}'
+                + (f' {entry.get("capability_id")}' if entry.get("capability_id") else "")
+                + f': {entry.get("message")}'
+                for entry in warnings[:5]
+            )
+            print(
+                f"[RealtimeX SDK] Capability migration produced {len(warnings)} warning(s). {warning_summary}"
+            )
+
+        if config.contract_auto_publish_skills:
+            try:
+                published = self.contract.publish_skills(
+                    root_dir=config.contract_skill_root_dir,
+                    base_url=config.contract_skill_base_url,
+                    preflight_path=config.contract_skill_preflight_path,
+                    invoke_path=config.contract_skill_invoke_path,
+                    health_path=config.contract_skill_health_path,
+                    cleanup_stale_skills=config.contract_skill_cleanup_stale_skills,
+                )
+                print(
+                    f"[RealtimeX SDK] Skill publishing completed ({len(published.get('artifacts', []))} skills)."
+                )
+            except Exception as error:
+                print(f"[RealtimeX SDK] Skill publishing skipped: {error}")
+
+        if config.contract_auto_sync_capabilities:
+            if self.api_key or self.app_id:
+                self._schedule_background_coroutine(
+                    self._auto_sync_contract_capabilities(),
+                    "Capability sync skipped",
+                )
+            else:
+                print(
+                    "[RealtimeX SDK] Capability sync skipped: missing app identity (api_key or app_id)."
+                )
+
+    async def _auto_sync_contract_capabilities(self) -> None:
+        sync_result = await self.contract.sync_local_capabilities()
+        if sync_result.get("success"):
+            print(
+                f"[RealtimeX SDK] Capability sync completed ({sync_result.get('capability_count', 0)} capabilities)."
+            )
 
     async def register(self):
         """

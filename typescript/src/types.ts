@@ -11,10 +11,16 @@ export interface SDKConfig {
     };
     defaultPort?: number; // Default port for PortModule (default: 8080)
     permissions?: string[]; // List of required permissions
-    contract?: {
-        callbackSecret?: string;
-        signCallbacksByDefault?: boolean;
-    };
+    contract?: SDKContractConfig;
+}
+
+export interface SDKContractConfig {
+    callbackSecret?: string;
+    signCallbacksByDefault?: boolean;
+    capabilities?: ContractCapabilityInput[];
+    autoMigrateCapabilities?: boolean;
+    strictCapabilityMigration?: boolean;
+    autoSyncCapabilities?: boolean;
 }
 
 export interface Activity {
@@ -81,6 +87,72 @@ export interface ContractCapabilityTrigger {
     payload_template?: Record<string, unknown>;
 }
 
+export interface ContractCapabilityPreflight {
+    required_preprocessing?: string[];
+    requiredPreprocessing?: string[];
+}
+
+export interface ContractDeliveryApiConfig {
+    method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | string;
+    path?: string;
+    headers?: Record<string, string>;
+    payload_template?: Record<string, unknown>;
+}
+
+export interface ContractDeliveryConfig {
+    mode?: 'webhook' | 'api' | string;
+    webhook?: {
+        route?: string;
+    } | null;
+    api?: ContractDeliveryApiConfig | null;
+}
+
+export interface ContractNetworkPolicy {
+    allow_domains?: string[];
+    allowDomains?: string[];
+    allow_localhost?: boolean;
+    allowLocalhost?: boolean;
+}
+
+export interface ContractArtifactPolicy {
+    required?: string[];
+    provenance_required?: boolean;
+    provenanceRequired?: boolean;
+}
+
+export interface ContractApprovalPolicy {
+    mode?: 'none' | 'required' | 'human_required';
+    one_time?: boolean;
+    oneTime?: boolean;
+    ttl_ms?: number;
+    ttlMs?: number;
+}
+
+export interface ContractIdempotencyPolicy {
+    key_fields?: string[];
+    keyFields?: string[];
+}
+
+export interface ContractCapabilityConfigEntry {
+    key: string;
+    description?: string;
+    source?: string;
+    sensitive?: boolean;
+}
+
+export interface ContractCapabilityConfiguration {
+    required?: Array<ContractCapabilityConfigEntry | string>;
+    optional?: Array<ContractCapabilityConfigEntry | string>;
+    required_fields?: Array<ContractCapabilityConfigEntry | string>;
+    requiredFields?: Array<ContractCapabilityConfigEntry | string>;
+    optional_fields?: Array<ContractCapabilityConfigEntry | string>;
+    optionalFields?: Array<ContractCapabilityConfigEntry | string>;
+    setup_steps?: string[];
+    setupSteps?: string[];
+    steps?: string[];
+    notes?: string[];
+}
+
 export interface ContractCapability {
     capability_id: string;
     name: string;
@@ -89,10 +161,83 @@ export interface ContractCapability {
     output_schema?: Record<string, unknown>;
     permission?: string;
     trigger?: ContractCapabilityTrigger;
+    preflight?: {
+        required_preprocessing?: string[];
+    } | null;
+    delivery?: ContractDeliveryConfig | null;
+    domain?: string;
+    intent_tags?: string[];
+    execution_mode?: 'delegate_only' | 'assist_then_delegate' | 'agent_only';
+    allowed_preprocessing?: string[];
+    allowed_side_effects?: string[];
+    network_policy?: ContractNetworkPolicy | null;
+    artifact_policy?: ContractArtifactPolicy | null;
+    approval_policy?: ContractApprovalPolicy | null;
+    idempotency?: ContractIdempotencyPolicy | null;
+    error_codes?: string[];
+    configuration?: ContractCapabilityConfiguration | null;
     tags?: string[];
     examples?: string[];
     risk_level?: 'low' | 'medium' | 'high' | null;
     enabled?: boolean;
+}
+
+export interface ContractCapabilityInput extends Partial<ContractCapability> {
+    id?: string;
+    capabilityId?: string;
+    inputSchema?: Record<string, unknown>;
+    outputSchema?: Record<string, unknown>;
+    deliveryMode?: 'webhook' | 'api' | string;
+    deliveryApi?: ContractDeliveryApiConfig | null;
+    executionMode?: 'delegate_only' | 'assist_then_delegate' | 'agent_only' | string;
+    allowedPreprocessing?: string[];
+    allowedSideEffects?: string[];
+    networkPolicy?: ContractNetworkPolicy | null;
+    artifactPolicy?: ContractArtifactPolicy | null;
+    approvalPolicy?: ContractApprovalPolicy | null;
+    idempotencyPolicy?: ContractIdempotencyPolicy | null;
+    errorCodes?: string[];
+    config_requirements?: ContractCapabilityConfiguration | null;
+    configRequirements?: ContractCapabilityConfiguration | null;
+    intentTags?: string[];
+    riskLevel?: 'low' | 'medium' | 'high' | null | string;
+}
+
+export interface CapabilityMigrationWarning {
+    code:
+        | 'INVALID_CAPABILITY'
+        | 'MISSING_CAPABILITY_ID'
+        | 'INVALID_TRIGGER_EVENT'
+        | 'INVALID_EXECUTION_MODE'
+        | 'INVALID_RISK_LEVEL';
+    capability_id?: string;
+    index: number;
+    message: string;
+}
+
+export interface CompileCapabilitiesOptions {
+    strict?: boolean;
+    defaultTriggerRoute?: string;
+}
+
+export interface CompiledCapabilitiesResult {
+    contract_version: 'local-app-contract/v1';
+    capabilities: ContractCapability[];
+    warnings: CapabilityMigrationWarning[];
+    input_count: number;
+    output_count: number;
+    migrated_count: number;
+    dropped_count: number;
+}
+
+export interface ContractCapabilitySyncResponse {
+    success: boolean;
+    app_id?: string;
+    contract_version?: string;
+    capability_count?: number;
+    updated_at?: string;
+    code?: string;
+    error?: string;
 }
 
 export interface LocalAppContractDefinition {
@@ -147,6 +292,271 @@ export interface ContractInvokePayload {
     prompt?: string;
     event_id?: string;
     attempt_id?: string | number;
+}
+
+export interface ContractInvokeRequestBody {
+    capability_id?: string;
+    capabilityId?: string;
+    capability?: string;
+    args?: Record<string, unknown>;
+    context?: Record<string, unknown>;
+    contract?: Record<string, unknown>;
+    payload?: {
+        raw_data?: {
+            capability?: string;
+            capability_id?: string;
+            args?: Record<string, unknown>;
+            context?: Record<string, unknown>;
+            [key: string]: unknown;
+        };
+        [key: string]: unknown;
+    };
+    [key: string]: unknown;
+}
+
+export interface ContractPreflightRequestBody extends ContractInvokeRequestBody {
+    agentic?: {
+        preprocessing?: string[];
+        [key: string]: unknown;
+    };
+}
+
+export interface ContractInvokeHandlerInput {
+    capability_id: string;
+    args: Record<string, unknown>;
+    context: Record<string, unknown>;
+    contract: Record<string, unknown> | null;
+    capability: ContractCapability;
+    requestBody: ContractInvokeRequestBody;
+    request?: unknown;
+}
+
+export interface ContractInvokeSuccessResult {
+    success?: true;
+    task_id?: string;
+    task_uuid?: string;
+    status?: string;
+    message?: string;
+    [key: string]: unknown;
+}
+
+export interface ContractInvokeErrorResult {
+    success?: false;
+    code?: string;
+    error?: string;
+    status?: number;
+    [key: string]: unknown;
+}
+
+export type ContractInvokeCapabilityHandler = (
+    input: ContractInvokeHandlerInput
+) => Promise<ContractInvokeSuccessResult | ContractInvokeErrorResult | void> | ContractInvokeSuccessResult | ContractInvokeErrorResult | void;
+
+export interface ContractPreflightHandlerOptions {
+    capabilities?: ContractCapabilityInput[];
+}
+
+export interface ContractInvokeHandlerOptions {
+    handlers: Record<string, ContractInvokeCapabilityHandler>;
+    capabilities?: ContractCapabilityInput[];
+}
+
+export interface ContractSkillRouterMetadata {
+    base_url: string;
+    preflight_path: string;
+    invoke_path: string;
+    health_path: string;
+    preflight_url: string;
+    invoke_url: string;
+    health_url: string;
+}
+
+export interface ContractSkillMetadata {
+    schema: 'agentskills.io/v1';
+    name: string;
+    description: string;
+    app_id: string | null;
+    app_name: string | null;
+    capability_id: string | null;
+    contract_version: string;
+    execution_mode: 'delegate_only' | 'assist_then_delegate' | 'agent_only';
+    domain: string;
+    intent_tags: string[];
+    allowed_preprocessing: string[];
+    allowed_side_effects: string[];
+    network_policy: ContractCapability['network_policy'];
+    artifact_policy: ContractCapability['artifact_policy'];
+    approval_policy: ContractCapability['approval_policy'];
+    idempotency: ContractCapability['idempotency'];
+    error_codes: string[];
+    configuration: ContractCapability['configuration'];
+    input_schema: Record<string, unknown> | null;
+    output_schema: Record<string, unknown> | null;
+    trigger: ContractCapability['trigger'] | null;
+    delivery: ContractCapability['delivery'];
+    preflight: ContractCapability['preflight'];
+    permission: string | null;
+    risk_level: ContractCapability['risk_level'];
+    tags: string[];
+    examples: string[];
+    router: ContractSkillRouterMetadata;
+    generated_at: string;
+}
+
+export interface ContractSkillArtifact {
+    name: string;
+    app_id: string;
+    app_name: string;
+    capability_id: string;
+    app_dir: string;
+    skill_dir: string;
+    markdown_path: string;
+    metadata_path: string;
+    markdown: string;
+    metadata: ContractSkillMetadata;
+}
+
+export interface ContractSkillAppIndexEntry {
+    name: string;
+    path: string;
+    app_id: string;
+    capability_id: string;
+    description: string | null;
+}
+
+export interface ContractSkillAppIndex {
+    app_id: string;
+    app_name: string;
+    app_dir: string;
+    generated_at: string;
+    count: number;
+    skills: ContractSkillAppIndexEntry[];
+}
+
+export interface ContractSkillRootIndexAppEntry {
+    app_id: string;
+    app_name: string;
+    app_dir: string;
+    count: number;
+}
+
+export interface ContractSkillRootIndex {
+    schema: 'agentskills.io/catalog-v1';
+    generated_at: string;
+    root_dir: string;
+    apps: ContractSkillRootIndexAppEntry[];
+}
+
+export interface ContractBuildSkillArtifactsOptions {
+    capabilities?: ContractCapabilityInput[];
+    strict?: boolean;
+    rootDir?: string;
+    cleanupStaleSkills?: boolean;
+    baseUrl?: string;
+    preflightPath?: string;
+    invokePath?: string;
+    healthPath?: string;
+    env?: Record<string, string | undefined>;
+}
+
+export interface ContractBuildSkillArtifactsResult {
+    root_dir: string;
+    app_id: string;
+    app_name: string;
+    app_dir: string;
+    artifacts: ContractSkillArtifact[];
+    app_index: ContractSkillAppIndex;
+}
+
+export interface ContractPublishSkillsResult extends ContractBuildSkillArtifactsResult {
+    success: true;
+    files_written: number;
+    removed_dirs: number;
+    root_index: ContractSkillRootIndex;
+}
+
+export interface ContractPreflightCheck {
+    code: string;
+    status: 'pass' | 'warn' | 'fail';
+    message: string;
+    details?: Record<string, unknown>;
+}
+
+export type ContractPreflightDecision =
+    | 'delegate_now'
+    | 'assist_then_delegate'
+    | 'blocked';
+
+export interface ContractPreflightResponsePayload {
+    success: boolean;
+    capability_id: string;
+    decision: ContractPreflightDecision;
+    next_action?: string;
+    execution_mode?: 'delegate_only' | 'assist_then_delegate' | 'agent_only';
+    checks: ContractPreflightCheck[];
+    required_preprocessing?: string[];
+    blocking_codes?: string[];
+    code?: string;
+    error?: string;
+    missing_required_args?: string[];
+    [key: string]: unknown;
+}
+
+export interface ContractInvokeResponsePayload {
+    success: boolean;
+    capability_id: string;
+    task_id?: string;
+    task_uuid?: string;
+    status?: string;
+    message?: string;
+    code?: string;
+    error?: string;
+    missing_required_args?: string[];
+    [key: string]: unknown;
+}
+
+export interface ContractHealthResponsePayload {
+    success: true;
+    status: 'ok';
+    contract_version: string;
+    app_id?: string;
+    app_name?: string;
+    capability_count: number;
+}
+
+export interface ContractRouterHandlers {
+    preflight: (
+        req: { body?: ContractPreflightRequestBody },
+        res: {
+            status?: (statusCode: number) => { json: (payload: ContractPreflightResponsePayload) => unknown } | unknown;
+            json?: (payload: ContractPreflightResponsePayload) => unknown;
+        }
+    ) => Promise<void>;
+    invoke: (
+        req: { body?: ContractInvokeRequestBody },
+        res: {
+            status?: (statusCode: number) => { json: (payload: ContractInvokeResponsePayload) => unknown } | unknown;
+            json?: (payload: ContractInvokeResponsePayload) => unknown;
+        }
+    ) => Promise<void>;
+    health: (
+        req: unknown,
+        res: {
+            status?: (statusCode: number) => { json: (payload: ContractHealthResponsePayload) => unknown } | unknown;
+            json?: (payload: ContractHealthResponsePayload) => unknown;
+        }
+    ) => Promise<void>;
+    handlePreflightRequest: (
+        body: ContractPreflightRequestBody,
+        request?: unknown
+    ) => Promise<{ status: number; payload: ContractPreflightResponsePayload }>;
+    handleInvokeRequest: (
+        body: ContractInvokeRequestBody,
+        request?: unknown
+    ) => Promise<{ status: number; payload: ContractInvokeResponsePayload }>;
+    handleHealthRequest: (
+        request?: unknown
+    ) => Promise<{ status: number; payload: ContractHealthResponsePayload }>;
 }
 
 export interface Agent {

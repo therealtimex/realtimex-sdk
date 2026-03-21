@@ -1,15 +1,15 @@
 {
     "name": "@realtimex/sdk",
-    "version": "1.3.7-rc.1",
+    "version": "1.3.7-rc.2",
     "description": "SDK for building Local Apps that integrate with RealtimeX",
     "main": "dist/index.js",
     "module": "dist/index.mjs",
     "types": "dist/index.d.ts",
     "exports": {
         ".": {
+            "types": "./dist/index.d.ts",
             "import": "./dist/index.mjs",
-            "require": "./dist/index.js",
-            "types": "./dist/index.d.ts"
+            "require": "./dist/index.js"
         }
     },
     "scripts": {

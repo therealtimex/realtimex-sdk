@@ -29,6 +29,7 @@ from .contract import (
     sign_contract_event,
     canonical_event_to_legacy_action,
     build_contract_idempotency_key,
+    compile_capabilities,
 )
 from .database import DatabaseModule, DatabaseConfig
 from .auth import AuthModule, AuthTokenResponse, SyncTokenResponse
@@ -117,6 +118,7 @@ __all__ = [
     "sign_contract_event",
     "canonical_event_to_legacy_action",
     "build_contract_idempotency_key",
+    "compile_capabilities",
     # Database Module
     "DatabaseModule",
     "DatabaseConfig",

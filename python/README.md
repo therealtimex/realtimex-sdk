@@ -2,6 +2,11 @@
 
 Python SDK for building Local Apps that integrate with RealtimeX.
 
+The Python SDK now covers two layers:
+
+- Main App platform APIs for discovery, sync, telemetry, tasks, and shared services
+- Local App contract runtime APIs for direct `preflight` / `invoke` / `health` execution
+
 ## Installation
 
 ```bash
@@ -74,6 +79,25 @@ sdk = RealtimeXSDK(config=SDKConfig(
 ))
 ```
 
+Contract runtime options can also be configured at init time:
+
+```python
+sdk = RealtimeXSDK(config=SDKConfig(
+    app_id="folio",
+    app_name="Folio",
+    contract_capabilities=[
+        {
+            "capability_id": "folio.documents.add",
+            "name": "Add Document",
+            "input_schema": {"type": "object", "required": ["file_path"]},
+        }
+    ],
+    contract_auto_sync_capabilities=True,
+    contract_auto_publish_skills=True,
+    contract_skill_base_url="http://127.0.0.1:5180",
+))
+```
+
 ## Environment Variables
 
 When your app is started by the Main App, these are auto-set:
@@ -82,6 +106,10 @@ When your app is started by the Main App, these are auto-set:
 |----------|-------------|
 | `RTX_APP_ID` | Your app's unique ID |
 | `RTX_APP_NAME` | Your app's display name |
+| `RTX_API_KEY` | Optional development-mode API key |
+| `LOCAL_APP_AGENT_SKILLS_DIR` | Optional override for skill publishing root |
+| `RTX_LOCAL_APP_BASE_URL` | Optional default base URL used by `build_skill_artifacts()` / `publish_skills()` |
+| `LOCAL_APP_BASE_URL` | Fallback base URL used by skill publishing if `RTX_LOCAL_APP_BASE_URL` is unset |
 
 ## API Reference
 
@@ -274,6 +302,113 @@ print(contract.get("version"))  # local-app-contract/v1
 print(contract.get("supported_events"))
 print(contract.get("callback", {}).get("signature_header"))  # x-rtx-contract-signature
 ```
+
+### Capability Compile + Local Manifest
+
+```python
+report = sdk.contract.set_local_capability_manifest(
+    [
+        {
+            "capabilityId": "folio.documents.add",
+            "name": "Add Document to Folio",
+            "description": "Queue a document for ingestion.",
+            "inputSchema": {
+                "type": "object",
+                "required": ["file_path"],
+            },
+            "executionMode": "assist_then_delegate",
+            "preflight": {
+                "requiredPreprocessing": ["ocr_pdf"],
+            },
+        }
+    ]
+)
+
+print(report["warnings"])
+print(sdk.contract.get_compiled_capabilities())
+```
+
+Direct compile API:
+
+```python
+report = sdk.contract.compile_capabilities(
+    raw_capabilities,
+    strict=False,
+)
+```
+
+### Local App Contract Router
+
+Expose one router in your local app and let the SDK handle `preflight`, `invoke`, and `health`.
+
+```python
+router = sdk.contract.create_contract_router(
+    {
+        "handlers": {
+            "folio.documents.add": lambda payload: {
+                "task_id": enqueue_ingestion(payload["args"]["file_path"], payload["context"]),
+                "status": "queued",
+                "message": "Queued for processing",
+            }
+        }
+    }
+)
+
+preflight_result = await router["preflight"](
+    {"capability_id": "folio.documents.add", "args": {"file_path": "/tmp/doc.pdf"}}
+)
+invoke_result = await router["invoke"](
+    {"capability_id": "folio.documents.add", "args": {"file_path": "/tmp/doc.pdf"}}
+)
+health_result = await router["health"]()
+```
+
+Router behavior:
+- resolves `capability_id` from request body, including compatibility paths
+- validates the capability exists in the compiled manifest and is enabled
+- validates required args from `input_schema.required`
+- enforces `execution_mode=agent_only` blocking
+- enforces declared `preflight.required_preprocessing`
+- dispatches invoke requests to registered handlers
+- returns normalized payloads for both `preflight` and `invoke`
+
+If you want direct non-router calls:
+
+```python
+preflight = await sdk.contract.handle_preflight_request(body, {"capabilities": capabilities})
+invoke = await sdk.contract.handle_invoke_request(body, {"handlers": handlers, "capabilities": capabilities})
+health = await sdk.contract.handle_health_request({"capabilities": capabilities})
+```
+
+### Skill Artifact Publishing
+
+Build skill artifacts in memory:
+
+```python
+built = sdk.contract.build_skill_artifacts(
+    base_url="http://127.0.0.1:5180",
+)
+
+print(built["artifacts"][0]["metadata"]["router"]["invoke_url"])
+```
+
+Publish `SKILL.md`, `skill.json`, per-app `index.json`, and root `index.json`:
+
+```python
+published = sdk.contract.publish_skills(
+    root_dir="/tmp/realtimex-agent-skills",
+    base_url="http://127.0.0.1:5180",
+)
+
+print(published["root_dir"])
+print(published["files_written"])
+```
+
+Publishing behavior:
+- emits direct Local App router instructions, not `contracts.delegate`
+- uses `/api/contracts/preflight`, `/api/contracts/invoke`, and `/api/contracts/health` by default
+- preserves other apps already published in the same root
+- only cleans stale skills inside the current app directory
 
 ### Worker Callback Lifecycle
 

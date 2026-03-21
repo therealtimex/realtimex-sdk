@@ -17,6 +17,20 @@ export interface ContractCapabilityTrigger {
     payload_template?: Record<string, unknown>;
 }
 
+export interface ContractCapabilityConfigEntry {
+    key: string;
+    description?: string;
+    source?: string;
+    sensitive?: boolean;
+}
+
+export interface ContractCapabilityConfiguration {
+    required?: Array<ContractCapabilityConfigEntry | string>;
+    optional?: Array<ContractCapabilityConfigEntry | string>;
+    setup_steps?: string[];
+    notes?: string[];
+}
+
 export interface ContractCapability {
     capability_id: string;
     name: string;
@@ -25,6 +39,7 @@ export interface ContractCapability {
     output_schema?: Record<string, unknown>;
     permission: string;
     trigger: ContractCapabilityTrigger;
+    configuration?: ContractCapabilityConfiguration | null;
 }
 
 export interface LocalAppContractV1 {

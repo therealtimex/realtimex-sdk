@@ -78,6 +78,84 @@ function normalizeTrigger(value: unknown): ContractCapability['trigger'] {
     };
 }
 
+function normalizeCapabilityConfigEntries(
+    value: unknown
+): Array<{ key: string; description?: string; source?: string; sensitive?: boolean }> {
+    if (!Array.isArray(value)) return [];
+    const output: Array<{
+        key: string;
+        description?: string;
+        source?: string;
+        sensitive?: boolean;
+    }> = [];
+    const seen = new Set<string>();
+
+    for (const entry of value) {
+        if (typeof entry === 'string' && entry.trim()) {
+            const key = entry.trim();
+            const dedupeKey = key.toLowerCase();
+            if (seen.has(dedupeKey)) continue;
+            seen.add(dedupeKey);
+            output.push({ key });
+            continue;
+        }
+        if (!isRecord(entry)) continue;
+        const keyCandidate = [entry.key, entry.name, entry.id, entry.field].find(
+            (candidate) => typeof candidate === 'string' && candidate.trim().length > 0
+        );
+        if (typeof keyCandidate !== 'string' || !keyCandidate.trim()) continue;
+        const key = keyCandidate.trim();
+        const dedupeKey = key.toLowerCase();
+        if (seen.has(dedupeKey)) continue;
+        seen.add(dedupeKey);
+
+        const normalizedEntry: {
+            key: string;
+            description?: string;
+            source?: string;
+            sensitive?: boolean;
+        } = { key };
+        if (typeof entry.description === 'string' && entry.description.trim().length > 0) {
+            normalizedEntry.description = entry.description.trim();
+        }
+        if (typeof entry.source === 'string' && entry.source.trim().length > 0) {
+            normalizedEntry.source = entry.source.trim();
+        }
+        if (entry.sensitive === true) {
+            normalizedEntry.sensitive = true;
+        }
+        output.push(normalizedEntry);
+    }
+
+    return output;
+}
+
+function normalizeCapabilityConfiguration(
+    value: unknown
+): ContractCapability['configuration'] {
+    if (!isRecord(value)) return null;
+    const required = normalizeCapabilityConfigEntries(
+        value.required ?? value.required_fields ?? value.requiredFields
+    );
+    const optional = normalizeCapabilityConfigEntries(
+        value.optional ?? value.optional_fields ?? value.optionalFields
+    );
+    const setupSteps = asStringArray(value.setup_steps ?? value.setupSteps ?? value.steps);
+    const notes = asStringArray(value.notes);
+    const hasValues =
+        required.length > 0 ||
+        optional.length > 0 ||
+        setupSteps.length > 0 ||
+        notes.length > 0;
+    if (!hasValues) return null;
+    return {
+        required,
+        optional,
+        setup_steps: setupSteps,
+        notes,
+    };
+}
+
 function normalizeCapability(value: unknown): ContractCapability {
     if (!isRecord(value)) {
         throw new ContractValidationError('Invalid capability: expected object');
@@ -106,6 +184,15 @@ function normalizeCapability(value: unknown): ContractCapability {
         output_schema: isRecord(value.output_schema) ? value.output_schema : undefined,
         permission,
         trigger: normalizeTrigger(value.trigger),
+        configuration: normalizeCapabilityConfiguration(
+            isRecord(value.configuration)
+                ? value.configuration
+                : isRecord(value.config_requirements)
+                ? value.config_requirements
+                : isRecord(value.configRequirements)
+                ? value.configRequirements
+                : undefined
+        ),
     };
 }
 
