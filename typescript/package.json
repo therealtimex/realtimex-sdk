@@ -17,6 +17,8 @@
         "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
         "test": "vitest run",
         "contract:verify": "node ../scripts/verify-contract-compat.mjs",
+        "skill:generate": "node ../scripts/generate-skill.mjs",
+        "skill:update": "node ../scripts/generate-skill.mjs --force",
         "prepublishOnly": "npm run build"
     },
     "keywords": [
