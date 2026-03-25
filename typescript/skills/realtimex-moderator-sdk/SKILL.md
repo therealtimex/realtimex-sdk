@@ -1,7 +1,7 @@
 ---
 name: realtimex-moderator-sdk
 description: Control and interact with the RealTimeX application through its Node.js SDK. This skill should be used when users want to manage workspaces, threads, agents, activities, LLM chat, vector store, MCP tools, ACP agent sessions, TTS/STT, or any other RealTimeX platform feature via the API. All method signatures are verified against the SDK source code.
-generated: 2026-03-24
+generated: 2026-03-25
 sdk_version: 1.4.0
 ---
 
@@ -14,12 +14,17 @@ Interact with the RealTimeX desktop app (`http://localhost:3001`) using `@realti
 
 ---
 
-## API Key Resolution
+## Authentication
 
-Handled automatically by `scripts/lib/sdk-init.js` — priority order:
-1. `REALTIMEX_API_KEY` / `REALTIMEX_AI_API_KEY` in `<cwd>/.env`
-2. `RTX_API_KEY` / `REALTIMEX_API_KEY` / `REALTIMEX_AI_API_KEY` from `process.env`
-3. Interactive readline prompt
+When running inside RealtimeX (via an agent session or on the same machine), authentication is **automatic** — no setup needed.
+
+Handled by `scripts/lib/sdk-init.js` — credential resolution priority:
+1. Explicit override passed to `initSDK({ apiKey })` or `initSDK({ appId })`
+2. `REALTIMEX_API_KEY` / `REALTIMEX_AI_API_KEY` in `<cwd>/.env`
+3. `RTX_API_KEY` / `REALTIMEX_API_KEY` / `REALTIMEX_AI_API_KEY` from `process.env`
+4. `RTX_APP_ID` from `process.env` (injected by RealtimeX for agents / local apps)
+5. `~/.realtimex.ai/.sdk-app-id` file (written by RealTimeX server on startup)
+6. Interactive readline prompt (dev fallback)
 
 `<SKILL_DIR>` below refers to the directory containing this SKILL.md.
 
