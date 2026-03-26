@@ -1,13 +1,13 @@
 ---
 name: realtimex-moderator-sdk
 description: Control and interact with the RealTimeX application through its Node.js SDK. This skill should be used when users want to manage workspaces, threads, agents, activities, LLM chat, vector store, MCP tools, ACP agent sessions, TTS/STT, or any other RealTimeX platform feature via the API. All method signatures are verified against the SDK source code.
-generated: 2026-03-25
-sdk_version: 1.4.0
+generated: 2026-03-26
+sdk_version: 1.4.3
 ---
 
 # RealTimeX Moderator (SDK Source-Verified)
 
-Interact with the RealTimeX desktop app (`http://localhost:3001`) using `@realtimex/sdk` **v1.4.0** in Developer Mode (API Key).
+Interact with the RealTimeX desktop app (`http://localhost:3001`) using `@realtimex/sdk` **v1.4.3** in Developer Mode (API Key).
 
 > Auto-generated from the `@realtimex/sdk` TypeScript source.
 > Refresh: `node scripts/generate-skill.mjs --force` from the SDK repo root.
