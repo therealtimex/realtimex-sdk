@@ -1,6 +1,6 @@
 # RealTimeX SDK — API Reference
 
-> Auto-generated from `@realtimex/sdk` source · v**1.4.3** · 2026-03-26
+> Auto-generated from `@realtimex/sdk` source · v**1.4.4** · 2026-03-27
 
 **Package:** `@realtimex/sdk` (CJS) · **Server:** `http://localhost:3001`
 **Developer Mode auth:** `Authorization: Bearer <apiKey>`

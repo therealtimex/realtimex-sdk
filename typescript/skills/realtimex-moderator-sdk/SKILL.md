@@ -1,13 +1,13 @@
 ---
 name: realtimex-moderator-sdk
 description: Control and interact with the RealTimeX application through its Node.js SDK. This skill should be used when users want to manage workspaces, threads, agents, activities, LLM chat, vector store, MCP tools, ACP agent sessions, TTS/STT, or any other RealTimeX platform feature via the API. All method signatures are verified against the SDK source code.
-generated: 2026-03-26
-sdk_version: 1.4.3
+generated: 2026-03-27
+sdk_version: 1.4.4
 ---
 
 # RealTimeX Moderator (SDK Source-Verified)
 
-Interact with the RealTimeX desktop app (`http://localhost:3001`) using `@realtimex/sdk` **v1.4.3** in Developer Mode (API Key).
+Interact with the RealTimeX desktop app (`http://localhost:3001`) using `@realtimex/sdk` **v1.4.4** in Developer Mode (API Key).
 
 > Auto-generated from the `@realtimex/sdk` TypeScript source.
 > Refresh: `node scripts/generate-skill.mjs --force` from the SDK repo root.
@@ -181,18 +181,18 @@ for await (const event of sdk.acpAgent.streamChat(sessionKey, 'build a website')
 
 | # | Issue |
 |---|-------|
-| 1 | `sdk.webhook.triggerAgent()` sends `event: "task.trigger"` — server expects `"trigger-agent"` |
-| 2 | `sdk.task.start/complete/fail` take positional `(taskUuid, ...)` — NOT `{ task_uuid }` object |
-| 3 | `sdk.activities.list()` returns `Activity[]` directly — NOT `{ activities: [...] }` |
-| 4 | `sdk.llm.chat()` response is `res.response?.content` — NOT `choices[0].message.content` |
-| 5 | `sdk.llm.chatStream()` yields `chunk.textResponse` — NOT `choices[0].delta.content` |
-| 6 | `sdk.llm.embedAndStore()` takes `{ texts: string[], documentId?, workspaceId?, ... }` |
-| 7 | `sdk.llm.vectors.query()` takes a raw `number[]` embedding — NOT a text string |
-| 8 | `sdk.llm.vectors.delete()` requires `{ deleteAll: true }` — delete-by-ID not supported |
-| 9 | `sdk.mcp.getServers()` takes a plain string — NOT `{ provider: "all" }` |
-| 10 | `getAgents/getWorkspaces/getThreads/getTask` live on `sdk.api.*` — NOT directly on `sdk.*` |
-| 11 | ACP `streamChat` uses named SSE (`event:` line); `text_delta.data.type === "thinking"` = internal reasoning |
-| 12 | ACP sessions stall without `approvalPolicy: "approve-all"` when tools need permission |
+| 1 | 'sdk.webhook.triggerAgent()' sends 'event: "task.trigger"' — server expects '"trigger-agen |
+| 2 | 'sdk.task.start/complete/fail' take positional '(taskUuid, ...)' — NOT '{ task_uuid }' obj |
+| 3 | 'sdk.activities.list()' returns 'Activity[]' directly — NOT '{ activities: [...] }' |
+| 4 | 'sdk.llm.chat()' response is 'res.response?.content' — NOT 'choices[0].message.content' |
+| 5 | 'sdk.llm.chatStream()' yields 'chunk.textResponse' — NOT 'choices[0].delta.content' |
+| 6 | 'sdk.llm.embedAndStore()' takes '{ texts: string[], documentId?, workspaceId?, ... }' — NO |
+| 7 | 'sdk.llm.vectors.query()' takes a raw 'number[]' embedding — NOT a text string |
+| 8 | 'sdk.llm.vectors.delete()' requires '{ deleteAll: true }' — delete-by-ID not supported |
+| 9 | 'sdk.mcp.getServers()' takes a plain string — NOT '{ provider: "all" }' |
+| 10 | 'getAgents/getWorkspaces/getThreads/getTask' live on 'sdk.api.*' — NOT directly on 'sdk.*' |
+| 11 | ACP 'streamChat' uses named SSE ('event:' line); 'text_delta.data.type === "thinking"' = i |
+| 12 | ACP sessions stall without 'approvalPolicy: "approve-all"' when tools need permission |
 
 Full fixes in `references/known-issues.md`.
 
