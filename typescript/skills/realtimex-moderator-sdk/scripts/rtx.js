@@ -311,42 +311,386 @@ CMD['acp-agents'] = async () => {
   const { sdk } = await getSDK();
   printTable(await sdk.acpAgent.listAgents({ includeModels: flags.models === 'true' }), ['id', 'label', 'status', 'authReady', 'installed']);
 };
+
+// -- acp-sessions -----------------------------------------------------------
+// Source: AcpAgentModule.listSessions() → AcpSessionStatus[]
 CMD['acp-sessions'] = async () => {
   const { sdk } = await getSDK();
   print(await sdk.acpAgent.listSessions());
 };
 
+// -- acp-session-create -----------------------------------------------------
+// Source: AcpAgentModule.createSession(options) → AcpSession { session_key, agent_id, state, ... }
+// Prints session_key so callers can pass --session=<key> on subsequent calls.
+CMD['acp-session-create'] = async () => {
+  const [agentId] = cmdArgs;
+  if (!agentId) {
+    console.error('Usage: rtx.js acp-session-create <agent-id> [--cwd=<path>] [--model=<m>] [--policy=approve-all|approve-reads|deny-all]');
+    process.exit(1);
+  }
+  const { sdk } = await getSDK();
+  const opts = {
+    agent_id: agentId,
+    cwd: flags.cwd || process.cwd(),
+    approvalPolicy: flags.policy || 'approve-all',
+  };
+  if (flags.model) opts.model = flags.model;
+  const session = await sdk.acpAgent.createSession(opts);
+  process.stderr.write('Session created.\n');
+  print(session);
+};
+
+// -- acp-session-get --------------------------------------------------------
+// Source: AcpAgentModule.getSession(sessionKey) → AcpSessionStatus
+CMD['acp-session-get'] = async () => {
+  const [sessionKey] = cmdArgs;
+  if (!sessionKey) { console.error('Usage: rtx.js acp-session-get <session-key>'); process.exit(1); }
+  const { sdk } = await getSDK();
+  print(await sdk.acpAgent.getSession(sessionKey));
+};
+
+// -- acp-session-patch ------------------------------------------------------
+// Source: AcpAgentModule.patchSession(sessionKey, patch) → void
+// patch fields: model?, cwd?, timeoutSeconds?, runtimeMode?, approvalPolicy?
+CMD['acp-session-patch'] = async () => {
+  const [sessionKey] = cmdArgs;
+  if (!sessionKey) {
+    console.error('Usage: rtx.js acp-session-patch <session-key> [--cwd=<path>] [--model=<m>] [--policy=<p>] [--timeout=<s>]');
+    process.exit(1);
+  }
+  const { sdk } = await getSDK();
+  const patch = {};
+  if (flags.cwd)     patch.cwd            = flags.cwd;
+  if (flags.model)   patch.model          = flags.model;
+  if (flags.policy)  patch.approvalPolicy = flags.policy;
+  if (flags.timeout) patch.timeoutSeconds = Number(flags.timeout);
+  await sdk.acpAgent.patchSession(sessionKey, patch);
+  console.log('Session patched.');
+};
+
+// -- acp-session-close ------------------------------------------------------
+// Source: AcpAgentModule.closeSession(sessionKey, reason?) → void
+CMD['acp-session-close'] = async () => {
+  const [sessionKey, ...reasonParts] = cmdArgs;
+  if (!sessionKey) { console.error('Usage: rtx.js acp-session-close <session-key> [<reason>]'); process.exit(1); }
+  const { sdk } = await getSDK();
+  await sdk.acpAgent.closeSession(sessionKey, reasonParts.join(' ') || undefined);
+  console.log('Session closed.');
+};
+
+// -- acp-cancel -------------------------------------------------------------
+// Source: AcpAgentModule.cancelTurn(sessionKey, reason?) → void
+CMD['acp-cancel'] = async () => {
+  const [sessionKey, ...reasonParts] = cmdArgs;
+  if (!sessionKey) { console.error('Usage: rtx.js acp-cancel <session-key> [<reason>]'); process.exit(1); }
+  const { sdk } = await getSDK();
+  await sdk.acpAgent.cancelTurn(sessionKey, reasonParts.join(' ') || undefined);
+  console.log('Turn cancelled.');
+};
+
+// -- acp-resolve ------------------------------------------------------------
+// Source: AcpAgentModule.resolvePermission(sessionKey, { requestId, optionId, outcome? }) → void
+// Must be called while streamChat SSE is still active for that session.
+CMD['acp-resolve'] = async () => {
+  const [sessionKey, requestId, optionId] = cmdArgs;
+  if (!sessionKey || !requestId || !optionId) {
+    console.error('Usage: rtx.js acp-resolve <session-key> <request-id> <option-id> [--outcome=approved]');
+    process.exit(1);
+  }
+  const { sdk } = await getSDK();
+  await sdk.acpAgent.resolvePermission(sessionKey, {
+    requestId,
+    optionId,
+    outcome: flags.outcome || 'approved',
+  });
+  console.log('Permission resolved.');
+};
+
+// -- acp-send ---------------------------------------------------------------
+// Source: AcpAgentModule.chat(sessionKey, message) → AcpChatResponse (sync, waits for full reply)
+// Reuses existing session; never creates a new one.
+CMD['acp-send'] = async () => {
+  const [sessionKey, ...msgParts] = cmdArgs;
+  const message = msgParts.join(' ');
+  if (!sessionKey || !message) {
+    console.error('Usage: rtx.js acp-send <session-key> <message>');
+    process.exit(1);
+  }
+  const { sdk } = await getSDK();
+  const res = await sdk.acpAgent.chat(sessionKey, message);
+  console.log(res.text ?? JSON.stringify(res));
+};
+
+// -- acp-stream -------------------------------------------------------------
+// Source: AcpAgentModule.streamChat(sessionKey, message) — SSE stream on existing session.
+// Handles permission_request events automatically via resolvePermission().
+// Reuses existing session; never creates a new one.
+CMD['acp-stream'] = async () => {
+  const [sessionKey, ...msgParts] = cmdArgs;
+  const message = msgParts.join(' ');
+  if (!sessionKey || !message) {
+    console.error('Usage: rtx.js acp-stream <session-key> <message> [--thoughts] [--quiet]');
+    process.exit(1);
+  }
+  const { sdk } = await getSDK();
+  await acpStreamWithPermissions(sdk, sessionKey, message);
+};
+
+// ---------------------------------------------------------------------------
+// ACP helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Extract a stable string id from a permission option entry.
+ * Options can be raw numbers, strings, or objects with numeric/string id fields.
+ * IMPORTANT: must use != null (not ||) to handle id === 0 (falsy but valid).
+ */
+function optionId(opt, index) {
+  if (opt == null)                    return String(index);
+  if (typeof opt === 'number')        return String(opt);
+  if (typeof opt === 'string')        return opt;
+  if (opt.id       != null)           return String(opt.id);
+  if (opt.optionId != null)           return String(opt.optionId);
+  if (opt.value    != null)           return String(opt.value);
+  return String(index);
+}
+
+/** Extract a human-readable label from a permission option entry. */
+function optionLabel(opt, index) {
+  if (opt == null)             return String(index);
+  if (typeof opt === 'number') return String(opt);
+  if (typeof opt === 'string') return opt;
+  return opt.label || opt.name || opt.description || optionId(opt, index);
+}
+
+/**
+ * Stream a chat turn on an existing session, auto-resolving permission_request
+ * events via sdk.acpAgent.resolvePermission().
+ *
+ * Permission resolution strategy (--policy-override flag):
+ *   approve-all  (default) — approve: label-match → last option (typically "Yes/Always")
+ *   deny-all               — deny:    label-match → first option (typically "No/Cancel")
+ *   prompt                 — pause and ask the user interactively via stdin
+ *
+ * Why last-option for approve-all fallback:
+ *   Qwen/Claude-style dialogs are ordered [Deny=0, Approve-once=1, Approve-always=2].
+ *   Picking options[0] = Deny. We want the last approve variant when no label matches.
+ */
+async function acpStreamWithPermissions(sdk, sessionKey, message) {
+  const policyOverride = flags['policy-override'] || 'approve-all';
+
+  for await (const event of sdk.acpAgent.streamChat(sessionKey, message)) {
+    switch (event.type) {
+
+      case 'text_delta': {
+        if (event.data && event.data.type === 'thinking') {
+          if (flags.thoughts) process.stderr.write('[thought] ' + String(event.data.text ?? '') + '\n');
+        } else {
+          process.stdout.write(String(event.data?.text ?? event.data ?? ''));
+        }
+        break;
+      }
+
+      case 'permission_request': {
+        const req       = event.data || {};
+        const requestId = req.requestId || req.id || req.request_id;
+        const options   = Array.isArray(req.options) ? req.options : [];
+
+        // Always show the full raw payload — critical for diagnosing option structure
+        if (!flags.quiet) {
+          process.stderr.write('\n[Permission Request] id=' + requestId + '\n');
+          if (req.title)       process.stderr.write('  title:   ' + req.title + '\n');
+          if (req.description) process.stderr.write('  details: ' + req.description + '\n');
+          options.forEach((o, i) => {
+            process.stderr.write('  [' + optionId(o, i) + '] ' + optionLabel(o, i) + '\n');
+          });
+          if (flags.debug) {
+            process.stderr.write('  raw: ' + JSON.stringify(req) + '\n');
+          }
+        }
+
+        let chosenId = null;
+
+        if (policyOverride === 'prompt') {
+          const readline = require('readline');
+          const rl = readline.createInterface({ input: process.stdin, output: process.stderr });
+          const answer = await new Promise(resolve => {
+            rl.question('  Choose option id (Enter = last/approve): ', ans => { rl.close(); resolve(ans.trim()); });
+          });
+          // Use typed answer, or fall back to last option (approve-always)
+          chosenId = answer || (options.length ? optionId(options[options.length - 1], options.length - 1) : null);
+
+        } else if (policyOverride === 'deny-all') {
+          // Label-match for deny keywords first, then fall back to first option (index 0 = No/Cancel)
+          const idx = options.findIndex(o => /deny|cancel|no|reject/i.test(optionLabel(o, 0)));
+          const pick = idx >= 0 ? options[idx] : options[0];
+          const pickIdx = idx >= 0 ? idx : 0;
+          if (pick != null) chosenId = optionId(pick, pickIdx);
+
+        } else {
+          // approve-all: label-match first, then LAST option (not first — first is typically Deny)
+          const idx = options.findIndex(o => /approve|allow|yes|confirm|ok|always/i.test(optionLabel(o, 0)));
+          if (idx >= 0) {
+            chosenId = optionId(options[idx], idx);
+          } else if (options.length > 0) {
+            // Last option is safest approve fallback (e.g. "Yes, don't ask again" / "Approve always")
+            const lastIdx = options.length - 1;
+            chosenId = optionId(options[lastIdx], lastIdx);
+          }
+        }
+
+        if (chosenId !== null && requestId) {
+          if (!flags.quiet) process.stderr.write('  → resolving with option: ' + chosenId + '\n');
+          await sdk.acpAgent.resolvePermission(sessionKey, {
+            requestId,
+            optionId: chosenId,
+            outcome: policyOverride === 'deny-all' ? 'denied' : 'approved',
+          });
+        } else {
+          if (!flags.quiet) process.stderr.write('  → no options to resolve\n');
+        }
+        break;
+      }
+
+      case 'tool_call': {
+        if (!flags.quiet) {
+          const tool = event.data?.tool || event.data?.name || JSON.stringify(event.data);
+          process.stderr.write('\n[tool: ' + tool + ']\n');
+        }
+        break;
+      }
+
+      case 'status': {
+        if (!flags.quiet && event.data?.message) {
+          process.stderr.write('[status] ' + event.data.message + '\n');
+        }
+        break;
+      }
+
+      case 'error': {
+        process.stderr.write('\n[Error] ' + (event.data?.message || JSON.stringify(event.data)) + '\n');
+        break;
+      }
+
+      case 'done':
+      case 'close':
+        process.stdout.write('\n');
+        break;
+
+      default:
+        if (flags.debug) process.stderr.write('[event:' + event.type + '] ' + JSON.stringify(event.data) + '\n');
+        break;
+    }
+  }
+}
+
+/**
+ * Find a reusable session for agentId+cwd, or create a fresh one.
+ *
+ * Resolution order:
+ *   1. --session=<key>  → validate it exists and is not closed/stale, use it
+ *   2. listSessions()   → find first session matching agent_id (and cwd if --cwd given)
+ *                         whose state is not 'closed' or 'stale'
+ *   3. createSession()  → spawn a new process
+ *
+ * Pass --new to always create a fresh session regardless.
+ */
+async function findOrCreateSession(sdk, agentId) {
+  const cwd    = flags.cwd    || process.cwd();
+  const policy = flags.policy || 'approve-all';
+
+  // Force-new
+  if (flags.new) {
+    process.stderr.write('Creating new ACP session for "' + agentId + '"...\n');
+    const s = await sdk.acpAgent.createSession({ agent_id: agentId, cwd, approvalPolicy: policy, ...(flags.model ? { model: flags.model } : {}) });
+    process.stderr.write('Session: ' + s.session_key + '\n');
+    return s.session_key;
+  }
+
+  // Explicit key
+  if (flags.session) {
+    try {
+      const status = await sdk.acpAgent.getSession(flags.session);
+      const state  = status?.state || status?.runtime_options?.state;
+      if (state !== 'closed' && state !== 'stale') {
+        process.stderr.write('Reusing session (--session): ' + flags.session + '\n');
+        return flags.session;
+      }
+      process.stderr.write('Session ' + flags.session + ' is ' + state + ', will create new.\n');
+    } catch (e) {
+      process.stderr.write('Session lookup failed (' + (e.message || e) + '), will create new.\n');
+    }
+  }
+
+  // Search existing sessions
+  try {
+    const sessions = await sdk.acpAgent.listSessions();
+    if (Array.isArray(sessions)) {
+      for (const s of sessions) {
+        const key   = s.session_key || s.key;
+        const sid   = s.agent_id   || s.agentId;
+        const state = s.state      || s.runtime_options?.state;
+        const sCwd  = s.cwd        || s.runtime_options?.cwd;
+        if (state === 'closed' || state === 'stale') continue;
+        if (sid && sid !== agentId) continue;
+        if (flags.cwd && sCwd && sCwd !== cwd) continue;
+        if (key) {
+          process.stderr.write('Reusing existing session: ' + key + (sid ? ' (' + sid + ')' : '') + '\n');
+          return key;
+        }
+      }
+    }
+  } catch (_) { /* listSessions not supported or empty — fall through */ }
+
+  // Create new
+  process.stderr.write('Creating new ACP session for "' + agentId + '"...\n');
+  const session = await sdk.acpAgent.createSession({
+    agent_id: agentId,
+    cwd,
+    approvalPolicy: policy,
+    ...(flags.model ? { model: flags.model } : {}),
+  });
+  process.stderr.write('Session: ' + session.session_key + '\n');
+  return session.session_key;
+}
+
 // -- acp-chat ---------------------------------------------------------------
-// Source: AcpAgentModule.createSession + streamChat
-// approvalPolicy: 'approve-all' | 'approve-reads' | 'deny-all'
-// StreamEvent types: text_delta | status | tool_call | permission_request | done | error | close
-// text_delta.data.type === 'thinking' → internal reasoning (not final output)
+// Smart version: reuses existing sessions, handles permission_request via resolvePermission().
+//
+// Flags:
+//   --session=<key>           Reuse this specific session key
+//   --new                     Always create a fresh session
+//   --cwd=<path>              Working directory (used for new session + matching)
+//   --model=<m>               Model override
+//   --policy=approve-all      approvalPolicy for new sessions
+//   --policy-override=<p>     Runtime permission decision: approve-all|deny-all|prompt
+//   --close                   Close the session after this turn
+//   --thoughts                Print reasoning/thinking tokens to stderr
+//   --quiet                   Suppress tool/status/permission stderr output
+//   --debug                   Print all unhandled SSE event types
 CMD['acp-chat'] = async () => {
   const [agentId, ...msgParts] = cmdArgs;
   const message = msgParts.join(' ');
   if (!agentId || !message) {
-    console.error('Usage: rtx.js acp-chat <agent-id> <message> [--cwd=<path>] [--model=<m>] [--policy=approve-all]');
+    console.error('Usage: rtx.js acp-chat <agent-id> <message>\n' +
+      '  [--session=<key>] [--new] [--cwd=<path>] [--model=<m>]\n' +
+      '  [--policy=approve-all] [--policy-override=approve-all|deny-all|prompt]\n' +
+      '  [--close] [--thoughts] [--quiet] [--debug]');
     process.exit(1);
   }
   const { sdk } = await getSDK();
-  const sessionOpts = { agent_id: agentId, cwd: flags.cwd || process.cwd(), approvalPolicy: flags.policy || 'approve-all' };
-  if (flags.model) sessionOpts.model = flags.model;
-  process.stderr.write('Creating ACP session for "' + agentId + '"...\n');
-  const session = await sdk.acpAgent.createSession(sessionOpts);
+  const sessionKey = await findOrCreateSession(sdk, agentId);
+
   try {
-    for await (const event of sdk.acpAgent.streamChat(session.session_key, message)) {
-      if (event.type === 'text_delta') {
-        if (event.data.type === 'thinking') { if (flags.thoughts) process.stderr.write('[thought] ' + event.data.text + '\n'); }
-        else process.stdout.write(String(event.data.text ?? ''));
-      } else if (event.type === 'tool_call') {
-        if (!flags.quiet) process.stderr.write('\n[tool: ' + event.data.tool + ']\n');
-      } else if (event.type === 'error') {
-        process.stderr.write('\nError: ' + event.data.message + '\n');
-      } else if (event.type === 'done' || event.type === 'close') {
-        process.stdout.write('\n');
-      }
+    await acpStreamWithPermissions(sdk, sessionKey, message);
+  } finally {
+    if (flags.close) {
+      await sdk.acpAgent.closeSession(sessionKey, 'chat complete').catch(() => {});
+      process.stderr.write('Session closed.\n');
+    } else {
+      process.stderr.write('Session key (reuse with --session=' + sessionKey + ')\n');
     }
-  } finally { await sdk.acpAgent.closeSession(session.session_key).catch(() => {}); }
+  }
 };
 
 // -- tts-providers / stt-providers ------------------------------------------
@@ -453,11 +797,55 @@ sdk.mcp.*:
   mcp-tools <server> [--provider]
   mcp-exec <server> <tool> [<args-json>] [--provider]
 
-sdk.acpAgent.*:
+sdk.acpAgent.* — Session Management:
   acp-agents [--models=true]
+    List available ACP CLI agents.
+
   acp-sessions
+    List all active sessions owned by this app.
+
+  acp-session-create <agent-id>
+    [--cwd=<path>] [--model=<m>] [--policy=approve-all|approve-reads|deny-all]
+    Spawn a new agent process. Prints session_key for reuse.
+
+  acp-session-get <session-key>
+    Get session status and runtime options.
+
+  acp-session-patch <session-key>
+    [--cwd=<path>] [--model=<m>] [--policy=<p>] [--timeout=<s>]
+    Update runtime options (applied on next turn).
+
+  acp-session-close <session-key> [<reason>]
+    Stop the agent process and close the session.
+
+  acp-cancel <session-key> [<reason>]
+    Cancel the currently active turn on a session.
+
+  acp-resolve <session-key> <request-id> <option-id> [--outcome=approved]
+    Manually resolve a pending permission request (while stream is active).
+
+  acp-send <session-key> <message>
+    Synchronous chat on an existing session (waits for full reply).
+
+  acp-stream <session-key> <message>
+    [--policy-override=approve-all|deny-all|prompt] [--thoughts] [--quiet] [--debug]
+    Streaming chat on an existing session. Auto-resolves permission_request events.
+
   acp-chat <agent-id> <message>
-    [--cwd] [--model] [--policy=approve-all] [--thoughts] [--quiet]
+    [--session=<key>]  Reuse a specific session key
+    [--new]            Force-create a new session
+    [--cwd=<path>]     Working directory (for new session and session matching)
+    [--model=<m>]      Model override
+    [--policy=approve-all]  approvalPolicy for newly created sessions
+    [--policy-override=approve-all|deny-all|prompt]  Runtime permission handling
+    [--close]          Close session after this turn
+    [--thoughts]       Print reasoning tokens to stderr
+    [--quiet]          Suppress tool/status/permission stderr output
+    [--debug]          Print all unhandled SSE events
+
+    Smart session reuse: checks --session flag → searches listSessions() for a
+    compatible active session → creates new only if none found.
+    Handles permission_request events inline via resolvePermission().
 
 sdk.tts.* / sdk.stt.*:
   tts-providers / stt-providers
