@@ -33,6 +33,11 @@ from .v1_custom_themes import V1CustomThemesModule
 from .v1_desktop_embed import V1DesktopEmbedModule
 # [GENERATED-IMPORTS-END]
 
+# Manual override imports — streaming helpers and typed upload utilities
+from .overrides.v1_workspace_streaming import WorkspaceStreamChunk, stream_workspace_chat
+from .overrides.v1_thread_streaming import ThreadStreamChunk, stream_thread_chat
+from .overrides.v1_document_upload import UploadedDocument, upload_file, upload_file_to_folder
+
 __all__ = [
     "V1ApiNamespace",
     "DeveloperApiClient",
@@ -58,4 +63,12 @@ __all__ = [
     "V1CustomThemesModule",
     "V1DesktopEmbedModule",
 # [GENERATED-ALL-END]
+    # Override exports
+    "WorkspaceStreamChunk",
+    "stream_workspace_chat",
+    "ThreadStreamChunk",
+    "stream_thread_chat",
+    "UploadedDocument",
+    "upload_file",
+    "upload_file_to_folder",
 ]

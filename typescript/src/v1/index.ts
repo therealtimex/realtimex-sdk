@@ -34,3 +34,11 @@ export { V1AcpCommandsModule } from './modules/v1AcpCommands';
 export { V1CustomThemesModule } from './modules/v1CustomThemes';
 export { V1DesktopEmbedModule } from './modules/v1DesktopEmbed';
 // [GENERATED-MODULE-EXPORTS-END]
+
+// Manual override exports — streaming helpers and typed upload utilities
+export type { WorkspaceStreamChunk } from './overrides/v1WorkspaceStreaming';
+export { streamWorkspaceChat } from './overrides/v1WorkspaceStreaming';
+export type { ThreadStreamChunk } from './overrides/v1ThreadStreaming';
+export { streamThreadChat } from './overrides/v1ThreadStreaming';
+export type { UploadedDocument, UploadFileOptions } from './overrides/v1DocumentUpload';
+export { uploadFile, uploadFileToFolder } from './overrides/v1DocumentUpload';
