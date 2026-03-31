@@ -2,13 +2,7 @@
 RealtimeX SDK - Developer API (v1)
 
 Access the RealtimeX Developer API using an API key.
-Modules are populated by the code generator (Phase 2).
-
-Example:
-    from realtimex_sdk import RealtimeXSDK, SDKConfig
-
-    sdk = RealtimeXSDK(config=SDKConfig(api_key="sk-..."))
-    # sdk.v1.workspace.list_workspaces()  # available after Phase 2
+Regenerate modules: node scripts/generate-v1-sdk.mjs --force
 """
 
 from .errors import (
@@ -21,6 +15,24 @@ from .errors import (
 from .client import DeveloperApiClient
 from .namespace import V1ApiNamespace
 
+# [GENERATED-IMPORTS-START]
+from .v1_auth import V1AuthModule
+from .v1_admin import V1AdminModule
+from .v1_document import V1DocumentModule
+from .v1_workspace import V1WorkspaceModule
+from .v1_system import V1SystemModule
+from .v1_thread import V1ThreadModule
+from .v1_users import V1UsersModule
+from .v1_openai import V1OpenAIModule
+from .v1_embed import V1EmbedModule
+from .v1_stt_api import V1SttApiModule
+from .v1_credentials import V1CredentialsModule
+from .v1_acp_auth import V1AcpAuthModule
+from .v1_acp_commands import V1AcpCommandsModule
+from .v1_custom_themes import V1CustomThemesModule
+from .v1_desktop_embed import V1DesktopEmbedModule
+# [GENERATED-IMPORTS-END]
+
 __all__ = [
     "V1ApiNamespace",
     "DeveloperApiClient",
@@ -29,4 +41,21 @@ __all__ = [
     "NotFoundError",
     "ValidationError",
     "ServerError",
+    # [GENERATED-ALL-START]
+    "V1AuthModule",
+    "V1AdminModule",
+    "V1DocumentModule",
+    "V1WorkspaceModule",
+    "V1SystemModule",
+    "V1ThreadModule",
+    "V1UsersModule",
+    "V1OpenAIModule",
+    "V1EmbedModule",
+    "V1SttApiModule",
+    "V1CredentialsModule",
+    "V1AcpAuthModule",
+    "V1AcpCommandsModule",
+    "V1CustomThemesModule",
+    "V1DesktopEmbedModule",
+# [GENERATED-ALL-END]
 ]

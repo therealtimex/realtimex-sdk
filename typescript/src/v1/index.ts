@@ -16,3 +16,21 @@ export {
 } from './errors';
 
 // Generated module exports are appended here by generate-v1-sdk.mjs
+
+// [GENERATED-MODULE-EXPORTS-START]
+export { V1AuthModule } from './modules/v1Auth';
+export { V1AdminModule } from './modules/v1Admin';
+export { V1DocumentModule } from './modules/v1Document';
+export { V1WorkspaceModule } from './modules/v1Workspace';
+export { V1SystemModule } from './modules/v1System';
+export { V1ThreadModule } from './modules/v1Thread';
+export { V1UsersModule } from './modules/v1Users';
+export { V1OpenAIModule } from './modules/v1OpenAI';
+export { V1EmbedModule } from './modules/v1Embed';
+export { V1SttApiModule } from './modules/v1SttApi';
+export { V1CredentialsModule } from './modules/v1Credentials';
+export { V1AcpAuthModule } from './modules/v1AcpAuth';
+export { V1AcpCommandsModule } from './modules/v1AcpCommands';
+export { V1CustomThemesModule } from './modules/v1CustomThemes';
+export { V1DesktopEmbedModule } from './modules/v1DesktopEmbed';
+// [GENERATED-MODULE-EXPORTS-END]
