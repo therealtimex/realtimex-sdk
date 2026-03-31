@@ -1,6 +1,6 @@
 # RealTimeX SDK — API Reference
 
-> Auto-generated from `@realtimex/sdk` source · v**1.4.4** · 2026-03-27
+> Auto-generated from `@realtimex/sdk` source · v**1.4.5** · 2026-03-31
 
 **Package:** `@realtimex/sdk` (CJS) · **Server:** `http://localhost:3001`
 **Developer Mode auth:** `Authorization: Bearer <apiKey>`
@@ -50,9 +50,10 @@
 - `contractRuntime: ContractRuntime`
 - `database: DatabaseModule`
 - `auth: AuthModule`
+- `v1: V1ApiNamespace | undefined`
 
 ```ts
-// Register app with RealtimeX hub and request declared permissions upfront.
+// Developer API (v1) — requires apiKey to be set in config.
 async register(permissions?: string[]): void
 
 // Get environment variable (works in Node.js and browser)

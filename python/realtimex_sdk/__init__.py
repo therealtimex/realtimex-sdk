@@ -32,6 +32,15 @@ from .contract import (
 )
 from .database import DatabaseModule, DatabaseConfig
 from .auth import AuthModule, AuthTokenResponse, SyncTokenResponse
+from .v1 import (
+    V1ApiNamespace,
+    DeveloperApiClient,
+    DeveloperApiError,
+    AuthenticationError,
+    NotFoundError,
+    ValidationError,
+    ServerError,
+)
 from .acp_agent import (
     AcpAgentModule,
     AcpAgentInfo,
@@ -141,4 +150,12 @@ __all__ = [
     "AcpChatResponse",
     "AcpStreamEvent",
     "AcpError",
+    # v1 Developer API
+    "V1ApiNamespace",
+    "DeveloperApiClient",
+    "DeveloperApiError",
+    "AuthenticationError",
+    "NotFoundError",
+    "ValidationError",
+    "ServerError",
 ]

@@ -22,6 +22,7 @@ from .contract import ContractModule
 from .database import DatabaseModule
 from .auth import AuthModule
 from .acp_agent import AcpAgentModule
+from .v1.namespace import V1ApiNamespace
 
 
 @dataclass
@@ -93,6 +94,12 @@ class RealtimeXSDK:
         self.database = DatabaseModule(realtimex_url, app_id, api_key)
         self.auth = AuthModule(realtimex_url, app_id, api_key)
         self.acp_agent = AcpAgentModule(realtimex_url, app_id, api_key)
+
+        # v1 Developer API — only available when api_key is provided
+        self.v1: Optional[V1ApiNamespace] = (
+            V1ApiNamespace(realtimex_url, api_key) if api_key else None
+        )
+
         self._registered = False
 
         if config:
