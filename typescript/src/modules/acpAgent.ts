@@ -28,6 +28,10 @@ export interface AcpAgentInfo {
   source?: string | null;
   /** Non-null if model fetch failed and fell back. */
   error?: string | null;
+  /** Whether this agent supports using credentials from another provider. */
+  supportsProviderForwarding?: boolean;
+  /** Provider IDs that can be forwarded (e.g. ["openai", "anthropic"]). */
+  forwardableProviders?: string[];
 }
 
 export interface AcpSessionOptions {
@@ -36,6 +40,8 @@ export interface AcpSessionOptions {
   label?: string;
   model?: string;
   approvalPolicy?: "approve-all" | "approve-reads" | "deny-all";
+  /** Use another provider's credentials (e.g. "openai"). Agent must support forwarding. */
+  forwardedProvider?: string;
 }
 
 export interface AcpSession {

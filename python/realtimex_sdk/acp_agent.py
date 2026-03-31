@@ -33,6 +33,8 @@ class AcpAgentInfo:
     models: Optional[List[Dict[str, Any]]] = None
     source: Optional[str] = None
     error: Optional[str] = None
+    supportsProviderForwarding: bool = False
+    forwardableProviders: Optional[List[str]] = None
 
 
 @dataclass
@@ -137,6 +139,8 @@ class AcpAgentModule:
                     models=a.get("models"),
                     source=a.get("source"),
                     error=a.get("error"),
+                    supportsProviderForwarding=bool(a.get("supportsProviderForwarding")),
+                    forwardableProviders=a.get("forwardableProviders"),
                 )
             )
         return agents
@@ -151,6 +155,7 @@ class AcpAgentModule:
         label: Optional[str] = None,
         model: Optional[str] = None,
         approval_policy: Optional[str] = None,
+        forwarded_provider: Optional[str] = None,
     ) -> AcpSession:
         body: Dict[str, Any] = {"agent_id": agent_id}
         if cwd is not None:
@@ -161,6 +166,8 @@ class AcpAgentModule:
             body["model"] = model
         if approval_policy is not None:
             body["approvalPolicy"] = approval_policy
+        if forwarded_provider is not None:
+            body["forwardedProvider"] = forwarded_provider
         data = await self._request("POST", "/sdk/acp/session", json=body)
         s = data["session"]
         return AcpSession(
@@ -321,10 +328,12 @@ class AcpAgentModule:
         label: Optional[str] = None,
         model: Optional[str] = None,
         approval_policy: Optional[str] = None,
+        forwarded_provider: Optional[str] = None,
     ) -> tuple:
         """Create session + first sync chat. Returns (AcpSession, AcpChatResponse)."""
         session = await self.create_session(
-            agent_id, cwd=cwd, label=label, model=model, approval_policy=approval_policy
+            agent_id, cwd=cwd, label=label, model=model,
+            approval_policy=approval_policy, forwarded_provider=forwarded_provider,
         )
         response = await self.chat(session.session_key, message)
         return session, response
