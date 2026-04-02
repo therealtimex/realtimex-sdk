@@ -40,6 +40,7 @@ const { sdk } = await initSDK();
 ```
 
 When writing helper scripts, use the working directory or system temp — never the SKILL directory.
+Scripts using the SDK must exit explicitly — `process.exit(0)` on success, `process.exit(1)` on error — or they hang on open HTTP sockets.
 
 ---
 

@@ -9,7 +9,8 @@ Credentials are managed by the user in **Settings > Credentials**. Agents have r
 3. **Never** write credential values to files or logs
 4. **Never** pass credential values as CLI arguments (visible in process list)
 5. **Always** consume credentials inside scripts — fetch, use, discard
-6. **Never** write helper scripts into the SKILL directory — use the working directory or system temp
+6. **Always** call `process.exit(0)` at the end of custom scripts (prevents hanging on open HTTP sockets)
+7. **Never** write helper scripts into the SKILL directory — use the working directory or system temp
 
 ## Credential Types
 
@@ -48,6 +49,7 @@ const { initSDK } = require('<SKILL_DIR>/scripts/lib/sdk-init');
     headers: { [cred.payload.name]: cred.payload.value }
   });
   console.log('Status:', res.status); // Only non-sensitive output
+  process.exit(0);
 })();
 // WRONG: const token = cred.payload.value; headers.Authorization = `Bearer ${token}`
 // The value already contains "Bearer ..." — adding prefix again causes 401
@@ -82,6 +84,7 @@ const { execSync } = require('child_process');
     env: { ...process.env, [cred.payload.name]: cred.payload.value },
     stdio: 'inherit'
   });
+  process.exit(0);
 })();
 ```
 
