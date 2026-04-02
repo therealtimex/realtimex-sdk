@@ -767,6 +767,12 @@ const issuesPath   = path.join(OUT_DIR, 'references', 'known-issues.md');
 write(path.join(OUT_DIR, 'scripts', 'lib', 'sdk-init.js'), fs.readFileSync(path.join(TEMPLATES_DIR, 'sdk-init.js'), 'utf-8'));
 write(path.join(OUT_DIR, 'scripts', 'rtx.js'), fs.readFileSync(path.join(TEMPLATES_DIR, 'rtx.js'), 'utf-8'));
 
+// Reference files from templates
+const credRefSrc = path.join(TEMPLATES_DIR, 'references', 'credentials.md');
+if (fs.existsSync(credRefSrc)) {
+  write(path.join(OUT_DIR, 'references', 'credentials.md'), fs.readFileSync(credRefSrc, 'utf-8'));
+}
+
 // Markdown — api-reference and known-issues always updated
 write(apiRefPath,  apiRef);
 write(issuesPath,  knownIssues);

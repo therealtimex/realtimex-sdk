@@ -304,6 +304,13 @@ CMD['mcp-exec'] = async () => {
   print(await sdk.mcp.executeTool(server, tool, argsStr ? JSON.parse(argsStr) : {}, flags.provider));
 };
 
+// -- credentials ------------------------------------------------------------
+CMD['credentials'] = async () => {
+  const { sdk } = await getSDK();
+  const list = await sdk.credentials.list();
+  printTable(list, ['name', 'type']);
+};
+
 // -- acp-agents -------------------------------------------------------------
 // Source: AcpAgentModule.listAgents({ includeModels? })
 // Returns: AcpAgentInfo[] { id, label, handles[], installed, authReady, status }
@@ -796,6 +803,10 @@ sdk.mcp.*:
   mcp-servers [--provider=local|remote|all]
   mcp-tools <server> [--provider]
   mcp-exec <server> <tool> [<args-json>] [--provider]
+
+sdk.credentials.*:
+  credentials
+    List available credentials (names and types, no values).
 
 sdk.acpAgent.* — Session Management:
   acp-agents [--models=true]

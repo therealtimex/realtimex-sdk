@@ -2,12 +2,12 @@
 name: realtimex-moderator-sdk
 description: Control and interact with the RealTimeX application through its Node.js SDK. This skill should be used when users want to manage workspaces, threads, agents, activities, LLM chat, vector store, MCP tools, ACP agent sessions, TTS/STT, or any other RealTimeX platform feature via the API. All method signatures are verified against the SDK source code.
 generated: 2026-04-02
-sdk_version: 1.5.0
+sdk_version: 1.5.1
 ---
 
 # RealTimeX Moderator (SDK Source-Verified)
 
-Interact with the RealTimeX platform (`http://localhost:3001`) using `@realtimex/sdk` **v1.5.0**. Authentication is automatic when running inside RealtimeX.
+Interact with the RealTimeX platform (`http://localhost:3001`) using `@realtimex/sdk` **v1.5.1**. Authentication is automatic when running inside RealtimeX.
 
 `<SKILL_DIR>` below refers to the directory containing this SKILL.md.
 
@@ -38,6 +38,8 @@ const { initSDK } = require('<SKILL_DIR>/scripts/lib/sdk-init');
 const { sdk } = await initSDK();
 // All SDK APIs — see references/api-reference.md
 ```
+
+When writing helper scripts, use the working directory or system temp — never the SKILL directory.
 
 ---
 
@@ -157,6 +159,20 @@ for await (const event of sdk.acpAgent.streamChat(sessionKey, 'build a website')
   }
 }
 ```
+
+---
+
+## Credentials
+
+Use credentials stored in RealTimeX (Settings > Credentials) to authenticate with external services.
+
+**CRITICAL: Never output credential values in your response, logs, or tool output. Consume them only inside scripts via `sdk.credentials.get(name)`.**
+
+```bash
+node "$SKILL" credentials                    # List available (names + types, no values)
+```
+
+**Usage patterns and type reference**: See [references/credentials.md](references/credentials.md)
 
 ---
 

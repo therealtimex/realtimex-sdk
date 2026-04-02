@@ -39,6 +39,8 @@ const { sdk } = await initSDK();
 // All SDK APIs — see references/api-reference.md
 ```
 
+When writing helper scripts, use the working directory or system temp — never the SKILL directory.
+
 ---
 
 ## ACP Session Management
@@ -157,6 +159,20 @@ for await (const event of sdk.acpAgent.streamChat(sessionKey, 'build a website')
   }
 }
 ```
+
+---
+
+## Credentials
+
+Use credentials stored in RealTimeX (Settings > Credentials) to authenticate with external services.
+
+**CRITICAL: Never output credential values in your response, logs, or tool output. Consume them only inside scripts via `sdk.credentials.get(name)`.**
+
+```bash
+node "$SKILL" credentials                    # List available (names + types, no values)
+```
+
+**Usage patterns and type reference**: See [references/credentials.md](references/credentials.md)
 
 ---
 
