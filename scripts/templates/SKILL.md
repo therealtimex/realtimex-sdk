@@ -7,24 +7,7 @@ sdk_version: {{SDK_VERSION}}
 
 # RealTimeX Moderator (SDK Source-Verified)
 
-Interact with the RealTimeX desktop app (`http://localhost:3001`) using `@realtimex/sdk` **v{{SDK_VERSION}}** in Developer Mode (API Key).
-
-> Auto-generated from the `@realtimex/sdk` TypeScript source.
-> Refresh: `node scripts/generate-skill.mjs --force` from the SDK repo root.
-
----
-
-## Authentication
-
-When running inside RealtimeX (via an agent session or on the same machine), authentication is **automatic** — no setup needed.
-
-Handled by `scripts/lib/sdk-init.js` — credential resolution priority:
-1. Explicit override passed to `initSDK({ apiKey })` or `initSDK({ appId })`
-2. `REALTIMEX_API_KEY` / `REALTIMEX_AI_API_KEY` in `<cwd>/.env`
-3. `RTX_API_KEY` / `REALTIMEX_API_KEY` / `REALTIMEX_AI_API_KEY` from `process.env`
-4. `RTX_APP_ID` from `process.env` (injected by RealtimeX for agents / local apps)
-5. `~/.realtimex.ai/.sdk-app-id` file (written by RealTimeX server on startup)
-6. Interactive readline prompt (dev fallback)
+Interact with the RealTimeX platform (`http://localhost:3001`) using `@realtimex/sdk` **v{{SDK_VERSION}}**. Authentication is automatic when running inside RealtimeX.
 
 `<SKILL_DIR>` below refers to the directory containing this SKILL.md.
 
@@ -52,7 +35,7 @@ node "$SKILL" help
 
 ```js
 const { initSDK } = require('<SKILL_DIR>/scripts/lib/sdk-init');
-const { sdk, apiKey } = await initSDK({ envDir: process.cwd() });
+const { sdk } = await initSDK();
 // All SDK APIs — see references/api-reference.md
 ```
 
