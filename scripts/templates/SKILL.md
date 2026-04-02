@@ -166,13 +166,21 @@ for await (const event of sdk.acpAgent.streamChat(sessionKey, 'build a website')
 
 Use credentials stored in RealTimeX (Settings > Credentials) to authenticate with external services.
 
-**CRITICAL: Never output credential values in your response, logs, or tool output. Consume them only inside scripts via `sdk.credentials.get(name)`.**
+**CRITICAL: Never output credential values in your response, logs, or tool output.**
 
 ```bash
 node "$SKILL" credentials                    # List available (names + types, no values)
 ```
 
-**Usage patterns and type reference**: See [references/credentials.md](references/credentials.md)
+`sdk.credentials.get(name)` returns `{ name, type, payload }`. Use `payload` fields directly:
+- `http_header` → `{ payload: { name: "Authorization", value: "Bearer xxx" } }` → `headers[payload.name] = payload.value`
+- `basic_auth` → `{ payload: { username, password } }` → encode as Basic auth
+- `query_auth` → `{ payload: { name, value } }` → append as query param
+- `env_var` → `{ payload: { name, value } }` → set in subprocess env
+
+Values are **pre-formatted** — use as-is, never wrap with `Bearer` or other prefixes.
+
+**Full examples**: See [references/credentials.md](references/credentials.md)
 
 ---
 
