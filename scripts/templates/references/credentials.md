@@ -30,6 +30,10 @@ node "$SKILL" credentials
 
 Output: table of names and types (no values).
 
+### Important: credential payload structure
+
+`sdk.credentials.get(name)` returns `{ name, type, payload }`. The `payload` object contains structured fields — use them directly. **Never** extract raw values and construct headers manually.
+
 ### Use an http_header credential in a script
 
 ```javascript
@@ -39,11 +43,14 @@ const { initSDK } = require('<SKILL_DIR>/scripts/lib/sdk-init');
   const cred = await sdk.credentials.get('github-token');
   // cred.type === "http_header"
   // cred.payload === { name: "Authorization", value: "Bearer ghp_xxx" }
+  // The value already includes the full header value — use as-is
   const res = await fetch('https://api.github.com/user', {
     headers: { [cred.payload.name]: cred.payload.value }
   });
   console.log('Status:', res.status); // Only non-sensitive output
 })();
+// WRONG: const token = cred.payload.value; headers.Authorization = `Bearer ${token}`
+// The value already contains "Bearer ..." — adding prefix again causes 401
 ```
 
 ### Use a basic_auth credential
