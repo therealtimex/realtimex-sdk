@@ -882,8 +882,10 @@ sdk.database.* / sdk.auth.*:
     console.error('Unknown command: ' + (command || '(none)') + '\nRun: node rtx.js help');
     process.exit(1);
   }
-  try { await handler(); }
-  catch (err) {
+  try {
+    await handler();
+    process.exit(0);
+  } catch (err) {
     console.error('Error:', err.message || err);
     if (flags.debug) console.error(err);
     process.exit(1);
