@@ -1,6 +1,6 @@
 # RealTimeX SDK — API Reference
 
-> Auto-generated from `@realtimex/sdk` source · v**1.5.0** · 2026-04-02
+> Auto-generated from `@realtimex/sdk` source · v**1.5.1** · 2026-04-03
 
 **Package:** `@realtimex/sdk` (CJS) · **Server:** `http://localhost:3001`
 **Developer Mode auth:** `Authorization: Bearer <apiKey>`
@@ -50,6 +50,7 @@
 - `contractRuntime: ContractRuntime`
 - `database: DatabaseModule`
 - `auth: AuthModule`
+- `credentials: CredentialsModule`
 
 ```ts
 // Register app with RealtimeX hub and request declared permissions upfront.

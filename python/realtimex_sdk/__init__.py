@@ -32,6 +32,7 @@ from .contract import (
 )
 from .database import DatabaseModule, DatabaseConfig
 from .auth import AuthModule, AuthTokenResponse, SyncTokenResponse
+from .credentials import CredentialsModule, CredentialInfo, CredentialPayload
 from .acp_agent import (
     AcpAgentModule,
     AcpAgentInfo,
@@ -141,4 +142,8 @@ __all__ = [
     "AcpChatResponse",
     "AcpStreamEvent",
     "AcpError",
+    # Credentials Module
+    "CredentialsModule",
+    "CredentialInfo",
+    "CredentialPayload",
 ]

@@ -304,6 +304,13 @@ CMD['mcp-exec'] = async () => {
   print(await sdk.mcp.executeTool(server, tool, argsStr ? JSON.parse(argsStr) : {}, flags.provider));
 };
 
+// -- credentials ------------------------------------------------------------
+CMD['credentials'] = async () => {
+  const { sdk } = await getSDK();
+  const list = await sdk.credentials.list();
+  printTable(list, ['name', 'type']);
+};
+
 // -- acp-agents -------------------------------------------------------------
 // Source: AcpAgentModule.listAgents({ includeModels? })
 // Returns: AcpAgentInfo[] { id, label, handles[], installed, authReady, status }
@@ -797,6 +804,10 @@ sdk.mcp.*:
   mcp-tools <server> [--provider]
   mcp-exec <server> <tool> [<args-json>] [--provider]
 
+sdk.credentials.*:
+  credentials
+    List available credentials (names and types, no values).
+
 sdk.acpAgent.* — Session Management:
   acp-agents [--models=true]
     List available ACP CLI agents.
@@ -871,8 +882,10 @@ sdk.database.* / sdk.auth.*:
     console.error('Unknown command: ' + (command || '(none)') + '\nRun: node rtx.js help');
     process.exit(1);
   }
-  try { await handler(); }
-  catch (err) {
+  try {
+    await handler();
+    process.exit(0);
+  } catch (err) {
     console.error('Error:', err.message || err);
     if (flags.debug) console.error(err);
     process.exit(1);
