@@ -67,6 +67,7 @@ const { initSDK } = require('<SKILL_DIR>/scripts/lib/sdk-init');
     headers: { 'Authorization': 'Basic ' + auth }
   });
   console.log('Status:', res.status);
+  process.exit(0);
 })();
 ```
 
@@ -91,14 +92,20 @@ const { execSync } = require('child_process');
 ### Error handling
 
 ```javascript
-try {
-  const cred = await sdk.credentials.get('my-key');
-  // use cred...
-} catch (err) {
-  if (err.message.includes('not found')) {
-    console.log('Credential not found. Ask the user to add it in Settings > Credentials.');
-  } else {
-    console.log('Error:', err.message);
+const { initSDK } = require('<SKILL_DIR>/scripts/lib/sdk-init');
+(async () => {
+  try {
+    const { sdk } = await initSDK();
+    const cred = await sdk.credentials.get('my-key');
+    // use cred...
+    process.exit(0);
+  } catch (err) {
+    if (err.message.includes('not found')) {
+      console.log('Credential not found. Ask the user to add it in Settings > Credentials.');
+    } else {
+      console.log('Error:', err.message);
+    }
+    process.exit(1);
   }
-}
+})();
 ```

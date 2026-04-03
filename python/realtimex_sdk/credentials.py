@@ -7,6 +7,7 @@ Values should NEVER be printed to stdout or included in agent responses.
 
 from typing import Any, Dict, List, Optional
 from dataclasses import dataclass
+from urllib.parse import quote
 import httpx
 
 
@@ -69,7 +70,7 @@ class CredentialsModule:
         """Get a credential's decrypted payload by name."""
         async with httpx.AsyncClient() as client:
             response = await client.get(
-                f"{self.base_url}/sdk/credentials/{name}",
+                f"{self.base_url}/sdk/credentials/{quote(name, safe='')}",
                 headers=self._get_headers(),
                 timeout=10.0,
             )

@@ -1,7 +1,7 @@
 ---
 name: realtimex-moderator-sdk
 description: Control and interact with the RealTimeX application through its Node.js SDK. This skill should be used when users want to manage workspaces, threads, agents, activities, LLM chat, vector store, MCP tools, ACP agent sessions, TTS/STT, or any other RealTimeX platform feature via the API. All method signatures are verified against the SDK source code.
-generated: 2026-04-02
+generated: 2026-04-03
 sdk_version: 1.5.1
 ---
 
