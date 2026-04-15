@@ -1,27 +1,27 @@
 name: Sync v1 SDK from OpenAPI spec
 
-# Triggered automatically by the realtimex-ai-app CI after openapi.json is
-# updated on master, or manually via workflow_dispatch.
+# Triggered by the realtimex-ai-app GitLab CI after openapi.json changes on realtimex-dev,
+# or manually via workflow_dispatch.
 #
-# Required secrets / vars (set in repo Settings → Secrets and Variables):
-#   APP_REPO_READ_TOKEN  — PAT or fine-grained token with `contents: read`
-#                          on the app repo (only needed if the app repo is private)
+# Required secrets (Settings → Secrets and Variables → Actions):
+#   APP_REPO_READ_TOKEN  — GitLab personal/project access token with read_api scope
+#                          on the app repo at rtgit.rta.vn
 #
-# Required inputs (when triggered manually or via dispatch):
-#   app_repo  — e.g. "myorg/realtimex-ai-app"
-#   app_ref   — branch, tag, or SHA to read openapi.json from (default: master)
+# Required inputs (provided by GitLab CI dispatch or manual run):
+#   app_project_id  — GitLab numeric project ID of realtimex-ai-app
+#   app_ref         — commit SHA or branch to read openapi.json from (default: realtimex-dev)
 
 on:
   workflow_dispatch:
     inputs:
-      app_repo:
-        description: 'App repo (owner/name)'
+      app_project_id:
+        description: 'GitLab project ID of the app repo'
         required: true
-        default: 'realtimex-ai/realtimex-ai-app'
+        default: ''
       app_ref:
         description: 'Branch / SHA to read openapi.json from'
         required: false
-        default: 'master'
+        default: 'realtimex-dev'
 
 concurrency:
   group: sync-v1-spec
@@ -40,17 +40,21 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Checkout app repo (for openapi.json)
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ inputs.app_repo }}
-          ref: ${{ inputs.app_ref || 'master' }}
-          path: _app_repo
-          # Remove token line if the app repo is public
-          token: ${{ secrets.APP_REPO_READ_TOKEN || secrets.GITHUB_TOKEN }}
-          sparse-checkout: |
-            server/swagger/openapi.json
-          sparse-checkout-cone-mode: false
+      - name: Fetch openapi.json from GitLab app repo
+        env:
+          APP_REPO_READ_TOKEN: ${{ secrets.APP_REPO_READ_TOKEN }}
+        run: |
+          REF="${{ inputs.app_ref || 'realtimex-dev' }}"
+          PROJECT_ID="${{ inputs.app_project_id }}"
+          GITLAB_API="https://rtgit.rta.vn/api/v4"
+
+          echo "Fetching openapi.json from project $PROJECT_ID @ $REF"
+          mkdir -p _app_repo/server/swagger
+          curl -fsSL \
+            -H "PRIVATE-TOKEN: $APP_REPO_READ_TOKEN" \
+            "$GITLAB_API/projects/$PROJECT_ID/repository/files/server%2Fswagger%2Fopenapi.json/raw?ref=$REF" \
+            -o _app_repo/server/swagger/openapi.json
+          echo "Fetched $(wc -c < _app_repo/server/swagger/openapi.json) bytes"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -66,7 +70,6 @@ jobs:
       - name: Check for changes
         id: diff
         run: |
-          # Ignore the digest file itself — only care about generated source files
           git diff --quiet -- \
             'typescript/src/v1/modules/' \
             'python/realtimex_sdk/v1/' \
@@ -93,7 +96,6 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -b "$BRANCH"
 
-          # Stage generated files + updated digest
           git add \
             typescript/src/v1/modules/ \
             python/realtimex_sdk/v1/ \
@@ -106,11 +108,9 @@ jobs:
           git commit -m "chore: sync v1 SDK from openapi.json @ ${{ inputs.app_ref }}"
           git push origin "$BRANCH"
 
-          # Build a summary of which modules changed
           CHANGED_MODULES=$(git diff HEAD~1 --name-only \
             -- 'typescript/src/v1/modules/' \
-            | sed 's|typescript/src/v1/modules/||' \
-            | sed 's|\.ts$||' \
+            | sed 's|typescript/src/v1/modules/||;s|\.ts$||' \
             | sort | uniq | tr '\n' ' ')
 
           gh pr create \
@@ -118,13 +118,13 @@ jobs:
             --body "$(cat <<EOF
           ## Automated SDK sync
 
-          openapi.json changed in \`${{ inputs.app_repo }}\` @ \`${{ inputs.app_ref }}\`.
+          openapi.json changed in app repo @ \`${{ inputs.app_ref }}\`.
 
           **Changed modules:** ${CHANGED_MODULES:-see diff}
 
           - Re-run generator: \`npm run sdk:generate\`
-          - Review any \`@streaming-stub\` or \`@upload-stub\` markers in new methods — those need manual override implementations.
+          - Check any \`@streaming-stub\` / \`@upload-stub\` markers in new methods.
           EOF
           )" \
-            --base master \
+            --base realtimex-dev \
             --head "$BRANCH"
