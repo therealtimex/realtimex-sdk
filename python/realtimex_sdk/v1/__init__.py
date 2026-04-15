@@ -25,12 +25,6 @@ from .v1_thread import V1ThreadModule
 from .v1_users import V1UsersModule
 from .v1_openai import V1OpenAIModule
 from .v1_embed import V1EmbedModule
-from .v1_stt_api import V1SttApiModule
-from .v1_credentials import V1CredentialsModule
-from .v1_acp_auth import V1AcpAuthModule
-from .v1_acp_commands import V1AcpCommandsModule
-from .v1_custom_themes import V1CustomThemesModule
-from .v1_desktop_embed import V1DesktopEmbedModule
 # [GENERATED-IMPORTS-END]
 
 # Manual override imports — streaming helpers and typed upload utilities
@@ -56,12 +50,6 @@ __all__ = [
     "V1UsersModule",
     "V1OpenAIModule",
     "V1EmbedModule",
-    "V1SttApiModule",
-    "V1CredentialsModule",
-    "V1AcpAuthModule",
-    "V1AcpCommandsModule",
-    "V1CustomThemesModule",
-    "V1DesktopEmbedModule",
 # [GENERATED-ALL-END]
     # Override exports
     "WorkspaceStreamChunk",

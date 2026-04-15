@@ -1,0 +1,130 @@
+name: Sync v1 SDK from OpenAPI spec
+
+# Triggered automatically by the realtimex-ai-app CI after openapi.json is
+# updated on master, or manually via workflow_dispatch.
+#
+# Required secrets / vars (set in repo Settings → Secrets and Variables):
+#   APP_REPO_READ_TOKEN  — PAT or fine-grained token with `contents: read`
+#                          on the app repo (only needed if the app repo is private)
+#
+# Required inputs (when triggered manually or via dispatch):
+#   app_repo  — e.g. "myorg/realtimex-ai-app"
+#   app_ref   — branch, tag, or SHA to read openapi.json from (default: master)
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_repo:
+        description: 'App repo (owner/name)'
+        required: true
+        default: 'realtimex-ai/realtimex-ai-app'
+      app_ref:
+        description: 'Branch / SHA to read openapi.json from'
+        required: false
+        default: 'master'
+
+concurrency:
+  group: sync-v1-spec
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout SDK repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout app repo (for openapi.json)
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.app_repo }}
+          ref: ${{ inputs.app_ref || 'master' }}
+          path: _app_repo
+          # Remove token line if the app repo is public
+          token: ${{ secrets.APP_REPO_READ_TOKEN || secrets.GITHUB_TOKEN }}
+          sparse-checkout: |
+            server/swagger/openapi.json
+          sparse-checkout-cone-mode: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run SDK generator
+        run: |
+          node scripts/generate-v1-sdk.mjs \
+            --spec=_app_repo/server/swagger/openapi.json \
+            --force
+
+      - name: Check for changes
+        id: diff
+        run: |
+          # Ignore the digest file itself — only care about generated source files
+          git diff --quiet -- \
+            'typescript/src/v1/modules/' \
+            'python/realtimex_sdk/v1/' \
+            'typescript/src/v1/namespace.ts' \
+            'typescript/src/v1/index.ts' \
+            'python/realtimex_sdk/v1/__init__.py' \
+            'python/realtimex_sdk/v1/namespace.py' \
+            && echo "changed=false" >> "$GITHUB_OUTPUT" \
+            || echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: No changes — done
+        if: steps.diff.outputs.changed == 'false'
+        run: echo "No SDK changes detected. Spec is already up to date."
+
+      - name: Open SDK sync PR
+        if: steps.diff.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          APP_SHORT_SHA=$(echo "${{ inputs.app_ref }}" | cut -c1-8)
+          BRANCH="ci/sdk-sync-${APP_SHORT_SHA}-$(date +%Y%m%d-%H%M%S)"
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+
+          # Stage generated files + updated digest
+          git add \
+            typescript/src/v1/modules/ \
+            python/realtimex_sdk/v1/ \
+            typescript/src/v1/namespace.ts \
+            typescript/src/v1/index.ts \
+            python/realtimex_sdk/v1/__init__.py \
+            python/realtimex_sdk/v1/namespace.py \
+            scripts/.sdk-spec-digest.json
+
+          git commit -m "chore: sync v1 SDK from openapi.json @ ${{ inputs.app_ref }}"
+          git push origin "$BRANCH"
+
+          # Build a summary of which modules changed
+          CHANGED_MODULES=$(git diff HEAD~1 --name-only \
+            -- 'typescript/src/v1/modules/' \
+            | sed 's|typescript/src/v1/modules/||' \
+            | sed 's|\.ts$||' \
+            | sort | uniq | tr '\n' ' ')
+
+          gh pr create \
+            --title "chore: sync v1 SDK from openapi.json" \
+            --body "$(cat <<EOF
+          ## Automated SDK sync
+
+          openapi.json changed in \`${{ inputs.app_repo }}\` @ \`${{ inputs.app_ref }}\`.
+
+          **Changed modules:** ${CHANGED_MODULES:-see diff}
+
+          - Re-run generator: \`npm run sdk:generate\`
+          - Review any \`@streaming-stub\` or \`@upload-stub\` markers in new methods — those need manual override implementations.
+          EOF
+          )" \
+            --base master \
+            --head "$BRANCH"

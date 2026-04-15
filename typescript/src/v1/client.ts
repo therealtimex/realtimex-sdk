@@ -1,8 +1,11 @@
 /**
  * DeveloperApiClient - HTTP client for the RealtimeX v1 Developer API.
  *
- * Uses API Key authentication only (Authorization: Bearer <apiKey>).
- * No x-app-id header, no token refresh — this is the server-to-server client.
+ * Supports two authentication modes:
+ * - API Key: Authorization: Bearer <apiKey>
+ * - App ID: x-app-id header (for LocalApp / SDK agent authentication)
+ *
+ * When both are provided, x-app-id takes priority on the server side.
  */
 
 import {
@@ -16,18 +19,21 @@ import {
 export class DeveloperApiClient {
     private readonly baseUrl: string;
     private readonly apiKey: string;
+    private readonly appId?: string;
 
-    constructor(baseUrl: string, apiKey: string) {
+    constructor(baseUrl: string, apiKey: string, appId?: string) {
         this.baseUrl = baseUrl.replace(/\/$/, '');
         this.apiKey = apiKey;
+        this.appId = appId;
     }
 
     private getHeaders(extra?: Record<string, string>): Record<string, string> {
-        return {
+        const headers: Record<string, string> = {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${this.apiKey}`,
-            ...extra,
         };
+        if (this.appId) headers['x-app-id'] = this.appId;
+        return { ...headers, ...extra };
     }
 
     private async handleResponse<T>(response: Response): Promise<T> {
@@ -81,9 +87,11 @@ export class DeveloperApiClient {
         form: FormData
     ): Promise<T> {
         const url = `${this.baseUrl}/api${path}`;
+        const authHeaders: Record<string, string> = { 'Authorization': `Bearer ${this.apiKey}` };
+        if (this.appId) authHeaders['x-app-id'] = this.appId;
         const response = await fetch(url, {
             method,
-            headers: { 'Authorization': `Bearer ${this.apiKey}` },
+            headers: authHeaders,
             body: form,
         });
         return this.handleResponse<T>(response);

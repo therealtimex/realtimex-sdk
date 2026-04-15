@@ -96,9 +96,9 @@ export class RealtimeXSDK {
         this.database = new DatabaseModule(this.realtimexUrl, this.appId, this.apiKey);
         this.auth = new AuthModule(this.realtimexUrl, this.appId, this.apiKey);
 
-        // v1 Developer API — only available when apiKey is provided
-        this.v1 = this.apiKey
-            ? new V1ApiNamespace(this.realtimexUrl, this.apiKey)
+        // v1 Developer API — available with apiKey or appId
+        this.v1 = (this.apiKey || this.appId)
+            ? new V1ApiNamespace(this.realtimexUrl, this.apiKey ?? '', this.appId || undefined)
             : undefined;
 
         // Auto-register with declared permissions (only for production mode)

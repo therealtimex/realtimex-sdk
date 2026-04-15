@@ -20,8 +20,8 @@ When running inside RealtimeX (via an agent session or on the same machine), aut
 
 Handled by `scripts/lib/sdk-init.js` — credential resolution priority:
 1. Explicit override passed to `initSDK({ apiKey })` or `initSDK({ appId })`
-2. `REALTIMEX_API_KEY` / `REALTIMEX_AI_API_KEY` in `<cwd>/.env`
-3. `RTX_API_KEY` / `REALTIMEX_API_KEY` / `REALTIMEX_AI_API_KEY` from `process.env`
+2. `RTX_API_KEY` in `<cwd>/.env`
+3. `RTX_API_KEY` from `process.env`
 4. `RTX_APP_ID` from `process.env` (injected by RealtimeX for agents / local apps)
 5. `~/.realtimex.ai/.sdk-app-id` file (written by RealTimeX server on startup)
 6. Interactive readline prompt (dev fallback)

@@ -24,12 +24,6 @@ from .v1_thread import V1ThreadModule
 from .v1_users import V1UsersModule
 from .v1_openai import V1OpenAIModule
 from .v1_embed import V1EmbedModule
-from .v1_stt_api import V1SttApiModule
-from .v1_credentials import V1CredentialsModule
-from .v1_acp_auth import V1AcpAuthModule
-from .v1_acp_commands import V1AcpCommandsModule
-from .v1_custom_themes import V1CustomThemesModule
-from .v1_desktop_embed import V1DesktopEmbedModule
 # [GENERATED-IMPORTS-END]
 
 # --- Generated module imports (added by generate-v1-sdk.mjs) ---
@@ -60,12 +54,6 @@ class V1ApiNamespace:
         self.users = V1UsersModule(self._client)
         self.openai = V1OpenAIModule(self._client)
         self.embed = V1EmbedModule(self._client)
-        self.sttApi = V1SttApiModule(self._client)
-        self.credentials = V1CredentialsModule(self._client)
-        self.acpAuth = V1AcpAuthModule(self._client)
-        self.acpCommands = V1AcpCommandsModule(self._client)
-        self.customThemes = V1CustomThemesModule(self._client)
-        self.desktopEmbed = V1DesktopEmbedModule(self._client)
 # [GENERATED-INIT-END]
 
         # --- Generated module initialisation (added by generate-v1-sdk.mjs) ---

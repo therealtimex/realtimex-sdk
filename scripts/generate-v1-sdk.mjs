@@ -65,6 +65,40 @@ const SKIP_TAGS = new Set([
   'SDK - MCP Servers', 'SDK - STT', 'SDK - TTS',
 ]);
 
+/**
+ * Auto-derive a module config from an unknown swagger tag.
+ *
+ * "My New Feature" → {
+ *   ts:  'v1MyNewFeature',
+ *   py:  'v1_my_new_feature',
+ *   cls: 'V1MyNewFeatureModule',
+ *   prop: 'myNewFeature',
+ *   prefix: ['my-new-feature'],
+ * }
+ */
+function deriveTagConfig(tag) {
+  // Normalise: strip punctuation except spaces/hyphens, title-case each word
+  const words = tag
+    .replace(/[^a-zA-Z0-9\s-]/g, '')
+    .trim()
+    .split(/[\s-]+/)
+    .filter(Boolean);
+
+  const pascal = words.map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join('');
+  const camel  = pascal.charAt(0).toLowerCase() + pascal.slice(1);
+  const snake  = words.map(w => w.toLowerCase()).join('_');
+  const kebab  = words.map(w => w.toLowerCase()).join('-');
+
+  return {
+    ts:     `v1${pascal}`,
+    py:     `v1_${snake}`,
+    cls:    `V1${pascal}Module`,
+    prop:   camel,
+    prefix: [kebab],
+    _auto:  true,   // flag so callers know this was derived, not hand-configured
+  };
+}
+
 // Auto-tag rules for "Untagged" paths (ordered — first match wins)
 const AUTO_TAG_RULES = [
   ['/v1/stt/',                  'STT'],
@@ -645,10 +679,9 @@ function main() {
   const generatedModules = []; // { ts, py, cls, prop }
 
   for (const [tag, ops] of Object.entries(tagOps)) {
-    const cfg = TAG_CONFIG[tag];
-    if (!cfg) {
-      log(`  WARN: No config for tag "${tag}" — skipping`);
-      continue;
+    const cfg = TAG_CONFIG[tag] ?? deriveTagConfig(tag);
+    if (cfg._auto) {
+      log(`  AUTO: No config for tag "${tag}" — derived module "${cfg.ts}" (add to TAG_CONFIG to customise)`);
     }
 
     // Check for @manual-override

@@ -7,8 +7,8 @@
  *
  * Credential resolution priority:
  *   1. Explicit override passed to initSDK({ apiKey } or { appId })
- *   2. REALTIMEX_API_KEY / REALTIMEX_AI_API_KEY in <envDir>/.env
- *   3. RTX_API_KEY / REALTIMEX_API_KEY / REALTIMEX_AI_API_KEY in process.env
+ *   2. RTX_API_KEY in <envDir>/.env
+ *   3. RTX_API_KEY in process.env
  *   4. RTX_APP_ID in process.env (injected by RealtimeX for agents / local apps)
  *   5. ~/.realtimex.ai/.sdk-app-id file (written by RealtimeX server on startup)
  *   6. Interactive readline prompt (dev fallback)
@@ -56,11 +56,11 @@ async function resolveCredentials({ envDir, apiKey, appId } = {}) {
 
   // 2. .env file
   const envVars = parseEnvFile(path.join(envDir || process.cwd(), '.env'));
-  const fromFile = envVars.REALTIMEX_API_KEY || envVars.REALTIMEX_AI_API_KEY;
+  const fromFile = envVars.RTX_API_KEY;
   if (fromFile) return { apiKey: fromFile, appId: null };
 
   // 3. Process env — API key
-  const fromEnv = process.env.RTX_API_KEY || process.env.REALTIMEX_API_KEY || process.env.REALTIMEX_AI_API_KEY;
+  const fromEnv = process.env.RTX_API_KEY;
   if (fromEnv) return { apiKey: fromEnv, appId: null };
 
   // 4. Process env — App ID (injected by RealtimeX for agents / local apps)
@@ -100,7 +100,7 @@ async function initSDK(opts = {}) {
 
   if (!apiKey && !appId) {
     throw new Error(
-      'No credentials found. Set REALTIMEX_API_KEY in .env, or run inside RealtimeX for automatic auth.'
+      'No credentials found. Set RTX_API_KEY in .env, or run inside RealtimeX for automatic auth.'
     );
   }
 
