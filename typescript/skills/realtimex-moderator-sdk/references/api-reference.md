@@ -1,6 +1,6 @@
 # RealTimeX SDK — API Reference
 
-> Auto-generated from `@realtimex/sdk` source · v**1.6.0** · 2026-04-03
+> Auto-generated from `@realtimex/sdk` source · v**1.6.0** · 2026-04-15
 
 **Package:** `@realtimex/sdk` (CJS) · **Server:** `http://localhost:3001`
 **Developer Mode auth:** `Authorization: Bearer <apiKey>`
@@ -51,6 +51,7 @@
 - `database: DatabaseModule`
 - `auth: AuthModule`
 - `credentials: CredentialsModule`
+- `v1: V1ApiNamespace | undefined`
 
 ```ts
 // Developer API (v1) — requires apiKey to be set in config.
