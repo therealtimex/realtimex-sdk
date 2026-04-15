@@ -732,6 +732,20 @@ const pkgVersion = tsPkg.version || 'unknown';
 console.log(`[generate-skill] SDK ${pkgVersion} | out: ${OUT_DIR}`);
 if (DRY_RUN) console.log('[generate-skill] DRY RUN — nothing will be written\n');
 
+// Auto-discover generated v1 modules and append to MODULE_FILES
+const V1_MODULES_DIR = path.join(TS_SRC, 'v1', 'modules');
+if (fs.existsSync(V1_MODULES_DIR)) {
+  for (const file of fs.readdirSync(V1_MODULES_DIR).sort()) {
+    if (!file.endsWith('.ts')) continue;
+    const rel   = `v1/modules/${file}`;
+    const key   = file.replace(/\.ts$/, '');
+    // "v1Workspace.ts" → "sdk.v1.workspace — v1 Workspaces"
+    const label = key.replace(/^v1/, '').replace(/([A-Z])/g, ' $1').trim();
+    const group = `sdk.v1.${key.replace(/^v1/, '').charAt(0).toLowerCase() + key.replace(/^v1/, '').slice(1)} — v1 ${label}`;
+    MODULE_FILES.push([rel, key, group]);
+  }
+}
+
 // Parse all module files
 console.log('[generate-skill] Parsing TypeScript source files...');
 const modules = MODULE_FILES.map(([rel, key, group]) => {

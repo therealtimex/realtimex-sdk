@@ -8,7 +8,7 @@
  *   2. ~/.realtimex.ai/.sdk-app-id file (written by RealtimeX server)
  *   3. RTX_APP_ID in process.env (injected by RealtimeX for local apps)
  *   4. RTX_API_KEY in process.env (standalone dev)
- *   5. REALTIMEX_API_KEY / REALTIMEX_AI_API_KEY in <envDir>/.env (standalone dev)
+ *   5. RTX_API_KEY in <envDir>/.env (standalone dev)
  *   6. Interactive readline prompt (fallback)
  */
 

@@ -53,7 +53,7 @@
 - `credentials: CredentialsModule`
 
 ```ts
-// Register app with RealtimeX hub and request declared permissions upfront.
+// Developer API (v1) — requires apiKey to be set in config.
 async register(permissions?: string[]): void
 
 // Get environment variable (works in Node.js and browser)
@@ -659,6 +659,371 @@ async findAvailablePort(startPort?: number, maxAttempts: number = 100): Promise<
 
 // Get a ready-to-use port
 async getPort(): Promise<number>
+```
+
+---
+
+## sdk.v1.acpAuth — v1 Acp Auth
+
+### `V1AcpAuthModule`
+
+```ts
+// @see GET /v1/acp/auth/profiles
+async listProfiles(): Promise<unknown>
+
+// @see POST /v1/acp/auth/profiles
+async createProfile(): Promise<unknown>
+
+// @see GET /v1/acp/auth/status
+async getStatus(): Promise<unknown>
+
+// @see DELETE /v1/acp/auth/profiles/{id}
+async deleteProfile(id: string): Promise<unknown>
+```
+
+---
+
+## sdk.v1.acpCommands — v1 Acp Commands
+
+### `V1AcpCommandsModule`
+
+```ts
+// @see POST /v1/acp/command
+async createCommand(): Promise<unknown>
+
+// @see POST /v1/acp/command/permission-decision
+async permissionDecision(): Promise<unknown>
+```
+
+---
+
+## sdk.v1.admin — v1 Admin
+
+### `V1AdminModule`
+
+```ts
+// Check to see if the instance is in multi-user-mode first. Methods are disabled until multi user mode is enabled via the UI.
+async getIsMultiUserMode(): Promise<unknown>
+
+// Check to see if the instance is in multi-user-mode first. Methods are disabled until multi user mode is enabled via the UI.
+async listUsers(): Promise<unknown>
+
+// Create a new user with username and password. Methods are disabled until multi user mode is enabled via the UI.
+async createUser(body?: Record<string, unknown>): Promise<unknown>
+
+// Update existing user settings. Methods are disabled until multi user mode is enabled via the UI.
+async updateUser(id: string, body?: Record<string, unknown>): Promise<unknown>
+
+// Delete existing user by id. Methods are disabled until multi user mode is enabled via the UI.
+async deleteUser(id: string): Promise<unknown>
+
+// List all existing invitations to instance regardless of status. Methods are disabled until multi user mode is enabled via the UI.
+async listInvites(): Promise<unknown>
+
+// Create a new invite code for someone to use to register with instance. Methods are disabled until multi user mode is enabled via the UI.
+async createInvite(body?: Record<string, unknown>): Promise<unknown>
+
+// Deactivates (soft-delete) invite by id. Methods are disabled until multi user mode is enabled via the UI.
+async deleteInvite(id: string): Promise<unknown>
+
+// Retrieve a list of users with permissions to access the specified workspace.
+async listWorkspaceUsers(workspaceId: string): Promise<unknown>
+
+// Overwrite workspace permissions to only be accessible by the given user ids and admins. Methods are disabled until multi user mode is enabled via the UI.
+async updateUsers(workspaceId: string, body?: Record<string, unknown>): Promise<unknown>
+
+// Set workspace permissions to be accessible by the given user ids and admins. Methods are disabled until multi user mode is enabled via the UI.
+async workspacesManageUsers(workspaceSlug: string, body?: Record<string, unknown>): Promise<unknown>
+
+// All chats in the system ordered by most recent. Methods are disabled until multi user mode is enabled via the UI.
+async workspaceChats(body?: Record<string, unknown>): Promise<unknown>
+
+// Update multi-user preferences for instance. Methods are disabled until multi user mode is enabled via the UI.
+async createPreference(body?: Record<string, unknown>): Promise<unknown>
+```
+
+---
+
+## sdk.v1.auth — v1 Auth
+
+### `V1AuthModule`
+
+```ts
+// Verify the attached Authentication header contains a valid API token.
+async getAuth(): Promise<unknown>
+```
+
+---
+
+## sdk.v1.credentials — v1 Credentials
+
+### `V1CredentialsModule`
+
+```ts
+// @see POST /v1/credentials
+async createCredential(): Promise<unknown>
+
+// @see GET /v1/credentials
+async listCredentials(): Promise<unknown>
+
+// @see GET /v1/credentials/{id}
+async getCredential(id: string): Promise<unknown>
+
+// @see PUT /v1/credentials/{id}
+async replaceCredential(id: string): Promise<unknown>
+
+// @see DELETE /v1/credentials/{id}
+async deleteCredential(id: string): Promise<unknown>
+
+// @see POST /v1/credentials/{id}/restore
+async restore(id: string): Promise<unknown>
+```
+
+---
+
+## sdk.v1.customThemes — v1 Custom Themes
+
+### `V1CustomThemesModule`
+
+```ts
+// @see GET /v1/custom-themes
+async listCustomThemes(): Promise<unknown>
+
+// @see GET /v1/custom-themes/{id}
+async getCustomTheme(id: string): Promise<unknown>
+
+// @see POST /v1/custom-themes/{id}
+async updateCustomTheme(id: string): Promise<unknown>
+
+// @see DELETE /v1/custom-themes/{id}
+async deleteCustomTheme(id: string): Promise<unknown>
+
+// @see POST /v1/custom-themes/new
+async createCustomTheme(): Promise<unknown>
+```
+
+---
+
+## sdk.v1.desktopEmbed — v1 Desktop Embed
+
+### `V1DesktopEmbedModule`
+
+```ts
+// @see GET /v1/desktop-public-embed/status
+async getStatus(): Promise<unknown>
+
+// @see POST /v1/desktop-public-embed/exposures
+async createExposure(): Promise<unknown>
+
+// @see POST /v1/desktop-public-embed/exposures/{exposureId}/heartbeat
+async exposuresHeartbeat(exposureId: string): Promise<unknown>
+
+// @see GET /v1/desktop-public-embed/exposures/{exposureId}
+async getExposure(exposureId: string): Promise<unknown>
+
+// @see DELETE /v1/desktop-public-embed/exposures/{exposureId}
+async deleteExposure(exposureId: string): Promise<unknown>
+```
+
+---
+
+## sdk.v1.document — v1 Document
+
+### `V1DocumentModule`
+
+```ts
+// Upload a new file to RealTimeX to be parsed and prepared for embedding.
+async uploadLink(body?: Record<string, unknown>): Promise<unknown>
+
+// Upload a file by specifying its raw text content and metadata values without having to upload a file.
+async rawText(body?: Record<string, unknown>): Promise<unknown>
+
+// List of all locally-stored documents in instance
+async listDocuments(): Promise<unknown>
+
+// Get all documents stored in a specific folder.
+async getFolder(folderName: string): Promise<unknown>
+
+// Check available filetypes and MIMEs that can be uploaded.
+async listAcceptedFileTypes(): Promise<unknown>
+
+// Get the known available metadata schema for when doing a raw-text upload and the acceptable type of value for each key.
+async getMetadataSchema(): Promise<unknown>
+
+// Get a single document by its unique RealTimeX document name
+async getDocument(docName: string): Promise<unknown>
+
+// Create a new folder inside the documents storage directory.
+async createFolder(body?: Record<string, unknown>): Promise<unknown>
+
+// Remove a folder and all its contents from the documents storage directory.
+async deleteRemoveFolder(): Promise<unknown>
+
+// Move files within the documents storage directory.
+async moveFiles(body?: Record<string, unknown>): Promise<unknown>
+```
+
+---
+
+## sdk.v1.embed — v1 Embed
+
+### `V1EmbedModule`
+
+```ts
+// List all active embeds
+async getEmbed(): Promise<unknown>
+
+// Get all chats for a specific embed
+async listChats(embedUuid: string): Promise<unknown>
+
+// Get chats for a specific embed and session
+async getChat(embedUuid: string, sessionUuid: string): Promise<unknown>
+
+// Create a new embed configuration
+async createEmbed(body?: Record<string, unknown>): Promise<unknown>
+
+// Update an existing embed configuration
+async updateEmbed(embedUuid: string, body?: Record<string, unknown>): Promise<unknown>
+
+// Delete an existing embed configuration
+async deleteEmbed(embedUuid: string): Promise<unknown>
+```
+
+---
+
+## sdk.v1.openAI — v1 Open A I
+
+### `V1OpenAIModule`
+
+```ts
+// Get all available "models" which are workspaces you can use for chatting.
+async listModels(): Promise<unknown>
+
+// Execute a chat with a workspace with OpenAI compatibility. Supports streaming as well. Model must be a workspace slug from /models.
+async chatCompletions(body?: Record<string, unknown>): Promise<unknown>
+
+// Get the embeddings of any arbitrary text string. This will use the embedder provider set in the system. Please ensure the token length of each string fits within the context of your embedder model.
+async createEmbedding(body?: Record<string, unknown>): Promise<unknown>
+
+// List all the vector database collections connected to RealTimeX. These are essentially workspaces but return their unique vector db identifier - this is the same as the workspace slug.
+async listVectorStores(): Promise<unknown>
+```
+
+---
+
+## sdk.v1.sttApi — v1 Stt Api
+
+### `V1SttApiModule`
+
+```ts
+// @see POST /v1/stt/groq/transcribe
+async groqTranscribe(body?: Record<string, unknown>): Promise<unknown>
+```
+
+---
+
+## sdk.v1.system — v1 System
+
+### `V1SystemModule`
+
+```ts
+// Dump all settings to file storage
+async getEnvDump(): Promise<unknown>
+
+// Get all current system settings that are defined.
+async getSystem(): Promise<unknown>
+
+// Number of all vectors in connected vector database
+async getVectorCount(): Promise<unknown>
+
+// Update a system setting or preference.
+async updateEnv(body?: Record<string, unknown>): Promise<unknown>
+
+// Export all of the chats from the system in a known format. Output depends on the type sent. Will be send with the correct header for the output.
+async listExportChats(): Promise<unknown>
+
+// Permanently remove documents from the system.
+async deleteRemoveDocument(): Promise<unknown>
+
+// Returns a health check object with server uptime and version.
+async getHealth(): Promise<unknown>
+```
+
+---
+
+## sdk.v1.thread — v1 Thread
+
+### `V1ThreadModule`
+
+```ts
+// Create a new workspace thread
+async createThread(slug: string, body?: Record<string, unknown>): Promise<unknown>
+
+// Update thread settings by its unique slug.
+async updateThread(slug: string, threadSlug: string, body?: Record<string, unknown>): Promise<unknown>
+
+// Delete a workspace thread
+async deleteThread(slug: string, threadSlug: string): Promise<unknown>
+
+// Get chats for a workspace thread
+async listChats(slug: string, threadSlug: string): Promise<unknown>
+
+// Chat with a workspace thread
+async chat(slug: string, threadSlug: string, body?: Record<string, unknown>): Promise<unknown>
+
+async streamChat(slug: string, threadSlug: string, body?: Record<string, unknown>): Promise<Response>
+```
+
+---
+
+## sdk.v1.users — v1 Users
+
+### `V1UsersModule`
+
+```ts
+// List all users
+async listUsers(): Promise<unknown>
+
+// Issue a temporary auth token for a user
+async getIssueAuthToken(id: string): Promise<unknown>
+```
+
+---
+
+## sdk.v1.workspace — v1 Workspace
+
+### `V1WorkspaceModule`
+
+```ts
+// Create a new workspace
+async createWorkspace(body?: Record<string, unknown>): Promise<unknown>
+
+// List all current workspaces
+async listWorkspaces(): Promise<unknown>
+
+// Get a workspace by its unique slug.
+async getWorkspace(slug: string): Promise<unknown>
+
+// Deletes a workspace by its slug.
+async deleteWorkspace(slug: string): Promise<unknown>
+
+// Update workspace settings by its unique slug.
+async updateWorkspace(slug: string, body?: Record<string, unknown>): Promise<unknown>
+
+// Get a workspaces chats regardless of user by its unique slug.
+async listChats(slug: string): Promise<unknown>
+
+// Add or remove documents from a workspace by its unique slug.
+async updateEmbeddings(slug: string, body?: Record<string, unknown>): Promise<unknown>
+
+// Add or remove pin from a document in a workspace by its unique slug.
+async updatePin(slug: string, body?: Record<string, unknown>): Promise<unknown>
+
+// Execute a chat with a workspace
+async chat(slug: string, body?: Record<string, unknown>): Promise<unknown>
+
+// Execute a streamable chat with a workspace
+async vectorSearch(slug: string, body?: Record<string, unknown>): Promise<unknown>
 ```
 
 ---

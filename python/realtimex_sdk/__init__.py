@@ -33,6 +33,15 @@ from .contract import (
 from .database import DatabaseModule, DatabaseConfig
 from .auth import AuthModule, AuthTokenResponse, SyncTokenResponse
 from .credentials import CredentialsModule, CredentialInfo, CredentialPayload
+from .v1 import (
+    V1ApiNamespace,
+    DeveloperApiClient,
+    DeveloperApiError,
+    AuthenticationError,
+    NotFoundError,
+    ValidationError,
+    ServerError,
+)
 from .acp_agent import (
     AcpAgentModule,
     AcpAgentInfo,
@@ -146,4 +155,12 @@ __all__ = [
     "CredentialsModule",
     "CredentialInfo",
     "CredentialPayload",
+    # v1 Developer API
+    "V1ApiNamespace",
+    "DeveloperApiClient",
+    "DeveloperApiError",
+    "AuthenticationError",
+    "NotFoundError",
+    "ValidationError",
+    "ServerError",
 ]

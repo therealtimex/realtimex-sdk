@@ -10,15 +10,23 @@
             "import": "./dist/index.mjs",
             "require": "./dist/index.js",
             "types": "./dist/index.d.ts"
+        },
+        "./v1": {
+            "import": "./dist/v1/index.mjs",
+            "require": "./dist/v1/index.js",
+            "types": "./dist/v1/index.d.ts"
         }
     },
     "scripts": {
-        "build": "node ../scripts/generate-skill.mjs --force && tsup src/index.ts --format cjs,esm --dts --clean",
-        "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+        "build": "node ../scripts/generate-skill.mjs --force && tsup src/index.ts src/v1/index.ts --format cjs,esm --dts --clean",
+        "dev": "tsup src/index.ts src/v1/index.ts --format cjs,esm --dts --watch",
         "test": "vitest run",
         "contract:verify": "node ../scripts/verify-contract-compat.mjs",
         "skill:generate": "node ../scripts/generate-skill.mjs",
         "skill:update": "node ../scripts/generate-skill.mjs --force",
+        "sdk:generate": "node ../scripts/generate-v1-sdk.mjs",
+        "sdk:generate:force": "node ../scripts/generate-v1-sdk.mjs --force",
+        "sdk:diff": "node ../scripts/generate-v1-sdk.mjs --dry-run",
         "prepublishOnly": "npm run build"
     },
     "keywords": [

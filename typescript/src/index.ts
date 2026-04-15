@@ -23,6 +23,7 @@ import { ContractRuntime } from './core/runtime/ContractRuntime';
 import { DatabaseModule } from './modules/database';
 import { AuthModule } from './modules/auth';
 import { CredentialsModule } from './modules/credentials';
+import { V1ApiNamespace } from './v1/namespace';
 
 export class RealtimeXSDK {
     public activities: ActivitiesModule;
@@ -41,6 +42,11 @@ export class RealtimeXSDK {
     public database: DatabaseModule;
     public auth: AuthModule;
     public credentials: CredentialsModule;
+    /**
+     * Developer API (v1) — requires apiKey to be set in config.
+     * Provides access to workspace management, admin, documents, system settings, and more.
+     */
+    public v1: V1ApiNamespace | undefined;
     public readonly appId: string;
     public readonly appName: string | undefined;
     public readonly apiKey: string | undefined;
@@ -92,6 +98,11 @@ export class RealtimeXSDK {
         this.database = new DatabaseModule(this.realtimexUrl, this.appId, this.apiKey);
         this.auth = new AuthModule(this.realtimexUrl, this.appId, this.apiKey);
         this.credentials = new CredentialsModule(this.httpClient);
+
+        // v1 Developer API — available with apiKey or appId
+        this.v1 = (this.apiKey || this.appId)
+            ? new V1ApiNamespace(this.realtimexUrl, this.apiKey ?? '', this.appId || undefined)
+            : undefined;
 
         // Auto-register with declared permissions (only for production mode)
         if (this.permissions.length > 0 && this.appId && !this.apiKey) {
@@ -372,3 +383,14 @@ export {
     type AuthTokenResponse,
     type SyncTokenResponse,
 } from './modules/auth';
+
+// v1 Developer API
+export { V1ApiNamespace } from './v1/namespace';
+export { DeveloperApiClient } from './v1/client';
+export {
+    DeveloperApiError,
+    AuthenticationError,
+    NotFoundError,
+    ValidationError,
+    ServerError,
+} from './v1/errors';
