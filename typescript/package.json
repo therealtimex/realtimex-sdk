@@ -1,6 +1,6 @@
 {
     "name": "@realtimex/sdk",
-    "version": "1.7.0",
+    "version": "1.7.1",
     "description": "SDK for building Local Apps that integrate with RealtimeX",
     "main": "dist/index.js",
     "module": "dist/index.mjs",
@@ -18,7 +18,7 @@
         }
     },
     "scripts": {
-        "build": "node ../scripts/generate-skill.mjs --force && tsup src/index.ts src/v1/index.ts --format cjs,esm --dts --clean",
+        "build": "node ../scripts/generate-v1-sdk.mjs --force && node ../scripts/generate-skill.mjs --force && tsup src/index.ts src/v1/index.ts --format cjs,esm --dts --clean",
         "dev": "tsup src/index.ts src/v1/index.ts --format cjs,esm --dts --watch",
         "test": "vitest run",
         "contract:verify": "node ../scripts/verify-contract-compat.mjs",

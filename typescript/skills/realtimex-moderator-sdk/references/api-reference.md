@@ -1,6 +1,6 @@
 # RealTimeX SDK — API Reference
 
-> Auto-generated from `@realtimex/sdk` source · v**1.6.0** · 2026-04-15
+> Auto-generated from `@realtimex/sdk` source · v**1.7.1** · 2026-04-16
 
 **Package:** `@realtimex/sdk` (CJS) · **Server:** `http://localhost:3001`
 **Developer Mode auth:** `Authorization: Bearer <apiKey>`
@@ -948,6 +948,12 @@ async deleteRemoveDocument(): Promise<unknown>
 
 // Returns a health check object with server uptime and version.
 async getHealth(): Promise<unknown>
+
+// Returns a health check object with server uptime and version.
+async getHealthVersion2(): Promise<unknown>
+
+// Returns a health check object with server uptime and version.
+async getHealthVersion3(): Promise<unknown>
 ```
 
 ---
