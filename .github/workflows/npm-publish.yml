@@ -31,12 +31,25 @@ jobs:
           cache: 'npm'
           cache-dependency-path: typescript/package-lock.json
 
+      - name: Fetch openapi.json from GitLab app repo
+        working-directory: .
+        env:
+          APP_REPO_READ_TOKEN: ${{ secrets.APP_REPO_READ_TOKEN }}
+          APP_PROJECT_ID: ${{ vars.APP_PROJECT_ID }}
+        run: |
+          mkdir -p realtimex-ai-app/server/swagger
+          curl -fsSL \
+            -H "PRIVATE-TOKEN: $APP_REPO_READ_TOKEN" \
+            "https://rtgit.rta.vn/api/v4/projects/$APP_PROJECT_ID/repository/files/server%2Fswagger%2Fopenapi.json/raw?ref=realtimex-dev" \
+            -o realtimex-ai-app/server/swagger/openapi.json
+          echo "Fetched $(wc -c < realtimex-ai-app/server/swagger/openapi.json) bytes"
+
       - name: Install dependencies
         run: npm ci
 
       - name: Run tests
         run: npm test
-      
+
       - name: Build
         run: npm run build
       
