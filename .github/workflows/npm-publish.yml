@@ -40,7 +40,7 @@ jobs:
           mkdir -p realtimex-ai-app/server/swagger
           curl -fsSL \
             -H "PRIVATE-TOKEN: $APP_REPO_READ_TOKEN" \
-            "https://rtgit.rta.vn/api/v4/projects/$APP_PROJECT_ID/repository/files/server%2Fswagger%2Fopenapi.json/raw?ref=realtimex-dev" \
+            "https://rtgit.rta.vn/api/v4/projects/1583/repository/files/server%2Fswagger%2Fopenapi.json/raw?ref=realtimex-dev" \
             -o realtimex-ai-app/server/swagger/openapi.json
           echo "Fetched $(wc -c < realtimex-ai-app/server/swagger/openapi.json) bytes"
 
