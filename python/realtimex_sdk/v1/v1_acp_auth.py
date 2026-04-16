@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 from typing import Any, Optional
-from ..client import DeveloperApiClient
+from .client import DeveloperApiClient
 
 
 class V1AcpAuthModule:
