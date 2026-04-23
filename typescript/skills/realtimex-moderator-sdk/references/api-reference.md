@@ -1,6 +1,6 @@
 # RealTimeX SDK — API Reference
 
-> Auto-generated from `@realtimex/sdk` source · v**1.7.1** · 2026-04-16
+> Auto-generated from `@realtimex/sdk` source · v**1.7.5** · 2026-04-23
 
 **Package:** `@realtimex/sdk` (CJS) · **Server:** `http://localhost:3001`
 **Developer Mode auth:** `Authorization: Bearer <apiKey>`
@@ -752,6 +752,12 @@ async createPreference(body?: Record<string, unknown>): Promise<unknown>
 ```ts
 // Verify the attached Authentication header contains a valid API token.
 async getAuth(): Promise<unknown>
+
+// Relay external browser auth callbacks back to the local Electron renderer. Localhost only; keyed by OAuth state.
+async externalCallback(): Promise<unknown>
+
+// Poll for a relayed external browser auth callback by OAuth state. Localhost only.
+async getExternalCallback(state: string): Promise<unknown>
 ```
 
 ---
