@@ -1,13 +1,13 @@
 ---
 name: realtimex-moderator-sdk
 description: Control and interact with the RealTimeX application through its Node.js SDK. This skill should be used when users want to manage workspaces, threads, agents, activities, LLM chat, vector store, MCP tools, ACP agent sessions, TTS/STT, or any other RealTimeX platform feature via the API. All method signatures are verified against the SDK source code.
-generated: 2026-04-16
-sdk_version: 1.7.1
+generated: 2026-04-23
+sdk_version: 1.7.4
 ---
 
 # RealTimeX Moderator (SDK Source-Verified)
 
-Interact with the RealTimeX platform (`http://localhost:3001`) using `@realtimex/sdk` **v1.7.1**. Authentication is automatic when running inside RealtimeX.
+Interact with the RealTimeX platform (`http://localhost:3001`) using `@realtimex/sdk` **v1.7.4**. Authentication is automatic when running inside RealtimeX.
 
 `<SKILL_DIR>` below refers to the directory containing this SKILL.md.
 
@@ -215,7 +215,22 @@ Full fixes in `references/known-issues.md`.
 - **`resolvePermission()`** must be called while the `streamChat` SSE stream is still active
 - **SDK env vars:** `RTX_API_KEY` (dev), `RTX_APP_ID` (prod), `RTX_APP_NAME`
 
+## App Concepts
+
+When the user asks **what something is** in RealtimeX (e.g. Personality, Heartbeat, Workspace types, Agent Skills, data models), read `references/app-concepts.md` first.
+
+It covers:
+- **Personality** — file structure (AGENTS.md, SOUL.md, USER.md, IDENTITY.md, TOOLS.md, MEMORY.md, HEARTBEAT.md) and storage paths
+- **Heartbeat** — ambient background agent scheduler, config fields, calendar routines, queue
+- **Workspace** — types (`default`, `meeting_minutes`, `agent_skills`, `agent_heartbeat`), chat modes, key settings
+- **Agent Skills** — types (`repo`/`zip`), scopes, status values
+- **Data Models** — all database models with fields and defaults
+
+---
+
 ## References
 
-- `references/api-reference.md` — all class methods (auto-generated from source)
+- `references/app-concepts.md` — RealtimeX app concepts (auto-generated from source)
+- `references/api-reference.md` — all SDK class methods (auto-generated from source)
 - `references/known-issues.md` — verified source mismatches (auto-generated)
+- `references/credentials.md` — credential usage patterns

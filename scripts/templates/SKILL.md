@@ -202,7 +202,22 @@ Full fixes in `references/known-issues.md`.
 - **`resolvePermission()`** must be called while the `streamChat` SSE stream is still active
 - **SDK env vars:** `RTX_API_KEY` (dev), `RTX_APP_ID` (prod), `RTX_APP_NAME`
 
+## App Concepts
+
+When the user asks **what something is** in RealtimeX (e.g. Personality, Heartbeat, Workspace types, Agent Skills, data models), read `references/app-concepts.md` first.
+
+It covers:
+- **Personality** — file structure (AGENTS.md, SOUL.md, USER.md, IDENTITY.md, TOOLS.md, MEMORY.md, HEARTBEAT.md) and storage paths
+- **Heartbeat** — ambient background agent scheduler, config fields, calendar routines, queue
+- **Workspace** — types (`default`, `meeting_minutes`, `agent_skills`, `agent_heartbeat`), chat modes, key settings
+- **Agent Skills** — types (`repo`/`zip`), scopes, status values
+- **Data Models** — all database models with fields and defaults
+
+---
+
 ## References
 
-- `references/api-reference.md` — all class methods (auto-generated from source)
+- `references/app-concepts.md` — RealtimeX app concepts (auto-generated from source)
+- `references/api-reference.md` — all SDK class methods (auto-generated from source)
 - `references/known-issues.md` — verified source mismatches (auto-generated)
+- `references/credentials.md` — credential usage patterns
