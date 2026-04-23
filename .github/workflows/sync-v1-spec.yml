@@ -40,21 +40,33 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Fetch openapi.json from GitLab app repo
+      - name: Fetch app repo source files from GitLab
         env:
           APP_REPO_READ_TOKEN: ${{ secrets.APP_REPO_READ_TOKEN }}
         run: |
-          REF="${{ inputs.app_ref || 'realtimex-dev' }}"
+          API="https://rtgit.rta.vn/api/v4"
           PROJECT_ID="${{ inputs.app_project_id }}"
-          GITLAB_API="https://rtgit.rta.vn/api/v4"
+          REF="${{ inputs.app_ref || 'realtimex-dev' }}"
+          DEST="_app_repo"
 
-          echo "Fetching openapi.json from project $PROJECT_ID @ $REF"
-          mkdir -p _app_repo/server/swagger
-          curl -fsSL \
-            -H "PRIVATE-TOKEN: $APP_REPO_READ_TOKEN" \
-            "$GITLAB_API/projects/$PROJECT_ID/repository/files/server%2Fswagger%2Fopenapi.json/raw?ref=$REF" \
-            -o _app_repo/server/swagger/openapi.json
-          echo "Fetched $(wc -c < _app_repo/server/swagger/openapi.json) bytes"
+          fetch() {
+            local file="$1"
+            local encoded=$(echo "$file" | sed 's|/|%2F|g')
+            mkdir -p "$DEST/$(dirname "$file")"
+            curl -fsSL \
+              -H "PRIVATE-TOKEN: $APP_REPO_READ_TOKEN" \
+              "$API/projects/$PROJECT_ID/repository/files/$encoded/raw?ref=$REF" \
+              -o "$DEST/$file"
+            echo "  $(wc -c < "$DEST/$file") bytes  $file"
+          }
+
+          echo "Fetching app repo source files @ $REF"
+          fetch server/swagger/openapi.json
+          fetch server/prisma/schema.prisma
+          fetch server/utils/files/personalityStorage.js
+          fetch server/models/heartbeat.js
+          fetch server/models/workspace.js
+          fetch server/models/agentSkills.js
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -66,6 +78,9 @@ jobs:
           node scripts/generate-v1-sdk.mjs \
             --spec=_app_repo/server/swagger/openapi.json \
             --force
+          node scripts/generate-concepts.mjs \
+            --app-root=_app_repo
+          node scripts/generate-skill.mjs --force
 
       - name: Check for changes
         id: diff
@@ -77,6 +92,7 @@ jobs:
             'typescript/src/v1/index.ts' \
             'python/realtimex_sdk/v1/__init__.py' \
             'python/realtimex_sdk/v1/namespace.py' \
+            'typescript/skills/realtimex-moderator-sdk/references/app-concepts.md' \
             && echo "changed=false" >> "$GITHUB_OUTPUT" \
             || echo "changed=true" >> "$GITHUB_OUTPUT"
 
@@ -103,7 +119,10 @@ jobs:
             typescript/src/v1/index.ts \
             python/realtimex_sdk/v1/__init__.py \
             python/realtimex_sdk/v1/namespace.py \
-            scripts/.sdk-spec-digest.json
+            scripts/.sdk-spec-digest.json \
+            typescript/skills/realtimex-moderator-sdk/references/app-concepts.md \
+            typescript/skills/realtimex-moderator-sdk/references/api-reference.md \
+            typescript/skills/realtimex-moderator-sdk/SKILL.md
 
           git commit -m "chore: sync v1 SDK from openapi.json @ ${{ inputs.app_ref }}"
           git push origin "$BRANCH"

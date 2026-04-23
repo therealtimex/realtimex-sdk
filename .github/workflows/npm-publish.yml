@@ -31,18 +31,34 @@ jobs:
           cache: 'npm'
           cache-dependency-path: typescript/package-lock.json
 
-      - name: Fetch openapi.json from GitLab app repo
+      - name: Fetch app repo source files from GitLab
         working-directory: .
         env:
           APP_REPO_READ_TOKEN: ${{ secrets.APP_REPO_READ_TOKEN }}
-          APP_PROJECT_ID: ${{ vars.APP_PROJECT_ID }}
         run: |
-          mkdir -p ../realtimex-ai-app/server/swagger
-          curl -fsSL \
-            -H "PRIVATE-TOKEN: $APP_REPO_READ_TOKEN" \
-            "https://rtgit.rta.vn/api/v4/projects/1583/repository/files/server%2Fswagger%2Fopenapi.json/raw?ref=realtimex-dev" \
-            -o ../realtimex-ai-app/server/swagger/openapi.json
-          echo "Fetched $(wc -c < ../realtimex-ai-app/server/swagger/openapi.json) bytes"
+          API="https://rtgit.rta.vn/api/v4"
+          PROJECT_ID="1583"
+          REF="realtimex-dev"
+          DEST="../realtimex-ai-app"
+
+          fetch() {
+            local file="$1"
+            local encoded=$(echo "$file" | sed 's|/|%2F|g')
+            mkdir -p "$DEST/$(dirname "$file")"
+            curl -fsSL \
+              -H "PRIVATE-TOKEN: $APP_REPO_READ_TOKEN" \
+              "$API/projects/$PROJECT_ID/repository/files/$encoded/raw?ref=$REF" \
+              -o "$DEST/$file"
+            echo "  $(wc -c < "$DEST/$file") bytes  $file"
+          }
+
+          echo "Fetching app repo source files @ $REF"
+          fetch server/swagger/openapi.json
+          fetch server/prisma/schema.prisma
+          fetch server/utils/files/personalityStorage.js
+          fetch server/models/heartbeat.js
+          fetch server/models/workspace.js
+          fetch server/models/agentSkills.js
 
       - name: Install dependencies
         run: npm ci
