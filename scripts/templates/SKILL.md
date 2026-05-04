@@ -44,6 +44,18 @@ Scripts using the SDK must exit explicitly — `process.exit(0)` on success, `pr
 
 ---
 
+## Runtime Sessions
+
+In this SDK, **Runtime Sessions** means the CLI Agent in **Terminal mode**. Use `sdk.agent.*` for that path.
+
+This is separate from ACP mode:
+- `sdk.agent.*` = Runtime Sessions = CLI Agent / Terminal mode
+- `sdk.acpAgent.*` = ACP-backed CLI agent sessions
+
+If a user refers to the v1/OpenAPI tag `Runtime Sessions`, interpret that as the Terminal mode session flow, not ACP.
+
+---
+
 ## ACP Session Management
 
 ACP sessions are persistent agent processes. **Always reuse sessions** across turns instead of spawning a new process for every message — it preserves context and is far more efficient.

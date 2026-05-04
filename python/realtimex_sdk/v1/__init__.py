@@ -25,6 +25,7 @@ from .v1_thread import V1ThreadModule
 from .v1_users import V1UsersModule
 from .v1_openai import V1OpenAIModule
 from .v1_embed import V1EmbedModule
+from .v1_runtime_sessions import V1RuntimeSessionsModule
 # [GENERATED-IMPORTS-END]
 
 # Manual override imports — streaming helpers and typed upload utilities
@@ -50,6 +51,7 @@ __all__ = [
     "V1UsersModule",
     "V1OpenAIModule",
     "V1EmbedModule",
+    "V1RuntimeSessionsModule",
 # [GENERATED-ALL-END]
     # Override exports
     "WorkspaceStreamChunk",

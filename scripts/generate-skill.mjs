@@ -526,6 +526,11 @@ const SURFACE_INTERFACES = new Set([
   'Activity',
 ]);
 
+const MODULE_GROUP_OVERRIDES = {
+  agent: 'sdk.agent — Runtime Sessions (CLI Agent / Terminal mode)',
+  v1RuntimeSessions: 'sdk.v1.runtimeSessions — Runtime Sessions (CLI Agent / Terminal mode)',
+};
+
 // ---------------------------------------------------------------------------
 // Markdown generators
 // ---------------------------------------------------------------------------
@@ -757,7 +762,7 @@ const modules = MODULE_FILES.map(([rel, key, group]) => {
   const data = parseFile(fp);
   const names = data.classes.map(c => c.name).join(', ');
   console.log(`  ${rel.padEnd(28)} → ${names || '(no exported classes)'}`);
-  return [rel, key, group, data];
+  return [rel, key, MODULE_GROUP_OVERRIDES[key] || group, data];
 });
 
 // Detect known issues

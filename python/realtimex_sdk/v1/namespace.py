@@ -24,6 +24,7 @@ from .v1_thread import V1ThreadModule
 from .v1_users import V1UsersModule
 from .v1_openai import V1OpenAIModule
 from .v1_embed import V1EmbedModule
+from .v1_runtime_sessions import V1RuntimeSessionsModule
 # [GENERATED-IMPORTS-END]
 
 # --- Generated module imports (added by generate-v1-sdk.mjs) ---
@@ -54,6 +55,7 @@ class V1ApiNamespace:
         self.users = V1UsersModule(self._client)
         self.openai = V1OpenAIModule(self._client)
         self.embed = V1EmbedModule(self._client)
+        self.runtimeSessions = V1RuntimeSessionsModule(self._client)
 # [GENERATED-INIT-END]
 
         # --- Generated module initialisation (added by generate-v1-sdk.mjs) ---

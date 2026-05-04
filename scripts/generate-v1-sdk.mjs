@@ -28,6 +28,7 @@ const PY_V1_DIR      = resolve(SDK_ROOT, 'python/realtimex_sdk/v1');
 const PY_INIT        = resolve(SDK_ROOT, 'python/realtimex_sdk/v1/__init__.py');
 const DIGEST_FILE    = resolve(__dir, '.sdk-spec-digest.json');
 const DEFAULT_SPEC   = resolve(SDK_ROOT, '../realtimex-ai-app/server/swagger/openapi.json');
+const EXTRA_INCLUDED_TAGS = new Set(['Runtime Sessions']);
 
 // ─── CLI Args ─────────────────────────────────────────────────────────────────
 
@@ -50,6 +51,7 @@ const TAG_CONFIG = {
   'OpenAI Compatible Endpoints': { ts: 'v1OpenAI',        py: 'v1_openai',        cls: 'V1OpenAIModule',       prop: 'openai',       prefix: ['openai'] },
   'Embed':                       { ts: 'v1Embed',         py: 'v1_embed',         cls: 'V1EmbedModule',        prop: 'embed',        prefix: ['embed'] },
   'STT':                         { ts: 'v1SttApi',        py: 'v1_stt_api',       cls: 'V1SttApiModule',       prop: 'sttApi',       prefix: ['stt'] },
+  'Runtime Sessions':           { ts: 'v1RuntimeSessions', py: 'v1_runtime_sessions', cls: 'V1RuntimeSessionsModule', prop: 'runtimeSessions', prefix: ['runtime-sessions'] },
   'Credentials':                 { ts: 'v1Credentials',   py: 'v1_credentials',   cls: 'V1CredentialsModule',  prop: 'credentials',  prefix: ['credentials'] },
   'ACP Auth':                    { ts: 'v1AcpAuth',       py: 'v1_acp_auth',      cls: 'V1AcpAuthModule',      prop: 'acpAuth',      prefix: ['acp', 'auth'] },
   'ACP Commands':                { ts: 'v1AcpCommands',   py: 'v1_acp_commands',  cls: 'V1AcpCommandsModule',  prop: 'acpCommands',  prefix: ['acp', 'command'] },
@@ -614,9 +616,18 @@ function main() {
   const spec = JSON.parse(readFileSync(SPEC_PATH, 'utf-8'));
   const allPaths = spec.paths || {};
 
-  // 2. Filter to v1-only paths and compute digest
+  // 2. Filter to v1 paths plus explicitly included non-v1 tagged APIs and compute digest
   const v1Paths = Object.fromEntries(
-    Object.entries(allPaths).filter(([p]) => p.startsWith('/v1/'))
+    Object.entries(allPaths).filter(([p, methods]) => {
+      if (p.startsWith('/v1/')) return true;
+      if (!methods || typeof methods !== 'object') return false;
+      return Object.values(methods).some(op =>
+        op &&
+        typeof op === 'object' &&
+        Array.isArray(op.tags) &&
+        op.tags.some(tag => EXTRA_INCLUDED_TAGS.has(tag))
+      );
+    })
   );
   const digest = createHash('sha256')
     .update(JSON.stringify(v1Paths))
@@ -637,7 +648,7 @@ function main() {
 
   for (const [rawPath, methods] of Object.entries(v1Paths)) {
     // Skip malformed paths (from swagger-autogen parse failures)
-    if (!rawPath.startsWith('/v1/')) continue;
+    if (!rawPath.startsWith('/v1/') && !rawPath.startsWith('/runtime-sessions/')) continue;
     if (rawPath.includes('{') && !rawPath.match(/\{[a-zA-Z_][a-zA-Z0-9_]*\}/)) continue;
 
     for (const [method, op] of Object.entries(methods)) {

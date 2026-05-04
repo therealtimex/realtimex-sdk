@@ -21,6 +21,7 @@ import { V1ThreadModule } from './modules/v1Thread';
 import { V1UsersModule } from './modules/v1Users';
 import { V1OpenAIModule } from './modules/v1OpenAI';
 import { V1EmbedModule } from './modules/v1Embed';
+import { V1RuntimeSessionsModule } from './modules/v1RuntimeSessions';
 // [GENERATED-IMPORTS-END]
 
 export class V1ApiNamespace {
@@ -37,6 +38,7 @@ export class V1ApiNamespace {
     public users: V1UsersModule;
     public openai: V1OpenAIModule;
     public embed: V1EmbedModule;
+    public runtimeSessions: V1RuntimeSessionsModule;
 // [GENERATED-PROPS-END]
 
     constructor(baseUrl: string, apiKey: string, appId?: string) {
@@ -52,6 +54,7 @@ export class V1ApiNamespace {
         this.users = new V1UsersModule(this._client);
         this.openai = new V1OpenAIModule(this._client);
         this.embed = new V1EmbedModule(this._client);
+        this.runtimeSessions = new V1RuntimeSessionsModule(this._client);
 // [GENERATED-INIT-END]
     }
 }

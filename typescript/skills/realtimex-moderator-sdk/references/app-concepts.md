@@ -55,7 +55,9 @@ monitor context (calendar, documents, threads) and take autonomous actions.
 | `timezone` | `null` | — |
 | `llmProvider` | `DEFAULT_AMBIENT_LLM_PROVIDER` | — |
 | `llmModel` | `DEFAULT_AMBIENT_LLM_MODEL` | autoPilotEnabled: when true, the CLI ACP agent will automatically select |
-| `autoPilotEnabled` | `false` | — |
+| `autoPilotEnabled` | `false` | resumeSession: when true, each heartbeat execution resumes the last ACP |
+| `resumeSession` | `false` | — |
+| `customInstructions` | `""` | — |
 
 ### Calendar Routines
 
@@ -121,6 +123,7 @@ Skills are loaded from git repositories, zip files, or installed plugins.
 |---|---|
 | `repo` | Skill loaded from a git repository URL |
 | `zip` | Skill loaded from an uploaded .zip file |
+| `local-path` | — |
 
 ### Skill Scopes
 
@@ -781,13 +784,15 @@ A skill (tool-set) available to agents. Can come from a git repo, zip file, or p
 |---|---|---|---|
 | `name` | String | — | — |
 | `display_name` | String | — | — |
+| `normalized_display_name` | String? | — | — |
 | `description` | String? | — | — |
 | `skill_id` | String? | — | Store's ID, used when synced from marketplace |
 | `repository_url` | String? | — | — |
 | `ref` | String? | — | Git ref (branch/tag) |
 | `skill_path` | String? | — | Path within repository |
 | `zip_file` | String? | — | Path to local zip file |
-| `type` | String | repo | 'repo' | 'zip' |
+| `local_path` | String? | — | Absolute source path for local-path type skills |
+| `type` | String | repo | 'repo' | 'zip' | 'local-path' |
 | `scope` | String | uploaded | 'global' | 'workspace' | 'local-app' | 'uploaded' | 'plugin' |
 | `status` | String | draft | 'draft' | 'published' |
 | `pending_publish` | Boolean | true | Tracks if code/ZIP changed and needs new version publish |
