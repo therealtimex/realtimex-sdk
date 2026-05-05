@@ -1,6 +1,6 @@
 # RealTimeX SDK — API Reference
 
-> Auto-generated from `@realtimex/sdk` source · v**1.7.6** · 2026-05-04
+> Auto-generated from `@realtimex/sdk` source · v**1.7.7** · 2026-05-05
 
 **Package:** `@realtimex/sdk` (CJS) · **Server:** `http://localhost:3001`
 **Developer Mode auth:** `Authorization: Bearer <apiKey>`
@@ -936,9 +936,6 @@ async cliAgentLaunchSpec(body?: Record<string, unknown>): Promise<unknown>
 async cliAgent(body?: Record<string, unknown>): Promise<unknown>
 
 // Stream a chat turn to an existing CLI agent runtime session using Server-Sent Events.
-async cliAgentChatStream(sessionKey: string, body?: Record<string, unknown>): Promise<unknown>
-
-// Resolve a pending permission request for a CLI agent runtime session.
 async cliAgentPermission(sessionKey: string, body?: Record<string, unknown>): Promise<unknown>
 
 // Cancel the current CLI turn for an active runtime session.

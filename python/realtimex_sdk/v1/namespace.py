@@ -20,11 +20,11 @@ from .v1_admin import V1AdminModule
 from .v1_document import V1DocumentModule
 from .v1_workspace import V1WorkspaceModule
 from .v1_system import V1SystemModule
+from .v1_runtime_sessions import V1RuntimeSessionsModule
 from .v1_thread import V1ThreadModule
 from .v1_users import V1UsersModule
 from .v1_openai import V1OpenAIModule
 from .v1_embed import V1EmbedModule
-from .v1_runtime_sessions import V1RuntimeSessionsModule
 # [GENERATED-IMPORTS-END]
 
 # --- Generated module imports (added by generate-v1-sdk.mjs) ---
@@ -51,11 +51,11 @@ class V1ApiNamespace:
         self.document = V1DocumentModule(self._client)
         self.workspace = V1WorkspaceModule(self._client)
         self.system = V1SystemModule(self._client)
+        self.runtimeSessions = V1RuntimeSessionsModule(self._client)
         self.thread = V1ThreadModule(self._client)
         self.users = V1UsersModule(self._client)
         self.openai = V1OpenAIModule(self._client)
         self.embed = V1EmbedModule(self._client)
-        self.runtimeSessions = V1RuntimeSessionsModule(self._client)
 # [GENERATED-INIT-END]
 
         # --- Generated module initialisation (added by generate-v1-sdk.mjs) ---

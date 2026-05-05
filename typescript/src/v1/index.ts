@@ -23,11 +23,11 @@ export { V1AdminModule } from './modules/v1Admin';
 export { V1DocumentModule } from './modules/v1Document';
 export { V1WorkspaceModule } from './modules/v1Workspace';
 export { V1SystemModule } from './modules/v1System';
+export { V1RuntimeSessionsModule } from './modules/v1RuntimeSessions';
 export { V1ThreadModule } from './modules/v1Thread';
 export { V1UsersModule } from './modules/v1Users';
 export { V1OpenAIModule } from './modules/v1OpenAI';
 export { V1EmbedModule } from './modules/v1Embed';
-export { V1RuntimeSessionsModule } from './modules/v1RuntimeSessions';
 // [GENERATED-MODULE-EXPORTS-END]
 
 // Manual override exports — streaming helpers and typed upload utilities

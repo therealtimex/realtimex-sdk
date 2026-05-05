@@ -28,8 +28,6 @@ const PY_V1_DIR      = resolve(SDK_ROOT, 'python/realtimex_sdk/v1');
 const PY_INIT        = resolve(SDK_ROOT, 'python/realtimex_sdk/v1/__init__.py');
 const DIGEST_FILE    = resolve(__dir, '.sdk-spec-digest.json');
 const DEFAULT_SPEC   = resolve(SDK_ROOT, '../realtimex-ai-app/server/swagger/openapi.json');
-const EXTRA_INCLUDED_TAGS = new Set(['Runtime Sessions']);
-
 // ─── CLI Args ─────────────────────────────────────────────────────────────────
 
 const ARGS      = process.argv.slice(2);
@@ -115,6 +113,7 @@ const AUTO_TAG_RULES = [
 const STREAMING_PATHS = new Set([
   '/v1/workspace/{slug}/stream-chat',
   '/v1/workspace/{slug}/thread/{threadSlug}/stream-chat',
+  '/v1/runtime-sessions/cli-agent/{sessionKey}/chat/stream',
 ]);
 
 // Paths that require multipart/upload stub
@@ -616,18 +615,9 @@ function main() {
   const spec = JSON.parse(readFileSync(SPEC_PATH, 'utf-8'));
   const allPaths = spec.paths || {};
 
-  // 2. Filter to v1 paths plus explicitly included non-v1 tagged APIs and compute digest
+  // 2. Filter to v1-only paths and compute digest
   const v1Paths = Object.fromEntries(
-    Object.entries(allPaths).filter(([p, methods]) => {
-      if (p.startsWith('/v1/')) return true;
-      if (!methods || typeof methods !== 'object') return false;
-      return Object.values(methods).some(op =>
-        op &&
-        typeof op === 'object' &&
-        Array.isArray(op.tags) &&
-        op.tags.some(tag => EXTRA_INCLUDED_TAGS.has(tag))
-      );
-    })
+    Object.entries(allPaths).filter(([p]) => p.startsWith('/v1/'))
   );
   const digest = createHash('sha256')
     .update(JSON.stringify(v1Paths))
@@ -648,7 +638,7 @@ function main() {
 
   for (const [rawPath, methods] of Object.entries(v1Paths)) {
     // Skip malformed paths (from swagger-autogen parse failures)
-    if (!rawPath.startsWith('/v1/') && !rawPath.startsWith('/runtime-sessions/')) continue;
+    if (!rawPath.startsWith('/v1/')) continue;
     if (rawPath.includes('{') && !rawPath.match(/\{[a-zA-Z_][a-zA-Z0-9_]*\}/)) continue;
 
     for (const [method, op] of Object.entries(methods)) {
