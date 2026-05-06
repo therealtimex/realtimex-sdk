@@ -17,11 +17,11 @@ import { V1AdminModule } from './modules/v1Admin';
 import { V1DocumentModule } from './modules/v1Document';
 import { V1WorkspaceModule } from './modules/v1Workspace';
 import { V1SystemModule } from './modules/v1System';
-import { V1RuntimeSessionsModule } from './modules/v1RuntimeSessions';
 import { V1ThreadModule } from './modules/v1Thread';
 import { V1UsersModule } from './modules/v1Users';
 import { V1OpenAIModule } from './modules/v1OpenAI';
 import { V1EmbedModule } from './modules/v1Embed';
+import { V1DesktopRuntimeSessionsModule } from './modules/v1DesktopRuntimeSessions';
 // [GENERATED-IMPORTS-END]
 
 export class V1ApiNamespace {
@@ -34,11 +34,11 @@ export class V1ApiNamespace {
     public document: V1DocumentModule;
     public workspace: V1WorkspaceModule;
     public system: V1SystemModule;
-    public runtimeSessions: V1RuntimeSessionsModule;
     public thread: V1ThreadModule;
     public users: V1UsersModule;
     public openai: V1OpenAIModule;
     public embed: V1EmbedModule;
+    public desktopRuntimeSessions: V1DesktopRuntimeSessionsModule;
 // [GENERATED-PROPS-END]
 
     constructor(baseUrl: string, apiKey: string, appId?: string) {
@@ -50,11 +50,11 @@ export class V1ApiNamespace {
         this.document = new V1DocumentModule(this._client);
         this.workspace = new V1WorkspaceModule(this._client);
         this.system = new V1SystemModule(this._client);
-        this.runtimeSessions = new V1RuntimeSessionsModule(this._client);
         this.thread = new V1ThreadModule(this._client);
         this.users = new V1UsersModule(this._client);
         this.openai = new V1OpenAIModule(this._client);
         this.embed = new V1EmbedModule(this._client);
+        this.desktopRuntimeSessions = new V1DesktopRuntimeSessionsModule(this._client);
 // [GENERATED-INIT-END]
     }
 }

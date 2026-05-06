@@ -21,11 +21,11 @@ from .v1_admin import V1AdminModule
 from .v1_document import V1DocumentModule
 from .v1_workspace import V1WorkspaceModule
 from .v1_system import V1SystemModule
-from .v1_runtime_sessions import V1RuntimeSessionsModule
 from .v1_thread import V1ThreadModule
 from .v1_users import V1UsersModule
 from .v1_openai import V1OpenAIModule
 from .v1_embed import V1EmbedModule
+from .v1_desktop_runtime_sessions import V1DesktopRuntimeSessionsModule
 # [GENERATED-IMPORTS-END]
 
 # Manual override imports — streaming helpers and typed upload utilities
@@ -47,11 +47,11 @@ __all__ = [
     "V1DocumentModule",
     "V1WorkspaceModule",
     "V1SystemModule",
-    "V1RuntimeSessionsModule",
     "V1ThreadModule",
     "V1UsersModule",
     "V1OpenAIModule",
     "V1EmbedModule",
+    "V1DesktopRuntimeSessionsModule",
 # [GENERATED-ALL-END]
     # Override exports
     "WorkspaceStreamChunk",

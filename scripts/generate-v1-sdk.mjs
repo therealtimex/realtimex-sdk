@@ -49,12 +49,12 @@ const TAG_CONFIG = {
   'OpenAI Compatible Endpoints': { ts: 'v1OpenAI',        py: 'v1_openai',        cls: 'V1OpenAIModule',       prop: 'openai',       prefix: ['openai'] },
   'Embed':                       { ts: 'v1Embed',         py: 'v1_embed',         cls: 'V1EmbedModule',        prop: 'embed',        prefix: ['embed'] },
   'STT':                         { ts: 'v1SttApi',        py: 'v1_stt_api',       cls: 'V1SttApiModule',       prop: 'sttApi',       prefix: ['stt'] },
-  'Runtime Sessions':           { ts: 'v1RuntimeSessions', py: 'v1_runtime_sessions', cls: 'V1RuntimeSessionsModule', prop: 'runtimeSessions', prefix: ['runtime-sessions'] },
   'Credentials':                 { ts: 'v1Credentials',   py: 'v1_credentials',   cls: 'V1CredentialsModule',  prop: 'credentials',  prefix: ['credentials'] },
   'ACP Auth':                    { ts: 'v1AcpAuth',       py: 'v1_acp_auth',      cls: 'V1AcpAuthModule',      prop: 'acpAuth',      prefix: ['acp', 'auth'] },
   'ACP Commands':                { ts: 'v1AcpCommands',   py: 'v1_acp_commands',  cls: 'V1AcpCommandsModule',  prop: 'acpCommands',  prefix: ['acp', 'command'] },
   'Custom Themes':               { ts: 'v1CustomThemes',  py: 'v1_custom_themes', cls: 'V1CustomThemesModule', prop: 'customThemes', prefix: ['custom-themes'] },
   'Desktop Embed':               { ts: 'v1DesktopEmbed',  py: 'v1_desktop_embed', cls: 'V1DesktopEmbedModule', prop: 'desktopEmbed', prefix: ['desktop-public-embed'] },
+  'SDK - Desktop Runtime Sessions': { ts: 'v1DesktopRuntimeSessions', py: 'v1_desktop_runtime_sessions', cls: 'V1DesktopRuntimeSessionsModule', prop: 'desktopRuntimeSessions', prefix: ['desktop', 'runtime-sessions'] },
 };
 
 // Tags handled by SDK core — skip
@@ -107,13 +107,17 @@ const AUTO_TAG_RULES = [
   ['/v1/acp/command',           'ACP Commands'],
   ['/v1/custom-themes',         'Custom Themes'],
   ['/v1/desktop-public-embed/', 'Desktop Embed'],
+  ['/sdk/desktop/runtime-sessions/', 'SDK - Desktop Runtime Sessions'],
 ];
+
+function isGeneratedSdkPath(pathname = '') {
+  return pathname.startsWith('/v1/') || pathname.startsWith('/sdk/desktop/');
+}
 
 // Paths that require streaming stub (not a full implementation)
 const STREAMING_PATHS = new Set([
   '/v1/workspace/{slug}/stream-chat',
   '/v1/workspace/{slug}/thread/{threadSlug}/stream-chat',
-  '/v1/runtime-sessions/cli-agent/{sessionKey}/chat/stream',
 ]);
 
 // Paths that require multipart/upload stub
@@ -615,12 +619,12 @@ function main() {
   const spec = JSON.parse(readFileSync(SPEC_PATH, 'utf-8'));
   const allPaths = spec.paths || {};
 
-  // 2. Filter to v1-only paths and compute digest
-  const v1Paths = Object.fromEntries(
-    Object.entries(allPaths).filter(([p]) => p.startsWith('/v1/'))
+  // 2. Filter to generated SDK paths and compute digest
+  const generatedPaths = Object.fromEntries(
+    Object.entries(allPaths).filter(([p]) => isGeneratedSdkPath(p))
   );
   const digest = createHash('sha256')
-    .update(JSON.stringify(v1Paths))
+    .update(JSON.stringify(generatedPaths))
     .digest('hex')
     .slice(0, 16);
 
@@ -636,9 +640,9 @@ function main() {
   // 4. Group operations by effective tag
   const tagOps = {}; // tag → Op[]
 
-  for (const [rawPath, methods] of Object.entries(v1Paths)) {
+  for (const [rawPath, methods] of Object.entries(generatedPaths)) {
     // Skip malformed paths (from swagger-autogen parse failures)
-    if (!rawPath.startsWith('/v1/')) continue;
+    if (!isGeneratedSdkPath(rawPath)) continue;
     if (rawPath.includes('{') && !rawPath.match(/\{[a-zA-Z_][a-zA-Z0-9_]*\}/)) continue;
 
     for (const [method, op] of Object.entries(methods)) {
@@ -669,7 +673,7 @@ function main() {
     }
   }
 
-  log(`Found ${Object.keys(tagOps).length} modules to generate from ${Object.keys(v1Paths).length} v1 paths`);
+  log(`Found ${Object.keys(tagOps).length} modules to generate from ${Object.keys(generatedPaths).length} generated SDK paths`);
 
   // 5. Ensure output dirs exist
   if (!DRY_RUN) {
@@ -740,7 +744,7 @@ function main() {
     // 8. Write digest
     writeFileSync(DIGEST_FILE, JSON.stringify({
       sha256: digest,
-      path_count: Object.keys(v1Paths).length,
+      path_count: Object.keys(generatedPaths).length,
       module_count: generatedModules.length,
       generated_at: new Date().toISOString(),
       spec_path: SPEC_PATH,

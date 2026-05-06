@@ -1,7 +1,7 @@
 {
-  "sha256": "f32dab4b444ad282",
-  "path_count": 72,
+  "sha256": "43c4c5a2e59c85e9",
+  "path_count": 71,
   "module_count": 10,
-  "generated_at": "2026-05-05T07:31:13.352Z",
+  "generated_at": "2026-05-06T04:43:52.645Z",
   "spec_path": "/Volumes/MAC-DATA/RTA/projects/realtimex-ai-app/server/swagger/openapi.json"
 }

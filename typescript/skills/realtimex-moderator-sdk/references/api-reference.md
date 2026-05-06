@@ -1,6 +1,6 @@
 # RealTimeX SDK — API Reference
 
-> Auto-generated from `@realtimex/sdk` source · v**1.7.7** · 2026-05-05
+> Auto-generated from `@realtimex/sdk` source · v**1.7.8** · 2026-05-06
 
 **Package:** `@realtimex/sdk` (CJS) · **Server:** `http://localhost:3001`
 **Developer Mode auth:** `Authorization: Bearer <apiKey>`
@@ -834,6 +834,38 @@ async deleteExposure(exposureId: string): Promise<unknown>
 
 ---
 
+## sdk.v1.desktopRuntimeSessions — v1 Desktop Runtime Sessions
+
+### `V1DesktopRuntimeSessionsModule`
+
+```ts
+// Open the shared terminal launcher in the Electron desktop app.
+async openLauncher(body?: Record<string, unknown>): Promise<unknown>
+
+// Launch a local PTY-backed shell terminal in the Electron desktop app.
+async launchTerminalShell(body?: Record<string, unknown>): Promise<unknown>
+
+// Launch a local PTY-backed CLI agent terminal in the Electron desktop app.
+async launchTerminalCliAgent(body?: Record<string, unknown>): Promise<unknown>
+
+// List desktop PTY-backed runtime sessions currently known to the Electron app.
+async listRuntimeSessions(): Promise<unknown>
+
+// Fetch one desktop PTY-backed runtime session by runtime session ID or PTY session ID.
+async getRuntimeSession(sessionId: string): Promise<unknown>
+
+// Close an existing desktop runtime session.
+async deleteRuntimeSession(sessionId: string): Promise<unknown>
+
+// Write input to an existing desktop runtime session. Use `message` to submit a CLI turn or `input` for raw PTY data.
+async write(sessionId: string, body?: Record<string, unknown>): Promise<unknown>
+
+// Approve or deny a pending desktop runtime session action.
+async permission(sessionId: string, body?: Record<string, unknown>): Promise<unknown>
+```
+
+---
+
 ## sdk.v1.document — v1 Document
 
 ### `V1DocumentModule`
@@ -914,38 +946,6 @@ async createEmbedding(body?: Record<string, unknown>): Promise<unknown>
 
 // List all the vector database collections connected to RealTimeX. These are essentially workspaces but return their unique vector db identifier - this is the same as the workspace slug.
 async listVectorStores(): Promise<unknown>
-```
-
----
-
-## sdk.v1.runtimeSessions — Runtime Sessions (CLI Agent / Terminal mode)
-
-### `V1RuntimeSessionsModule`
-
-```ts
-// Resolve the desktop shell launch working directory for a workspace or thread context.
-async desktopShellLaunchSpec(body?: Record<string, unknown>): Promise<unknown>
-
-// Evaluate the runtime terminal permission policy for a pending CLI action.
-async terminalPermissionsEvaluate(body?: Record<string, unknown>): Promise<unknown>
-
-// Resolve the CLI agent terminal launch command and working directory.
-async cliAgentLaunchSpec(body?: Record<string, unknown>): Promise<unknown>
-
-// Create a persistent ACP-backed CLI agent runtime session.
-async cliAgent(body?: Record<string, unknown>): Promise<unknown>
-
-// Stream a chat turn to an existing CLI agent runtime session using Server-Sent Events.
-async cliAgentPermission(sessionKey: string, body?: Record<string, unknown>): Promise<unknown>
-
-// Cancel the current CLI turn for an active runtime session.
-async cliAgentCancel(sessionKey: string, body?: Record<string, unknown>): Promise<unknown>
-
-// Close a CLI agent runtime session and clear its control-plane metadata.
-async deleteCliAgent(sessionKey: string): Promise<unknown>
-
-// Fetch the current state and runtime options for a CLI agent session.
-async getCliAgent(sessionKey: string): Promise<unknown>
 ```
 
 ---
