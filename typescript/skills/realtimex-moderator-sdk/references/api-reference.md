@@ -30,6 +30,75 @@
 
 ---
 
+## sdk.v1.desktopRuntimeSessions — Desktop Terminal Sessions
+
+Use this module for visible Electron terminal sessions. This is the correct path for:
+- launching a shell terminal
+- launching Claude/Gemini/Qwen in a terminal
+- listing existing terminal sessions
+- sending more input to an existing terminal
+- approving terminal prompts
+- closing a terminal session
+
+Do not use ACP for these unless the user explicitly asks for ACP/headless mode.
+
+### `V1DesktopRuntimeSessionsModule`
+
+```ts
+async openLauncher(body?: { workspaceSlug?: string; threadSlug?: string; presentationMode?: 'panel' | 'tab'; preferredAgentName?: string; preferredAgentProviderId?: string; }): Promise<unknown>
+async launchTerminalShell(body?: { workspaceSlug?: string; threadSlug?: string; presentationMode?: 'panel' | 'tab'; title?: string; subtitle?: string; initialCommand?: string; initialCommandMode?: 'direct' | 'prefill' | 'shell'; }): Promise<unknown>
+async launchTerminalCliAgent(body?: { workspaceSlug?: string; threadSlug?: string; agentName: string; providerId?: string; modelId?: string; presentationMode?: 'panel' | 'tab'; message?: string; }): Promise<unknown>
+async listRuntimeSessions(): Promise<unknown>
+async getRuntimeSession(sessionId: string): Promise<unknown>
+async write(sessionId: string, body?: { message?: string; input?: string; }): Promise<unknown>
+async permission(sessionId: string, body?: { outcome: 'approved' | 'denied'; actionId?: string; requestId?: string; optionId?: string; optionLabel?: string; input?: string; reason?: string; }): Promise<unknown>
+async deleteRuntimeSession(sessionId: string): Promise<unknown>
+```
+
+### Correct examples
+
+Launch Claude in a terminal:
+
+```js
+await sdk.v1.desktopRuntimeSessions.launchTerminalCliAgent({
+  workspaceSlug: 'agent-heartbeat',
+  threadSlug: 'ambient-agent-week-agent-heartbeat-2026-w17',
+  agentName: 'claude',
+  providerId: 'claude-cli',
+  presentationMode: 'panel',
+  message: 'what is current working dir'
+});
+```
+
+Launch a shell and run `pwd`:
+
+```js
+await sdk.v1.desktopRuntimeSessions.launchTerminalShell({
+  workspaceSlug: 'agent-heartbeat',
+  threadSlug: 'ambient-agent-week-agent-heartbeat-2026-w17',
+  presentationMode: 'panel',
+  initialCommand: 'pwd',
+  initialCommandMode: 'direct'
+});
+```
+
+Common mistake:
+
+```js
+// ❌ WRONG
+await sdk.v1.desktopRuntimeSessions.launchTerminalCliAgent({
+  agentName: 'claude-cli'
+});
+
+// ✅ CORRECT
+await sdk.v1.desktopRuntimeSessions.launchTerminalCliAgent({
+  agentName: 'claude',
+  providerId: 'claude-cli'
+});
+```
+
+---
+
 ## Core — RealtimeXSDK
 
 ### `RealtimeXSDK`
@@ -503,7 +572,7 @@ outcome?: string
 
 ---
 
-## sdk.agent — Runtime Sessions (CLI Agent / Terminal mode)
+## sdk.agent — LLM Agent Sessions (REST/SSE)
 
 ### `AgentModule`
 

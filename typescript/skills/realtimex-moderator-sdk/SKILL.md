@@ -24,6 +24,10 @@ node "$SKILL" agents                                   $ENV
 node "$SKILL" workspaces                               $ENV
 node "$SKILL" threads <workspace-slug>                 $ENV
 node "$SKILL" trigger-agent <agent> <workspace> <msg>  $ENV
+node "$SKILL" terminal-launch-cli-agent claude claude-cli "what is current working dir" --workspace=<slug> --thread=<slug>  $ENV
+node "$SKILL" terminal-launch-shell --workspace=<slug> --thread=<slug> --command="pwd"  $ENV
+node "$SKILL" terminal-sessions --workspace=<slug>     $ENV
+node "$SKILL" terminal-write <session-id> "continue"   $ENV
 node "$SKILL" acp-chat qwen-cli "question" --cwd=<path>  $ENV
 node "$SKILL" llm-chat "message"                       $ENV
 node "$SKILL" activities --status=pending              $ENV
@@ -44,15 +48,94 @@ Scripts using the SDK must exit explicitly — `process.exit(0)` on success, `pr
 
 ---
 
-## Runtime Sessions
+## Desktop Terminal Sessions
 
-In this SDK, **Runtime Sessions** means the CLI Agent in **Terminal mode**. Use `sdk.agent.*` for that path.
+For anything that says **launch terminal**, **open shell**, **open Claude/Gemini in terminal**, or **send another message to an existing terminal session**, use:
 
-This is separate from ACP mode:
-- `sdk.agent.*` = Runtime Sessions = CLI Agent / Terminal mode
-- `sdk.acpAgent.*` = ACP-backed CLI agent sessions
+- `sdk.v1.desktopRuntimeSessions.*`
 
-If a user refers to the v1/OpenAPI tag `Runtime Sessions`, interpret that as the Terminal mode session flow, not ACP.
+Do **not** use ACP for that unless the user explicitly asks for a headless ACP session.
+
+### Use desktop terminal sessions for
+- opening a visible terminal in the Electron app
+- launching a shell session
+- launching a CLI agent in a terminal tab/panel
+- listing desktop terminal sessions
+- writing more input to an existing terminal session
+- approving or denying a pending terminal action
+- closing a terminal session
+
+### Use ACP only for
+- headless background agent sessions
+- persistent server-side automation
+- `acp-chat`, `acp-stream`, `acp-session-*`
+
+### Correct SDK namespace
+
+```js
+sdk.v1.desktopRuntimeSessions
+```
+
+There is currently:
+- no top-level `sdk.desktopRuntimeSessions`
+- no `sdk.v1.runtimeSessions`
+
+### Required payloads
+
+Launch terminal CLI agent:
+
+```js
+await sdk.v1.desktopRuntimeSessions.launchTerminalCliAgent({
+  workspaceSlug: "agent-heartbeat",
+  threadSlug: "ambient-agent-week-agent-heartbeat-2026-w17",
+  agentName: "claude",        // required
+  providerId: "claude-cli",   // strongly recommended
+  presentationMode: "panel",  // optional: "panel" | "tab"
+  message: "what is current working dir"
+});
+```
+
+Important:
+- `agentName` is the agent label, like `"claude"` or `"gemini"`
+- `providerId` is the launcher/provider id, like `"claude-cli"` or `"gemini-cli"`
+- Do not pass `agentName: "claude-cli"` unless that is truly the agent label shown by the app
+
+Launch terminal shell:
+
+```js
+await sdk.v1.desktopRuntimeSessions.launchTerminalShell({
+  workspaceSlug: "agent-heartbeat",
+  threadSlug: "ambient-agent-week-agent-heartbeat-2026-w17",
+  presentationMode: "panel",
+  initialCommand: "pwd",
+  initialCommandMode: "direct"
+});
+```
+
+Manage existing terminal sessions:
+
+```js
+await sdk.v1.desktopRuntimeSessions.listRuntimeSessions();
+await sdk.v1.desktopRuntimeSessions.getRuntimeSession("cli-agent:pty-123");
+await sdk.v1.desktopRuntimeSessions.write("cli-agent:pty-123", {
+  message: "continue"
+});
+await sdk.v1.desktopRuntimeSessions.permission("cli-agent:pty-123", {
+  outcome: "approved",
+  actionId: "terminal-action-1"
+});
+await sdk.v1.desktopRuntimeSessions.deleteRuntimeSession("cli-agent:pty-123");
+```
+
+### Preferred decision rule
+
+If the user says:
+- "launch in terminal"
+- "open Claude in terminal"
+- "ask Gemini in terminal"
+- "open a shell and run pwd"
+
+then prefer `sdk.v1.desktopRuntimeSessions.*`, not ACP.
 
 ---
 

@@ -527,8 +527,7 @@ const SURFACE_INTERFACES = new Set([
 ]);
 
 const MODULE_GROUP_OVERRIDES = {
-  agent: 'sdk.agent — Runtime Sessions (CLI Agent / Terminal mode)',
-  v1RuntimeSessions: 'sdk.v1.runtimeSessions — Runtime Sessions (CLI Agent / Terminal mode)',
+  agent: 'sdk.agent — LLM Agent Sessions (REST/SSE)',
 };
 
 // ---------------------------------------------------------------------------
@@ -578,6 +577,76 @@ function generateApiReference(modules, pkgVersion) {
     ['mcp.tools',        '`sdk.mcp.getTools/executeTool()`'],
     ['acp.agent',        '`sdk.acpAgent.*`'],
   ]) L.push(`| \`${p}\` | ${d} |`);
+  L.push(``);
+  L.push(`---`);
+  L.push(``);
+
+  L.push(`## sdk.v1.desktopRuntimeSessions — Desktop Terminal Sessions`);
+  L.push(``);
+  L.push(`Use this module for visible Electron terminal sessions. This is the correct path for:`);
+  L.push(`- launching a shell terminal`);
+  L.push(`- launching Claude/Gemini/Qwen in a terminal`);
+  L.push(`- listing existing terminal sessions`);
+  L.push(`- sending more input to an existing terminal`);
+  L.push(`- approving terminal prompts`);
+  L.push(`- closing a terminal session`);
+  L.push(``);
+  L.push(`Do not use ACP for these unless the user explicitly asks for ACP/headless mode.`);
+  L.push(``);
+  L.push(`### \`V1DesktopRuntimeSessionsModule\``);
+  L.push(``);
+  L.push('```ts');
+  L.push(`async openLauncher(body?: { workspaceSlug?: string; threadSlug?: string; presentationMode?: 'panel' | 'tab'; preferredAgentName?: string; preferredAgentProviderId?: string; }): Promise<unknown>`);
+  L.push(`async launchTerminalShell(body?: { workspaceSlug?: string; threadSlug?: string; presentationMode?: 'panel' | 'tab'; title?: string; subtitle?: string; initialCommand?: string; initialCommandMode?: 'direct' | 'prefill' | 'shell'; }): Promise<unknown>`);
+  L.push(`async launchTerminalCliAgent(body?: { workspaceSlug?: string; threadSlug?: string; agentName: string; providerId?: string; modelId?: string; presentationMode?: 'panel' | 'tab'; message?: string; }): Promise<unknown>`);
+  L.push(`async listRuntimeSessions(): Promise<unknown>`);
+  L.push(`async getRuntimeSession(sessionId: string): Promise<unknown>`);
+  L.push(`async write(sessionId: string, body?: { message?: string; input?: string; }): Promise<unknown>`);
+  L.push(`async permission(sessionId: string, body?: { outcome: 'approved' | 'denied'; actionId?: string; requestId?: string; optionId?: string; optionLabel?: string; input?: string; reason?: string; }): Promise<unknown>`);
+  L.push(`async deleteRuntimeSession(sessionId: string): Promise<unknown>`);
+  L.push('```');
+  L.push(``);
+  L.push(`### Correct examples`);
+  L.push(``);
+  L.push(`Launch Claude in a terminal:`);
+  L.push(``);
+  L.push('```js');
+  L.push(`await sdk.v1.desktopRuntimeSessions.launchTerminalCliAgent({`);
+  L.push(`  workspaceSlug: 'agent-heartbeat',`);
+  L.push(`  threadSlug: 'ambient-agent-week-agent-heartbeat-2026-w17',`);
+  L.push(`  agentName: 'claude',`);
+  L.push(`  providerId: 'claude-cli',`);
+  L.push(`  presentationMode: 'panel',`);
+  L.push(`  message: 'what is current working dir'`);
+  L.push(`});`);
+  L.push('```');
+  L.push(``);
+  L.push(`Launch a shell and run \`pwd\`:`)
+  L.push(``);
+  L.push('```js');
+  L.push(`await sdk.v1.desktopRuntimeSessions.launchTerminalShell({`);
+  L.push(`  workspaceSlug: 'agent-heartbeat',`);
+  L.push(`  threadSlug: 'ambient-agent-week-agent-heartbeat-2026-w17',`);
+  L.push(`  presentationMode: 'panel',`);
+  L.push(`  initialCommand: 'pwd',`);
+  L.push(`  initialCommandMode: 'direct'`);
+  L.push(`});`);
+  L.push('```');
+  L.push(``);
+  L.push(`Common mistake:`);
+  L.push(``);
+  L.push('```js');
+  L.push(`// ❌ WRONG`);
+  L.push(`await sdk.v1.desktopRuntimeSessions.launchTerminalCliAgent({`);
+  L.push(`  agentName: 'claude-cli'`);
+  L.push(`});`);
+  L.push(``);
+  L.push(`// ✅ CORRECT`);
+  L.push(`await sdk.v1.desktopRuntimeSessions.launchTerminalCliAgent({`);
+  L.push(`  agentName: 'claude',`);
+  L.push(`  providerId: 'claude-cli'`);
+  L.push(`});`);
+  L.push('```');
   L.push(``);
   L.push(`---`);
   L.push(``);

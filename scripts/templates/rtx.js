@@ -311,6 +311,116 @@ CMD['credentials'] = async () => {
   printTable(list, ['name', 'type']);
 };
 
+function getDesktopRuntimeSessionsModule(sdk) {
+  const module = sdk?.v1?.desktopRuntimeSessions;
+  if (!module) {
+    throw new Error('sdk.v1.desktopRuntimeSessions is unavailable. Ensure the SDK was initialized with Developer API access.');
+  }
+  return module;
+}
+
+// -- terminal-launcher / terminal sessions ----------------------------------
+CMD['terminal-open-launcher'] = async () => {
+  const { sdk } = await getSDK();
+  const terminal = getDesktopRuntimeSessionsModule(sdk);
+  const body = {};
+  if (flags.workspace) body.workspaceSlug = flags.workspace;
+  if (flags.thread) body.threadSlug = flags.thread;
+  if (flags.presentation) body.presentationMode = flags.presentation;
+  if (flags.agent) body.preferredAgentName = flags.agent;
+  if (flags.provider) body.preferredAgentProviderId = flags.provider;
+  print(await terminal.openLauncher(body));
+};
+
+CMD['terminal-launch-shell'] = async () => {
+  const { sdk } = await getSDK();
+  const terminal = getDesktopRuntimeSessionsModule(sdk);
+  const body = {};
+  if (flags.workspace) body.workspaceSlug = flags.workspace;
+  if (flags.thread) body.threadSlug = flags.thread;
+  if (flags.presentation) body.presentationMode = flags.presentation;
+  if (flags.command) body.initialCommand = flags.command;
+  if (flags['command-mode']) body.initialCommandMode = flags['command-mode'];
+  if (flags.title) body.title = flags.title;
+  if (flags.subtitle) body.subtitle = flags.subtitle;
+  print(await terminal.launchTerminalShell(body));
+};
+
+CMD['terminal-launch-cli-agent'] = async () => {
+  const [agentName, providerId, ...messageParts] = cmdArgs;
+  const message = messageParts.join(' ');
+  if (!agentName) {
+    console.error('Usage: rtx.js terminal-launch-cli-agent <agent-name> [<provider-id>] [<message>] [--workspace=<slug>] [--thread=<slug>] [--presentation=panel|tab] [--model=<id>]');
+    process.exit(1);
+  }
+  const { sdk } = await getSDK();
+  const terminal = getDesktopRuntimeSessionsModule(sdk);
+  const body = { agentName };
+  if (providerId) body.providerId = providerId;
+  if (message) body.message = message;
+  if (flags.workspace) body.workspaceSlug = flags.workspace;
+  if (flags.thread) body.threadSlug = flags.thread;
+  if (flags.presentation) body.presentationMode = flags.presentation;
+  if (flags.model) body.modelId = flags.model;
+  print(await terminal.launchTerminalCliAgent(body));
+};
+
+CMD['terminal-sessions'] = async () => {
+  const { sdk } = await getSDK();
+  const terminal = getDesktopRuntimeSessionsModule(sdk);
+  const sessions = await terminal.listRuntimeSessions();
+  print(sessions);
+};
+
+CMD['terminal-session-get'] = async () => {
+  const [sessionId] = cmdArgs;
+  if (!sessionId) {
+    console.error('Usage: rtx.js terminal-session-get <session-id>');
+    process.exit(1);
+  }
+  const { sdk } = await getSDK();
+  const terminal = getDesktopRuntimeSessionsModule(sdk);
+  print(await terminal.getRuntimeSession(sessionId));
+};
+
+CMD['terminal-write'] = async () => {
+  const [sessionId, ...rest] = cmdArgs;
+  if (!sessionId || rest.length === 0) {
+    console.error('Usage: rtx.js terminal-write <session-id> <message> [--raw]');
+    process.exit(1);
+  }
+  const { sdk } = await getSDK();
+  const terminal = getDesktopRuntimeSessionsModule(sdk);
+  const payload = rest.join(' ');
+  print(await terminal.write(sessionId, flags.raw ? { input: payload } : { message: payload }));
+};
+
+CMD['terminal-permission'] = async () => {
+  const [sessionId, outcome, actionId] = cmdArgs;
+  if (!sessionId || !outcome) {
+    console.error('Usage: rtx.js terminal-permission <session-id> <approved|denied> [<action-id>] [--option-id=<id>] [--reason=<text>]');
+    process.exit(1);
+  }
+  const { sdk } = await getSDK();
+  const terminal = getDesktopRuntimeSessionsModule(sdk);
+  const body = { outcome };
+  if (actionId) body.actionId = actionId;
+  if (flags['option-id']) body.optionId = flags['option-id'];
+  if (flags.reason) body.reason = flags.reason;
+  print(await terminal.permission(sessionId, body));
+};
+
+CMD['terminal-close'] = async () => {
+  const [sessionId] = cmdArgs;
+  if (!sessionId) {
+    console.error('Usage: rtx.js terminal-close <session-id>');
+    process.exit(1);
+  }
+  const { sdk } = await getSDK();
+  const terminal = getDesktopRuntimeSessionsModule(sdk);
+  print(await terminal.deleteRuntimeSession(sessionId));
+};
+
 // -- acp-agents -------------------------------------------------------------
 // Source: AcpAgentModule.listAgents({ includeModels? })
 // Returns: AcpAgentInfo[] { id, label, handles[], installed, authReady, status }
@@ -807,6 +917,36 @@ sdk.mcp.*:
 sdk.credentials.*:
   credentials
     List available credentials (names and types, no values).
+
+sdk.v1.desktopRuntimeSessions.* — Desktop terminal sessions:
+  terminal-open-launcher
+    [--workspace=<slug>] [--thread=<slug>] [--presentation=panel|tab]
+    Open the terminal launcher UI in the Electron app.
+
+  terminal-launch-shell
+    [--workspace=<slug>] [--thread=<slug>] [--presentation=panel|tab]
+    [--command="pwd"] [--command-mode=direct|prefill|shell]
+    Launch a visible shell terminal.
+
+  terminal-launch-cli-agent <agent-name> [<provider-id>] [<message>]
+    [--workspace=<slug>] [--thread=<slug>] [--presentation=panel|tab] [--model=<id>]
+    Launch a visible CLI agent terminal.
+    Example: terminal-launch-cli-agent claude claude-cli "what is current working dir"
+
+  terminal-sessions
+    List desktop terminal sessions.
+
+  terminal-session-get <session-id>
+    Fetch one desktop terminal session by runtime session id.
+
+  terminal-write <session-id> <message> [--raw]
+    Send another message or raw PTY input to an existing terminal session.
+
+  terminal-permission <session-id> <approved|denied> [<action-id>] [--option-id=<id>] [--reason=<text>]
+    Resolve a pending terminal approval request.
+
+  terminal-close <session-id>
+    Close a desktop terminal session.
 
 sdk.acpAgent.* — Session Management:
   acp-agents [--models=true]
