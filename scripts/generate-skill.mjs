@@ -581,7 +581,7 @@ function generateApiReference(modules, pkgVersion) {
   L.push(`---`);
   L.push(``);
 
-  L.push(`## sdk.v1.desktopRuntimeSessions — Desktop Terminal Sessions`);
+  L.push(`## sdk.desktopRuntimeSessions — Desktop Terminal Sessions`);
   L.push(``);
   L.push(`Use this module for visible Electron terminal sessions. This is the correct path for:`);
   L.push(`- launching a shell terminal`);
@@ -611,7 +611,7 @@ function generateApiReference(modules, pkgVersion) {
   L.push(`Launch Claude in a terminal:`);
   L.push(``);
   L.push('```js');
-  L.push(`await sdk.v1.desktopRuntimeSessions.launchTerminalCliAgent({`);
+  L.push(`await sdk.desktopRuntimeSessions.launchTerminalCliAgent({`);
   L.push(`  workspaceSlug: 'agent-heartbeat',`);
   L.push(`  threadSlug: 'ambient-agent-week-agent-heartbeat-2026-w17',`);
   L.push(`  agentName: 'claude',`);
@@ -624,7 +624,7 @@ function generateApiReference(modules, pkgVersion) {
   L.push(`Launch a shell and run \`pwd\`:`)
   L.push(``);
   L.push('```js');
-  L.push(`await sdk.v1.desktopRuntimeSessions.launchTerminalShell({`);
+  L.push(`await sdk.desktopRuntimeSessions.launchTerminalShell({`);
   L.push(`  workspaceSlug: 'agent-heartbeat',`);
   L.push(`  threadSlug: 'ambient-agent-week-agent-heartbeat-2026-w17',`);
   L.push(`  presentationMode: 'panel',`);
@@ -637,16 +637,18 @@ function generateApiReference(modules, pkgVersion) {
   L.push(``);
   L.push('```js');
   L.push(`// ❌ WRONG`);
-  L.push(`await sdk.v1.desktopRuntimeSessions.launchTerminalCliAgent({`);
+  L.push(`await sdk.desktopRuntimeSessions.launchTerminalCliAgent({`);
   L.push(`  agentName: 'claude-cli'`);
   L.push(`});`);
   L.push(``);
   L.push(`// ✅ CORRECT`);
-  L.push(`await sdk.v1.desktopRuntimeSessions.launchTerminalCliAgent({`);
+  L.push(`await sdk.desktopRuntimeSessions.launchTerminalCliAgent({`);
   L.push(`  agentName: 'claude',`);
   L.push(`  providerId: 'claude-cli'`);
   L.push(`});`);
   L.push('```');
+  L.push(``);
+  L.push(`Compatibility: \`sdk.v1.desktopRuntimeSessions\` remains available, but prefer the top-level alias.`);
   L.push(``);
   L.push(`---`);
   L.push(``);

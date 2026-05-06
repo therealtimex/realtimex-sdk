@@ -30,7 +30,7 @@
 
 ---
 
-## sdk.v1.desktopRuntimeSessions — Desktop Terminal Sessions
+## sdk.desktopRuntimeSessions — Desktop Terminal Sessions
 
 Use this module for visible Electron terminal sessions. This is the correct path for:
 - launching a shell terminal
@@ -60,7 +60,7 @@ async deleteRuntimeSession(sessionId: string): Promise<unknown>
 Launch Claude in a terminal:
 
 ```js
-await sdk.v1.desktopRuntimeSessions.launchTerminalCliAgent({
+await sdk.desktopRuntimeSessions.launchTerminalCliAgent({
   workspaceSlug: 'agent-heartbeat',
   threadSlug: 'ambient-agent-week-agent-heartbeat-2026-w17',
   agentName: 'claude',
@@ -73,7 +73,7 @@ await sdk.v1.desktopRuntimeSessions.launchTerminalCliAgent({
 Launch a shell and run `pwd`:
 
 ```js
-await sdk.v1.desktopRuntimeSessions.launchTerminalShell({
+await sdk.desktopRuntimeSessions.launchTerminalShell({
   workspaceSlug: 'agent-heartbeat',
   threadSlug: 'ambient-agent-week-agent-heartbeat-2026-w17',
   presentationMode: 'panel',
@@ -86,16 +86,18 @@ Common mistake:
 
 ```js
 // ❌ WRONG
-await sdk.v1.desktopRuntimeSessions.launchTerminalCliAgent({
+await sdk.desktopRuntimeSessions.launchTerminalCliAgent({
   agentName: 'claude-cli'
 });
 
 // ✅ CORRECT
-await sdk.v1.desktopRuntimeSessions.launchTerminalCliAgent({
+await sdk.desktopRuntimeSessions.launchTerminalCliAgent({
   agentName: 'claude',
   providerId: 'claude-cli'
 });
 ```
+
+Compatibility: `sdk.v1.desktopRuntimeSessions` remains available, but prefer the top-level alias.
 
 ---
 
@@ -121,6 +123,7 @@ await sdk.v1.desktopRuntimeSessions.launchTerminalCliAgent({
 - `auth: AuthModule`
 - `credentials: CredentialsModule`
 - `v1: V1ApiNamespace | undefined`
+- `desktopRuntimeSessions: V1DesktopRuntimeSessionsModule | undefined`
 
 ```ts
 // Developer API (v1) — requires apiKey to be set in config.

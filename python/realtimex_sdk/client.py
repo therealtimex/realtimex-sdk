@@ -24,6 +24,7 @@ from .auth import AuthModule
 from .acp_agent import AcpAgentModule
 from .credentials import CredentialsModule
 from .v1.namespace import V1ApiNamespace
+from .v1.v1_desktop_runtime_sessions import V1DesktopRuntimeSessionsModule
 
 
 @dataclass
@@ -100,6 +101,9 @@ class RealtimeXSDK:
         # v1 Developer API — only available when api_key is provided
         self.v1: Optional[V1ApiNamespace] = (
             V1ApiNamespace(realtimex_url, api_key) if api_key else None
+        )
+        self.desktop_runtime_sessions: Optional[V1DesktopRuntimeSessionsModule] = (
+            self.v1.desktopRuntimeSessions if self.v1 else None
         )
 
         self._registered = False

@@ -312,9 +312,9 @@ CMD['credentials'] = async () => {
 };
 
 function getDesktopRuntimeSessionsModule(sdk) {
-  const module = sdk?.v1?.desktopRuntimeSessions;
+  const module = sdk?.desktopRuntimeSessions || sdk?.v1?.desktopRuntimeSessions;
   if (!module) {
-    throw new Error('sdk.v1.desktopRuntimeSessions is unavailable. Ensure the SDK was initialized with Developer API access.');
+    throw new Error('sdk.desktopRuntimeSessions is unavailable. Ensure the SDK was initialized with Developer API access.');
   }
   return module;
 }
@@ -918,7 +918,7 @@ sdk.credentials.*:
   credentials
     List available credentials (names and types, no values).
 
-sdk.v1.desktopRuntimeSessions.* — Desktop terminal sessions:
+sdk.desktopRuntimeSessions.* — Desktop terminal sessions:
   terminal-open-launcher
     [--workspace=<slug>] [--thread=<slug>] [--presentation=panel|tab]
     Open the terminal launcher UI in the Electron app.
@@ -947,6 +947,9 @@ sdk.v1.desktopRuntimeSessions.* — Desktop terminal sessions:
 
   terminal-close <session-id>
     Close a desktop terminal session.
+
+  Compatibility:
+    The SDK also exposes this module as sdk.v1.desktopRuntimeSessions.
 
 sdk.acpAgent.* — Session Management:
   acp-agents [--models=true]

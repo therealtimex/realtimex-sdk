@@ -52,7 +52,7 @@ Scripts using the SDK must exit explicitly — `process.exit(0)` on success, `pr
 
 For anything that says **launch terminal**, **open shell**, **open Claude/Gemini in terminal**, or **send another message to an existing terminal session**, use:
 
-- `sdk.v1.desktopRuntimeSessions.*`
+- `sdk.desktopRuntimeSessions.*`
 
 Do **not** use ACP for that unless the user explicitly asks for a headless ACP session.
 
@@ -73,19 +73,20 @@ Do **not** use ACP for that unless the user explicitly asks for a headless ACP s
 ### Correct SDK namespace
 
 ```js
-sdk.v1.desktopRuntimeSessions
+sdk.desktopRuntimeSessions
 ```
 
-There is currently:
-- no top-level `sdk.desktopRuntimeSessions`
-- no `sdk.v1.runtimeSessions`
+Compatibility:
+- `sdk.desktopRuntimeSessions` is the preferred alias
+- `sdk.v1.desktopRuntimeSessions` still exists for backward compatibility
+- there is no `sdk.v1.runtimeSessions`
 
 ### Required payloads
 
 Launch terminal CLI agent:
 
 ```js
-await sdk.v1.desktopRuntimeSessions.launchTerminalCliAgent({
+await sdk.desktopRuntimeSessions.launchTerminalCliAgent({
   workspaceSlug: "agent-heartbeat",
   threadSlug: "ambient-agent-week-agent-heartbeat-2026-w17",
   agentName: "claude",        // required
@@ -103,7 +104,7 @@ Important:
 Launch terminal shell:
 
 ```js
-await sdk.v1.desktopRuntimeSessions.launchTerminalShell({
+await sdk.desktopRuntimeSessions.launchTerminalShell({
   workspaceSlug: "agent-heartbeat",
   threadSlug: "ambient-agent-week-agent-heartbeat-2026-w17",
   presentationMode: "panel",
@@ -115,16 +116,16 @@ await sdk.v1.desktopRuntimeSessions.launchTerminalShell({
 Manage existing terminal sessions:
 
 ```js
-await sdk.v1.desktopRuntimeSessions.listRuntimeSessions();
-await sdk.v1.desktopRuntimeSessions.getRuntimeSession("cli-agent:pty-123");
-await sdk.v1.desktopRuntimeSessions.write("cli-agent:pty-123", {
+await sdk.desktopRuntimeSessions.listRuntimeSessions();
+await sdk.desktopRuntimeSessions.getRuntimeSession("cli-agent:pty-123");
+await sdk.desktopRuntimeSessions.write("cli-agent:pty-123", {
   message: "continue"
 });
-await sdk.v1.desktopRuntimeSessions.permission("cli-agent:pty-123", {
+await sdk.desktopRuntimeSessions.permission("cli-agent:pty-123", {
   outcome: "approved",
   actionId: "terminal-action-1"
 });
-await sdk.v1.desktopRuntimeSessions.deleteRuntimeSession("cli-agent:pty-123");
+await sdk.desktopRuntimeSessions.deleteRuntimeSession("cli-agent:pty-123");
 ```
 
 ### Preferred decision rule
@@ -135,7 +136,7 @@ If the user says:
 - "ask Gemini in terminal"
 - "open a shell and run pwd"
 
-then prefer `sdk.v1.desktopRuntimeSessions.*`, not ACP.
+then prefer `sdk.desktopRuntimeSessions.*`, not ACP.
 
 ---
 
