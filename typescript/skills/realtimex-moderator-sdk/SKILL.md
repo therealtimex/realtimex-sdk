@@ -2,12 +2,12 @@
 name: realtimex-moderator-sdk
 description: Control and interact with the RealTimeX application through its Node.js SDK. This skill should be used when users want to manage workspaces, threads, agents, activities, LLM chat, vector store, MCP tools, ACP agent sessions, TTS/STT, or any other RealTimeX platform feature via the API. All method signatures are verified against the SDK source code.
 generated: 2026-05-07
-sdk_version: 1.7.10
+sdk_version: 1.7.11
 ---
 
 # RealTimeX Moderator (SDK Source-Verified)
 
-Interact with the RealTimeX platform (`http://localhost:3001`) using `@realtimex/sdk` **v1.7.10**. Authentication is automatic when running inside RealtimeX.
+Interact with the RealTimeX platform (`http://localhost:3001`) using `@realtimex/sdk` **v1.7.11**. Authentication is automatic when running inside RealtimeX.
 
 `<SKILL_DIR>` below refers to the directory containing this SKILL.md.
 
@@ -20,6 +20,7 @@ SKILL=<SKILL_DIR>/scripts/rtx.js
 ENV=--env-dir=<cwd>
 
 node "$SKILL" ping                                     $ENV
+node "$SKILL" context                                 $ENV
 node "$SKILL" agents                                   $ENV
 node "$SKILL" workspaces                               $ENV
 node "$SKILL" threads <workspace-slug>                 $ENV
@@ -51,6 +52,21 @@ When the skill runs inside a spawned ACP or desktop terminal session, RealtimeX 
 - `RTX_THREAD_SLUG`
 
 The bundled `sdk-init` and `rtx.js` helpers use those env vars as default context for terminal actions and thread listing. Explicit arguments still win.
+
+## Workspace And Thread Rule
+
+When the skill is used and a task needs workspace/thread context:
+
+1. Check current context first.
+   Use `const { sdk, context } = await initSDK()` or `node "$SKILL" context`.
+2. If `context.workspaceSlug` or `context.threadSlug` exists, use it as the default.
+3. If the user explicitly provided workspace/thread, those values override the default context.
+4. If no current context is available:
+   - list workspaces first
+   - list threads for the chosen workspace if a thread is needed
+   - ask the user only when still ambiguous
+
+Do not guess a workspace or thread if the current context is unknown.
 
 ---
 

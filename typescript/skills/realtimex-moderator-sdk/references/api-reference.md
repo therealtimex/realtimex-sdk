@@ -1,6 +1,6 @@
 # RealTimeX SDK — API Reference
 
-> Auto-generated from `@realtimex/sdk` source · v**1.7.10** · 2026-05-07
+> Auto-generated from `@realtimex/sdk` source · v**1.7.11** · 2026-05-07
 
 **Package:** `@realtimex/sdk` (CJS) · **Server:** `http://localhost:3001`
 **Developer Mode auth:** `Authorization: Bearer <apiKey>`
@@ -42,6 +42,7 @@ Use this module for visible Electron terminal sessions. This is the correct path
 
 Do not use ACP for these unless the user explicitly asks for ACP/headless mode.
 If the current process was spawned by RealtimeX, prefer `process.env.RTX_WORKSPACE_SLUG` and `process.env.RTX_THREAD_SLUG` as default context before guessing or asking the user.
+Always resolve current workspace/thread context first when a terminal action needs it: explicit user input > spawned-process env > list workspaces/threads > ask user if still ambiguous.
 
 ### `V1DesktopRuntimeSessionsModule`
 

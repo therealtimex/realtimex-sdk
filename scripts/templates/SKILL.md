@@ -20,6 +20,7 @@ SKILL=<SKILL_DIR>/scripts/rtx.js
 ENV=--env-dir=<cwd>
 
 node "$SKILL" ping                                     $ENV
+node "$SKILL" context                                 $ENV
 node "$SKILL" agents                                   $ENV
 node "$SKILL" workspaces                               $ENV
 node "$SKILL" threads <workspace-slug>                 $ENV
@@ -51,6 +52,21 @@ When the skill runs inside a spawned ACP or desktop terminal session, RealtimeX 
 - `RTX_THREAD_SLUG`
 
 The bundled `sdk-init` and `rtx.js` helpers use those env vars as default context for terminal actions and thread listing. Explicit arguments still win.
+
+## Workspace And Thread Rule
+
+When the skill is used and a task needs workspace/thread context:
+
+1. Check current context first.
+   Use `const { sdk, context } = await initSDK()` or `node "$SKILL" context`.
+2. If `context.workspaceSlug` or `context.threadSlug` exists, use it as the default.
+3. If the user explicitly provided workspace/thread, those values override the default context.
+4. If no current context is available:
+   - list workspaces first
+   - list threads for the chosen workspace if a thread is needed
+   - ask the user only when still ambiguous
+
+Do not guess a workspace or thread if the current context is unknown.
 
 ---
 

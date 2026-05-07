@@ -73,6 +73,15 @@ function resolveWorkspaceFlagOrContext(context = {}) {
 // ---------------------------------------------------------------------------
 const CMD = {};
 
+CMD.context = async () => {
+  const { context } = await getSDK();
+  print({
+    workspaceSlug: context?.workspaceSlug || null,
+    threadSlug: context?.threadSlug || null,
+    hasContext: Boolean(context?.workspaceSlug || context?.threadSlug),
+  });
+};
+
 // -- ping -------------------------------------------------------------------
 // Source: index.ts → sdk.ping() → { success, mode, appId, timestamp }
 CMD.ping = async () => { const { sdk } = await getSDK(); print(await sdk.ping()); };
@@ -892,6 +901,7 @@ Connection:
 
 sdk.api.*:
   agents / workspaces / threads <slug> / task <uuid>
+  context
 
 sdk.activities.*:
   activities [--status --limit --offset]

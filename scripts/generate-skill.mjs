@@ -593,6 +593,7 @@ function generateApiReference(modules, pkgVersion) {
   L.push(``);
   L.push(`Do not use ACP for these unless the user explicitly asks for ACP/headless mode.`);
   L.push(`If the current process was spawned by RealtimeX, prefer \`process.env.RTX_WORKSPACE_SLUG\` and \`process.env.RTX_THREAD_SLUG\` as default context before guessing or asking the user.`);
+  L.push(`Always resolve current workspace/thread context first when a terminal action needs it: explicit user input > spawned-process env > list workspaces/threads > ask user if still ambiguous.`);
   L.push(``);
   L.push(`### \`V1DesktopRuntimeSessionsModule\``);
   L.push(``);
