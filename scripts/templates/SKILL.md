@@ -39,12 +39,18 @@ node "$SKILL" help
 
 ```js
 const { initSDK } = require('<SKILL_DIR>/scripts/lib/sdk-init');
-const { sdk } = await initSDK();
+const { sdk, context } = await initSDK();
 // All SDK APIs — see references/api-reference.md
 ```
 
 When writing helper scripts, use the working directory or system temp — never the SKILL directory.
 Scripts using the SDK must exit explicitly — `process.exit(0)` on success, `process.exit(1)` on error — or they hang on open HTTP sockets.
+
+When the skill runs inside a spawned ACP or desktop terminal session, RealtimeX injects:
+- `RTX_WORKSPACE_SLUG`
+- `RTX_THREAD_SLUG`
+
+The bundled `sdk-init` and `rtx.js` helpers use those env vars as default context for terminal actions and thread listing. Explicit arguments still win.
 
 ---
 
@@ -95,6 +101,11 @@ await sdk.desktopRuntimeSessions.launchTerminalCliAgent({
   message: "what is current working dir"
 });
 ```
+
+If `workspaceSlug` and `threadSlug` are omitted, prefer this order:
+- explicit user-provided values
+- `RTX_WORKSPACE_SLUG` / `RTX_THREAD_SLUG` from the current spawned process
+- list workspaces/threads and ask only if still ambiguous
 
 Important:
 - `agentName` is the agent label, like `"claude"` or `"gemini"`

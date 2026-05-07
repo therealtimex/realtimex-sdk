@@ -53,6 +53,21 @@ async function getSDK() {
   return _sdk;
 }
 
+function applyWorkspaceThreadDefaults(body = {}, context = {}) {
+  const nextBody = { ...body };
+  if (!nextBody.workspaceSlug && context?.workspaceSlug) {
+    nextBody.workspaceSlug = context.workspaceSlug;
+  }
+  if (!nextBody.threadSlug && context?.threadSlug) {
+    nextBody.threadSlug = context.threadSlug;
+  }
+  return nextBody;
+}
+
+function resolveWorkspaceFlagOrContext(context = {}) {
+  return flags.workspace || context?.workspaceSlug || null;
+}
+
 // ---------------------------------------------------------------------------
 // Commands
 // ---------------------------------------------------------------------------
@@ -89,9 +104,10 @@ CMD.workspaces = async () => {
 // -- threads ----------------------------------------------------------------
 // Source: ApiModule.getThreads(workspaceSlug) → Thread[] { id, slug, name }
 CMD.threads = async () => {
-  const [slug] = cmdArgs;
+  const [slugArg] = cmdArgs;
+  const { sdk, context } = await getSDK();
+  const slug = slugArg || resolveWorkspaceFlagOrContext(context);
   if (!slug) { console.error('Usage: rtx.js threads <workspace-slug>'); process.exit(1); }
-  const { sdk } = await getSDK();
   printTable(await sdk.api.getThreads(slug), ['id', 'slug', 'name']);
 };
 
@@ -321,9 +337,9 @@ function getDesktopRuntimeSessionsModule(sdk) {
 
 // -- terminal-launcher / terminal sessions ----------------------------------
 CMD['terminal-open-launcher'] = async () => {
-  const { sdk } = await getSDK();
+  const { sdk, context } = await getSDK();
   const terminal = getDesktopRuntimeSessionsModule(sdk);
-  const body = {};
+  const body = applyWorkspaceThreadDefaults({}, context);
   if (flags.workspace) body.workspaceSlug = flags.workspace;
   if (flags.thread) body.threadSlug = flags.thread;
   if (flags.presentation) body.presentationMode = flags.presentation;
@@ -333,9 +349,9 @@ CMD['terminal-open-launcher'] = async () => {
 };
 
 CMD['terminal-launch-shell'] = async () => {
-  const { sdk } = await getSDK();
+  const { sdk, context } = await getSDK();
   const terminal = getDesktopRuntimeSessionsModule(sdk);
-  const body = {};
+  const body = applyWorkspaceThreadDefaults({}, context);
   if (flags.workspace) body.workspaceSlug = flags.workspace;
   if (flags.thread) body.threadSlug = flags.thread;
   if (flags.presentation) body.presentationMode = flags.presentation;
@@ -353,9 +369,9 @@ CMD['terminal-launch-cli-agent'] = async () => {
     console.error('Usage: rtx.js terminal-launch-cli-agent <agent-name> [<provider-id>] [<message>] [--workspace=<slug>] [--thread=<slug>] [--presentation=panel|tab] [--model=<id>]');
     process.exit(1);
   }
-  const { sdk } = await getSDK();
+  const { sdk, context } = await getSDK();
   const terminal = getDesktopRuntimeSessionsModule(sdk);
-  const body = { agentName };
+  const body = applyWorkspaceThreadDefaults({ agentName }, context);
   if (providerId) body.providerId = providerId;
   if (message) body.message = message;
   if (flags.workspace) body.workspaceSlug = flags.workspace;

@@ -23,10 +23,16 @@ const ALL_PERMISSIONS = [
   'llm.chat', 'llm.embed', 'llm.providers',
   'vectors.read', 'vectors.write',
   'tts.generate', 'mcp.servers', 'mcp.tools', 'acp.agent',
+  'desktop.runtime-sessions',
 ];
 
 /** Well-known file written by RealtimeX server for seamless auth. */
 const SDK_APP_ID_FILE = path.join(os.homedir(), '.realtimex.ai', '.sdk-app-id');
+
+function normalizeContextValue(value) {
+  const normalized = String(value || '').trim();
+  return normalized || null;
+}
 
 function parseEnvFile(filePath) {
   const vars = {};
@@ -86,9 +92,24 @@ async function resolveCredentials({ envDir, apiKey, appId } = {}) {
   return { apiKey: null, appId: null };
 }
 
+function resolveDefaultWorkspaceThreadContext(overrides = {}) {
+  const workspaceSlug =
+    normalizeContextValue(overrides.workspaceSlug) ||
+    normalizeContextValue(process.env.RTX_WORKSPACE_SLUG);
+  const threadSlug =
+    normalizeContextValue(overrides.threadSlug) ||
+    normalizeContextValue(process.env.RTX_THREAD_SLUG);
+
+  return {
+    workspaceSlug,
+    threadSlug,
+  };
+}
+
 async function initSDK(opts = {}) {
   const { RealtimeXSDK } = require('@realtimex/sdk');
   const { apiKey, appId } = await resolveCredentials(opts);
+  const context = resolveDefaultWorkspaceThreadContext(opts);
 
   if (!apiKey && !appId) {
     throw new Error(
@@ -105,7 +126,14 @@ async function initSDK(opts = {}) {
     permissions: opts.permissions || ALL_PERMISSIONS,
   });
 
-  return { sdk, apiKey: apiKey || null, appId: appId || null };
+  return { sdk, apiKey: apiKey || null, appId: appId || null, context };
 }
 
-module.exports = { initSDK, resolveCredentials, parseEnvFile, ALL_PERMISSIONS, SDK_APP_ID_FILE };
+module.exports = {
+  initSDK,
+  resolveCredentials,
+  resolveDefaultWorkspaceThreadContext,
+  parseEnvFile,
+  ALL_PERMISSIONS,
+  SDK_APP_ID_FILE,
+};
