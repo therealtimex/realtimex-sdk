@@ -140,6 +140,10 @@ await sdk.desktopRuntimeSessions.launchTerminalShell({
 });
 ```
 
+Rule:
+- If you launch a shell with `initialCommand` and the user did not explicitly ask to prefill only, use `initialCommandMode: "direct"`.
+- Use `prefill` only when the user specifically wants the command staged without execution.
+
 Manage existing terminal sessions:
 
 ```js

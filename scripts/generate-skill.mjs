@@ -635,6 +635,8 @@ function generateApiReference(modules, pkgVersion) {
   L.push(`});`);
   L.push('```');
   L.push(``);
+  L.push(`Default rule: when launching a shell with an initial command, prefer \`initialCommandMode: 'direct'\` unless the user explicitly wants prefill-only behavior.`);
+  L.push(``);
   L.push(`Common mistake:`);
   L.push(``);
   L.push('```js');

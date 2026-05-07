@@ -1,6 +1,6 @@
 # RealTimeX SDK — API Reference
 
-> Auto-generated from `@realtimex/sdk` source · v**1.7.11** · 2026-05-07
+> Auto-generated from `@realtimex/sdk` source · v**1.7.12** · 2026-05-07
 
 **Package:** `@realtimex/sdk` (CJS) · **Server:** `http://localhost:3001`
 **Developer Mode auth:** `Authorization: Bearer <apiKey>`
@@ -83,6 +83,8 @@ await sdk.desktopRuntimeSessions.launchTerminalShell({
   initialCommandMode: 'direct'
 });
 ```
+
+Default rule: when launching a shell with an initial command, prefer `initialCommandMode: 'direct'` unless the user explicitly wants prefill-only behavior.
 
 Common mistake:
 

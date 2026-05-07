@@ -365,7 +365,11 @@ CMD['terminal-launch-shell'] = async () => {
   if (flags.thread) body.threadSlug = flags.thread;
   if (flags.presentation) body.presentationMode = flags.presentation;
   if (flags.command) body.initialCommand = flags.command;
-  if (flags['command-mode']) body.initialCommandMode = flags['command-mode'];
+  if (flags['command-mode']) {
+    body.initialCommandMode = flags['command-mode'];
+  } else if (flags.command) {
+    body.initialCommandMode = 'direct';
+  }
   if (flags.title) body.title = flags.title;
   if (flags.subtitle) body.subtitle = flags.subtitle;
   print(await terminal.launchTerminalShell(body));
@@ -953,6 +957,7 @@ sdk.desktopRuntimeSessions.* — Desktop terminal sessions:
     [--workspace=<slug>] [--thread=<slug>] [--presentation=panel|tab]
     [--command="pwd"] [--command-mode=direct|prefill|shell]
     Launch a visible shell terminal.
+    Default: when --command is provided, it runs in direct mode unless --command-mode is explicitly set.
 
   terminal-launch-cli-agent <agent-name> [<provider-id>] [<message>]
     [--workspace=<slug>] [--thread=<slug>] [--presentation=panel|tab] [--model=<id>]
