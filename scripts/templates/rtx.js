@@ -1146,6 +1146,11 @@ sdk.desktopBrowser.* — RealTimeX Browser sessions and tabs:
   browser-tab-close <tab-ref>
     Close a managed browser tab.
 
+  Workflow note:
+    Prefer one session per target URL. If you need another URL, create a new browser
+    session first, then use that session's remoteDebugPort with the agent-browser skill
+    over CDP for page interaction and automation.
+
   Compatibility:
     The SDK also exposes this module as sdk.v1.desktopBrowser.
 

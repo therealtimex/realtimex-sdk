@@ -1,6 +1,6 @@
 # RealTimeX SDK — API Reference
 
-> Auto-generated from `@realtimex/sdk` source · v**1.7.13** · 2026-05-08
+> Auto-generated from `@realtimex/sdk` source · v**1.7.15** · 2026-05-08
 
 **Package:** `@realtimex/sdk` (CJS) · **Server:** `http://localhost:3001`
 **Developer Mode auth:** `Authorization: Bearer <apiKey>`
@@ -112,11 +112,13 @@ Compatibility: `sdk.v1.desktopRuntimeSessions` remains available, but prefer the
 Use this module for the managed RealTimeX Browser control plane. This is the correct path for:
 - listing named browser sessions
 - creating a named browser session
-- opening a URL in a managed browser tab
+- opening the initial URL for a new browser session
 - reading/evaluating/focusing/navigating/closing managed browser tabs
 
 Do not use ACP for these unless the user explicitly asks for ACP browser handoff behavior.
 Do not use desktop terminal sessions for browser tabs.
+For page interaction and automation after the session is running, prefer the `agent-browser` skill against the session's CDP port.
+If the user needs a different URL, create a new browser session first instead of relying on opening another managed tab.
 
 ### `V1DesktopBrowserModule`
 
@@ -144,6 +146,10 @@ await sdk.desktopBrowser.createTab({
   sessionName: 'github-review',
   url: 'https://example.com'
 });
+
+const session = await sdk.desktopBrowser.getSession('github-review');
+const port = session?.session?.remoteDebugPort || session?.runtime?.remoteDebugPort;
+// Then use the agent-browser skill against http://127.0.0.1:${port}
 
 await sdk.desktopBrowser.navigateTab('cli-browser:9555:tab:3', {
   url: 'https://docs.realtimex.ai',

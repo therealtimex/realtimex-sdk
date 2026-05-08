@@ -2,12 +2,12 @@
 name: realtimex-moderator-sdk
 description: Control and interact with the RealTimeX application through its Node.js SDK. This skill should be used when users want to manage workspaces, threads, agents, activities, LLM chat, vector store, MCP tools, ACP agent sessions, TTS/STT, or any other RealTimeX platform feature via the API. All method signatures are verified against the SDK source code.
 generated: 2026-05-08
-sdk_version: 1.7.13
+sdk_version: 1.7.15
 ---
 
 # RealTimeX Moderator (SDK Source-Verified)
 
-Interact with the RealTimeX platform (`http://localhost:3001`) using `@realtimex/sdk` **v1.7.13**. Authentication is automatic when running inside RealtimeX.
+Interact with the RealTimeX platform (`http://localhost:3001`) using `@realtimex/sdk` **v1.7.15**. Authentication is automatic when running inside RealtimeX.
 
 `<SKILL_DIR>` below refers to the directory containing this SKILL.md.
 
@@ -177,6 +177,7 @@ If the user says:
 - "create a browser session"
 - "navigate the managed browser tab"
 - "focus or close a RealTimeX Browser tab"
+- "control the webpage in the browser"
 
 then prefer `sdk.desktopBrowser.*`, not ACP and not desktop terminal sessions.
 
@@ -194,12 +195,29 @@ Do **not** use ACP for this unless the user explicitly wants ACP browser handoff
 - listing named RealTimeX Browser sessions
 - creating a named browser session
 - getting or deleting a named browser session
-- creating a browser tab in a named session
+- opening the initial URL for a new browser session
 - reading a browser tab snapshot
 - evaluating JavaScript in a browser tab
 - focusing a browser tab
 - navigating a browser tab
 - closing a browser tab
+
+### Current workflow rule
+
+The current CLI browser flow has a known problem when opening another URL in a new managed tab.
+
+Because of that:
+- if the user needs a different URL, create a new browser session first
+- do not rely on opening another managed tab as the primary workflow
+- treat one named browser session as one main browsing target
+
+Preferred flow:
+1. create a named browser session
+2. read the returned `remoteDebugPort`
+3. use the `agent-browser` skill against that CDP port for page interaction and automation
+
+Use `sdk.desktopBrowser.*` to create/list/get/delete the session.
+Use `agent-browser` to manipulate the webpage after the session is running.
 
 ### Correct SDK namespace
 
@@ -236,6 +254,13 @@ await sdk.desktopBrowser.createTab({
 });
 ```
 
+Get the CDP port from a session:
+
+```js
+const session = await sdk.desktopBrowser.getSession("github-review");
+const port = session?.session?.remoteDebugPort || session?.runtime?.remoteDebugPort;
+```
+
 Navigate a browser tab:
 
 ```js
@@ -253,6 +278,21 @@ await sdk.desktopBrowser.evaluateTab("cli-browser:9555:tab:3", {
   expression: "document.title",
   userGesture: true
 });
+```
+
+Preferred webpage-control pattern:
+
+```js
+const created = await sdk.desktopBrowser.createSession({
+  sessionName: "docs-research"
+});
+
+const port =
+  created?.session?.remoteDebugPort ||
+  created?.runtime?.remoteDebugPort;
+
+// Then hand off to the `agent-browser` skill using the CDP endpoint for that port,
+// e.g. http://127.0.0.1:${port}
 ```
 
 ### Naming rule

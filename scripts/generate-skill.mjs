@@ -664,11 +664,13 @@ function generateApiReference(modules, pkgVersion) {
   L.push(`Use this module for the managed RealTimeX Browser control plane. This is the correct path for:`);
   L.push(`- listing named browser sessions`);
   L.push(`- creating a named browser session`);
-  L.push(`- opening a URL in a managed browser tab`);
+  L.push(`- opening the initial URL for a new browser session`);
   L.push(`- reading/evaluating/focusing/navigating/closing managed browser tabs`);
   L.push(``);
   L.push(`Do not use ACP for these unless the user explicitly asks for ACP browser handoff behavior.`);
   L.push(`Do not use desktop terminal sessions for browser tabs.`);
+  L.push(`For page interaction and automation after the session is running, prefer the \`agent-browser\` skill against the session's CDP port.`);
+  L.push(`If the user needs a different URL, create a new browser session first instead of relying on opening another managed tab.`);
   L.push(``);
   L.push(`### \`V1DesktopBrowserModule\``);
   L.push(``);
@@ -696,6 +698,10 @@ function generateApiReference(modules, pkgVersion) {
   L.push(`  sessionName: 'github-review',`);
   L.push(`  url: 'https://example.com'`);
   L.push(`});`);
+  L.push(``);
+  L.push(`const session = await sdk.desktopBrowser.getSession('github-review');`);
+  L.push(`const port = session?.session?.remoteDebugPort || session?.runtime?.remoteDebugPort;`);
+  L.push(`// Then use the agent-browser skill against http://127.0.0.1:${'${port}'}`);
   L.push(``);
   L.push(`await sdk.desktopBrowser.navigateTab('cli-browser:9555:tab:3', {`);
   L.push(`  url: 'https://docs.realtimex.ai',`);
