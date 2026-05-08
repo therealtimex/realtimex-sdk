@@ -484,11 +484,11 @@ Example:
 ```yaml
 tasks:
   - name: audit-fetch
-    interval: 4h
+    cron: "0 */4 * * *"
     prompt: Fetch origin/realtimex-dev and diff against tmp/frontend-audit-cursor.txt.
 
   - name: audit-ui-design
-    interval: 4h
+    cron: "15 */4 * * *"
     prompt: Review changed frontend files for UI design violations. If none, reply HEARTBEAT_OK.
 ```
 
@@ -496,7 +496,9 @@ Rules:
 - A top-level `tasks:` list means the heartbeat is split into separate scheduled tasks, not one monolithic prompt.
 - Each `- name:` item is its own task definition.
 - `name` is the stable task id. Keep it concise and stable when editing.
-- `interval` is the cadence for that specific task.
+- Use `cron` for calendar-based schedules such as hourly, daily, or weekday checks.
+- Use `interval` for duration-style repetition such as `15m`, `1h`, or `4h`.
+- If both `cron` and `interval` are present, `cron` is authoritative and `interval` is ignored.
 - `prompt` is the full instruction body for that task.
 - `HEARTBEAT_OK` means the task ran successfully but had nothing actionable to do.
 - Preserve task order unless the user explicitly wants a reordering.
@@ -506,14 +508,14 @@ When editing heartbeat files:
 - If the file already uses `tasks:`, add or edit individual task items instead of collapsing them into one large prompt.
 - If the file is a single long heartbeat prompt and the user wants separate scheduled jobs, rewrite it into a `tasks:` list with one item per independent workflow.
 - When splitting a single heartbeat into tasks, preserve the original intent, move each discrete workflow into its own `prompt`, and keep shared context text only where needed.
-- Keep YAML formatting simple: top-level `tasks:`, then `- name`, `interval`, `prompt`.
+- Keep YAML formatting simple: top-level `tasks:`, then `- name`, `cron` or `interval`, and `prompt`.
 
 When a user asks how to convert a heartbeat into task-block form, produce or edit it into this shape:
 
 ```yaml
 tasks:
   - name: task-one
-    interval: 4h
+    cron: "0 */4 * * *"
     prompt: First workflow instructions.
 
   - name: task-two
