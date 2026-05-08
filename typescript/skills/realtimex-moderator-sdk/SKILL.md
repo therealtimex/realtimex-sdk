@@ -1,13 +1,13 @@
 ---
 name: realtimex-moderator-sdk
 description: Control and interact with the RealTimeX application through its Node.js SDK. This skill should be used when users want to manage workspaces, threads, agents, activities, LLM chat, vector store, MCP tools, ACP agent sessions, TTS/STT, or any other RealTimeX platform feature via the API. All method signatures are verified against the SDK source code.
-generated: 2026-05-07
-sdk_version: 1.7.12
+generated: 2026-05-08
+sdk_version: 1.7.13
 ---
 
 # RealTimeX Moderator (SDK Source-Verified)
 
-Interact with the RealTimeX platform (`http://localhost:3001`) using `@realtimex/sdk` **v1.7.12**. Authentication is automatic when running inside RealtimeX.
+Interact with the RealTimeX platform (`http://localhost:3001`) using `@realtimex/sdk` **v1.7.13**. Authentication is automatic when running inside RealtimeX.
 
 `<SKILL_DIR>` below refers to the directory containing this SKILL.md.
 
@@ -29,6 +29,9 @@ node "$SKILL" terminal-launch-cli-agent claude claude-cli "what is current worki
 node "$SKILL" terminal-launch-shell --workspace=<slug> --thread=<slug> --command="pwd"  $ENV
 node "$SKILL" terminal-sessions --workspace=<slug>     $ENV
 node "$SKILL" terminal-write <session-id> "continue"   $ENV
+node "$SKILL" browser-sessions                         $ENV
+node "$SKILL" browser-session-create github-review     $ENV
+node "$SKILL" browser-tab-create https://example.com --session=github-review  $ENV
 node "$SKILL" acp-chat qwen-cli "question" --cwd=<path>  $ENV
 node "$SKILL" llm-chat "message"                       $ENV
 node "$SKILL" activities --status=pending              $ENV
@@ -168,6 +171,98 @@ If the user says:
 - "open a shell and run pwd"
 
 then prefer `sdk.desktopRuntimeSessions.*`, not ACP.
+
+If the user says:
+- "open this URL in RealTimeX Browser"
+- "create a browser session"
+- "navigate the managed browser tab"
+- "focus or close a RealTimeX Browser tab"
+
+then prefer `sdk.desktopBrowser.*`, not ACP and not desktop terminal sessions.
+
+---
+
+## Desktop Browser
+
+For anything that says **RealTimeX Browser**, **browser session**, **browser tab**, **open a URL in the managed browser**, or **navigate/focus/close a managed browser tab**, use:
+
+- `sdk.desktopBrowser.*`
+
+Do **not** use ACP for this unless the user explicitly wants ACP browser handoff behavior. Do **not** use `sdk.desktopRuntimeSessions.*` for browser tabs; that module is only for terminal sessions.
+
+### Use desktop browser for
+- listing named RealTimeX Browser sessions
+- creating a named browser session
+- getting or deleting a named browser session
+- creating a browser tab in a named session
+- reading a browser tab snapshot
+- evaluating JavaScript in a browser tab
+- focusing a browser tab
+- navigating a browser tab
+- closing a browser tab
+
+### Correct SDK namespace
+
+```js
+sdk.desktopBrowser
+```
+
+Compatibility:
+- `sdk.desktopBrowser` is the preferred alias
+- `sdk.v1.desktopBrowser` still exists for backward compatibility
+
+### Correct examples
+
+List browser sessions:
+
+```js
+await sdk.desktopBrowser.listSessions();
+```
+
+Create a named browser session:
+
+```js
+await sdk.desktopBrowser.createSession({
+  sessionName: "github-review"
+});
+```
+
+Create a browser tab:
+
+```js
+await sdk.desktopBrowser.createTab({
+  sessionName: "github-review",
+  url: "https://example.com"
+});
+```
+
+Navigate a browser tab:
+
+```js
+await sdk.desktopBrowser.navigateTab("cli-browser:9555:tab:3", {
+  url: "https://docs.realtimex.ai",
+  focus: true,
+  focusWindow: true
+});
+```
+
+Evaluate JavaScript in a browser tab:
+
+```js
+await sdk.desktopBrowser.evaluateTab("cli-browser:9555:tab:3", {
+  expression: "document.title",
+  userGesture: true
+});
+```
+
+### Naming rule
+
+Prefer normal named sessions like:
+- `github-review`
+- `docs-research`
+- `qa-checkout`
+
+Avoid mutating reserved/system-managed sessions like `acp-*` unless the user explicitly asks to work with internal ACP browser flows.
 
 ---
 

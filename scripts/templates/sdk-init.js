@@ -24,6 +24,7 @@ const ALL_PERMISSIONS = [
   'vectors.read', 'vectors.write',
   'tts.generate', 'mcp.servers', 'mcp.tools', 'acp.agent',
   'desktop.runtime-sessions',
+  'desktop.browser',
 ];
 
 /** Well-known file written by RealtimeX server for seamless auth. */

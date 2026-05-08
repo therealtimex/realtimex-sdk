@@ -25,6 +25,7 @@ from .v1_users import V1UsersModule
 from .v1_openai import V1OpenAIModule
 from .v1_embed import V1EmbedModule
 from .v1_desktop_runtime_sessions import V1DesktopRuntimeSessionsModule
+from .v1_desktop_browser import V1DesktopBrowserModule
 # [GENERATED-IMPORTS-END]
 
 # --- Generated module imports (added by generate-v1-sdk.mjs) ---
@@ -56,6 +57,7 @@ class V1ApiNamespace:
         self.openai = V1OpenAIModule(self._client)
         self.embed = V1EmbedModule(self._client)
         self.desktopRuntimeSessions = V1DesktopRuntimeSessionsModule(self._client)
+        self.desktopBrowser = V1DesktopBrowserModule(self._client)
 # [GENERATED-INIT-END]
 
         # --- Generated module initialisation (added by generate-v1-sdk.mjs) ---

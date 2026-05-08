@@ -1,6 +1,6 @@
 # RealTimeX SDK — API Reference
 
-> Auto-generated from `@realtimex/sdk` source · v**1.7.12** · 2026-05-07
+> Auto-generated from `@realtimex/sdk` source · v**1.7.13** · 2026-05-08
 
 **Package:** `@realtimex/sdk` (CJS) · **Server:** `http://localhost:3001`
 **Developer Mode auth:** `Authorization: Bearer <apiKey>`
@@ -27,6 +27,8 @@
 | `mcp.servers` | `sdk.mcp.getServers()` |
 | `mcp.tools` | `sdk.mcp.getTools/executeTool()` |
 | `acp.agent` | `sdk.acpAgent.*` |
+| `desktop.runtime-sessions` | `sdk.desktopRuntimeSessions.*` |
+| `desktop.browser` | `sdk.desktopBrowser.*` |
 
 ---
 
@@ -105,6 +107,62 @@ Compatibility: `sdk.v1.desktopRuntimeSessions` remains available, but prefer the
 
 ---
 
+## sdk.desktopBrowser — RealTimeX Browser
+
+Use this module for the managed RealTimeX Browser control plane. This is the correct path for:
+- listing named browser sessions
+- creating a named browser session
+- opening a URL in a managed browser tab
+- reading/evaluating/focusing/navigating/closing managed browser tabs
+
+Do not use ACP for these unless the user explicitly asks for ACP browser handoff behavior.
+Do not use desktop terminal sessions for browser tabs.
+
+### `V1DesktopBrowserModule`
+
+```ts
+async listSessions(): Promise<unknown>
+async createSession(body: { sessionName: string; remoteDebugPort?: number; }): Promise<unknown>
+async getSession(sessionName: string): Promise<unknown>
+async deleteSession(sessionName: string): Promise<unknown>
+async createTab(body: { sessionName?: string; url: string; focus?: boolean; focusWindow?: boolean; }): Promise<unknown>
+async getTab(tabRef: string): Promise<unknown>
+async evaluateTab(tabRef: string, body: { expression: string; userGesture?: boolean; }): Promise<unknown>
+async focusTab(tabRef: string, body?: { focusWindow?: boolean; }): Promise<unknown>
+async navigateTab(tabRef: string, body: { url: string; focus?: boolean; focusWindow?: boolean; }): Promise<unknown>
+async deleteTab(tabRef: string): Promise<unknown>
+```
+
+### Correct examples
+
+```js
+await sdk.desktopBrowser.createSession({
+  sessionName: 'github-review'
+});
+
+await sdk.desktopBrowser.createTab({
+  sessionName: 'github-review',
+  url: 'https://example.com'
+});
+
+await sdk.desktopBrowser.navigateTab('cli-browser:9555:tab:3', {
+  url: 'https://docs.realtimex.ai',
+  focus: true,
+  focusWindow: true
+});
+
+await sdk.desktopBrowser.evaluateTab('cli-browser:9555:tab:3', {
+  expression: 'document.title',
+  userGesture: true
+});
+```
+
+Prefer normal named sessions like `github-review` or `docs-research`.
+Avoid mutating reserved/system-managed sessions like `acp-*` unless the user explicitly asks for internal ACP browser flows.
+Compatibility: `sdk.v1.desktopBrowser` remains available, but prefer the top-level alias.
+
+---
+
 ## Core — RealtimeXSDK
 
 ### `RealtimeXSDK`
@@ -128,6 +186,7 @@ Compatibility: `sdk.v1.desktopRuntimeSessions` remains available, but prefer the
 - `credentials: CredentialsModule`
 - `v1: V1ApiNamespace | undefined`
 - `desktopRuntimeSessions: V1DesktopRuntimeSessionsModule | undefined`
+- `desktopBrowser: V1DesktopBrowserModule | undefined`
 
 ```ts
 // Developer API (v1) — requires apiKey to be set in config.
@@ -883,6 +942,44 @@ async deleteCustomTheme(id: string): Promise<unknown>
 
 // @see POST /v1/custom-themes/new
 async createCustomTheme(): Promise<unknown>
+```
+
+---
+
+## sdk.v1.desktopBrowser — v1 Desktop Browser
+
+### `V1DesktopBrowserModule`
+
+```ts
+// List RealTimeX Browser sessions available in the Electron desktop app.
+async listSessions(): Promise<unknown>
+
+// Create a named RealTimeX Browser session in the Electron desktop app.
+async createSession(body?: Record<string, unknown>): Promise<unknown>
+
+// Get a specific RealTimeX Browser session by session name.
+async getSession(sessionName: string): Promise<unknown>
+
+// Delete a named RealTimeX Browser session from the Electron desktop app.
+async deleteSession(sessionName: string): Promise<unknown>
+
+// Create a RealTimeX Browser tab, optionally launching the browser session if needed.
+async createTab(body?: Record<string, unknown>): Promise<unknown>
+
+// Get a RealTimeX Browser tab snapshot by tab reference.
+async getTab(tabRef: string): Promise<unknown>
+
+// Close an existing RealTimeX Browser tab.
+async deleteTab(tabRef: string): Promise<unknown>
+
+// Evaluate JavaScript in a specific RealTimeX Browser tab.
+async evaluateTab(tabRef: string, body?: Record<string, unknown>): Promise<unknown>
+
+// Focus an existing RealTimeX Browser tab.
+async focusTab(tabRef: string, body?: Record<string, unknown>): Promise<unknown>
+
+// Navigate an existing RealTimeX Browser tab to a new URL.
+async navigateTab(tabRef: string, body?: Record<string, unknown>): Promise<unknown>
 ```
 
 ---

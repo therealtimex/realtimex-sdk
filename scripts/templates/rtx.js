@@ -344,6 +344,14 @@ function getDesktopRuntimeSessionsModule(sdk) {
   return module;
 }
 
+function getDesktopBrowserModule(sdk) {
+  const module = sdk?.desktopBrowser || sdk?.v1?.desktopBrowser;
+  if (!module) {
+    throw new Error('sdk.desktopBrowser is unavailable. Ensure the SDK was initialized with Developer API access.');
+  }
+  return module;
+}
+
 // -- terminal-launcher / terminal sessions ----------------------------------
 CMD['terminal-open-launcher'] = async () => {
   const { sdk, context } = await getSDK();
@@ -448,6 +456,131 @@ CMD['terminal-close'] = async () => {
   const { sdk } = await getSDK();
   const terminal = getDesktopRuntimeSessionsModule(sdk);
   print(await terminal.deleteRuntimeSession(sessionId));
+};
+
+CMD['browser-sessions'] = async () => {
+  const { sdk } = await getSDK();
+  const browser = getDesktopBrowserModule(sdk);
+  print(await browser.listSessions());
+};
+
+CMD['browser-session-create'] = async () => {
+  const [sessionName] = cmdArgs;
+  if (!sessionName) {
+    console.error('Usage: rtx.js browser-session-create <session-name> [--port=<n>]');
+    process.exit(1);
+  }
+  const { sdk } = await getSDK();
+  const browser = getDesktopBrowserModule(sdk);
+  const body = {
+    sessionName,
+    ...(flags.port ? { remoteDebugPort: Number(flags.port) } : {}),
+  };
+  print(await browser.createSession(body));
+};
+
+CMD['browser-session-get'] = async () => {
+  const [sessionName] = cmdArgs;
+  if (!sessionName) {
+    console.error('Usage: rtx.js browser-session-get <session-name>');
+    process.exit(1);
+  }
+  const { sdk } = await getSDK();
+  const browser = getDesktopBrowserModule(sdk);
+  print(await browser.getSession(sessionName));
+};
+
+CMD['browser-session-delete'] = async () => {
+  const [sessionName] = cmdArgs;
+  if (!sessionName) {
+    console.error('Usage: rtx.js browser-session-delete <session-name>');
+    process.exit(1);
+  }
+  const { sdk } = await getSDK();
+  const browser = getDesktopBrowserModule(sdk);
+  print(await browser.deleteSession(sessionName));
+};
+
+CMD['browser-tab-create'] = async () => {
+  const [url] = cmdArgs;
+  if (!url) {
+    console.error('Usage: rtx.js browser-tab-create <url> [--session=<name>] [--focus=true|false] [--focus-window=true|false]');
+    process.exit(1);
+  }
+  const { sdk } = await getSDK();
+  const browser = getDesktopBrowserModule(sdk);
+  const body = {
+    url,
+    ...(flags.session ? { sessionName: flags.session } : {}),
+    ...(flags.focus !== undefined ? { focus: flags.focus !== 'false' } : {}),
+    ...(flags['focus-window'] !== undefined ? { focusWindow: flags['focus-window'] !== 'false' } : {}),
+  };
+  print(await browser.createTab(body));
+};
+
+CMD['browser-tab-get'] = async () => {
+  const [tabRef] = cmdArgs;
+  if (!tabRef) {
+    console.error('Usage: rtx.js browser-tab-get <tab-ref>');
+    process.exit(1);
+  }
+  const { sdk } = await getSDK();
+  const browser = getDesktopBrowserModule(sdk);
+  print(await browser.getTab(tabRef));
+};
+
+CMD['browser-tab-focus'] = async () => {
+  const [tabRef] = cmdArgs;
+  if (!tabRef) {
+    console.error('Usage: rtx.js browser-tab-focus <tab-ref> [--focus-window=true|false]');
+    process.exit(1);
+  }
+  const { sdk } = await getSDK();
+  const browser = getDesktopBrowserModule(sdk);
+  const body = flags['focus-window'] !== undefined ? { focusWindow: flags['focus-window'] !== 'false' } : {};
+  print(await browser.focusTab(tabRef, body));
+};
+
+CMD['browser-tab-navigate'] = async () => {
+  const [tabRef, url] = cmdArgs;
+  if (!tabRef || !url) {
+    console.error('Usage: rtx.js browser-tab-navigate <tab-ref> <url> [--focus=true|false] [--focus-window=true|false]');
+    process.exit(1);
+  }
+  const { sdk } = await getSDK();
+  const browser = getDesktopBrowserModule(sdk);
+  const body = {
+    url,
+    ...(flags.focus !== undefined ? { focus: flags.focus !== 'false' } : {}),
+    ...(flags['focus-window'] !== undefined ? { focusWindow: flags['focus-window'] !== 'false' } : {}),
+  };
+  print(await browser.navigateTab(tabRef, body));
+};
+
+CMD['browser-tab-evaluate'] = async () => {
+  const [tabRef, ...expressionParts] = cmdArgs;
+  if (!tabRef || expressionParts.length === 0) {
+    console.error('Usage: rtx.js browser-tab-evaluate <tab-ref> <expression> [--user-gesture=true|false]');
+    process.exit(1);
+  }
+  const { sdk } = await getSDK();
+  const browser = getDesktopBrowserModule(sdk);
+  const body = {
+    expression: expressionParts.join(' '),
+    ...(flags['user-gesture'] !== undefined ? { userGesture: flags['user-gesture'] !== 'false' } : {}),
+  };
+  print(await browser.evaluateTab(tabRef, body));
+};
+
+CMD['browser-tab-close'] = async () => {
+  const [tabRef] = cmdArgs;
+  if (!tabRef) {
+    console.error('Usage: rtx.js browser-tab-close <tab-ref>');
+    process.exit(1);
+  }
+  const { sdk } = await getSDK();
+  const browser = getDesktopBrowserModule(sdk);
+  print(await browser.deleteTab(tabRef));
 };
 
 // -- acp-agents -------------------------------------------------------------
@@ -981,6 +1114,40 @@ sdk.desktopRuntimeSessions.* — Desktop terminal sessions:
 
   Compatibility:
     The SDK also exposes this module as sdk.v1.desktopRuntimeSessions.
+
+sdk.desktopBrowser.* — RealTimeX Browser sessions and tabs:
+  browser-sessions
+    List named RealTimeX Browser sessions.
+
+  browser-session-create <session-name> [--port=<n>]
+    Create a named browser session.
+
+  browser-session-get <session-name>
+    Fetch one named browser session.
+
+  browser-session-delete <session-name>
+    Delete a named browser session.
+
+  browser-tab-create <url> [--session=<name>] [--focus=true|false] [--focus-window=true|false]
+    Create a managed browser tab.
+
+  browser-tab-get <tab-ref>
+    Fetch one browser tab snapshot by tab ref.
+
+  browser-tab-focus <tab-ref> [--focus-window=true|false]
+    Focus a managed browser tab.
+
+  browser-tab-navigate <tab-ref> <url> [--focus=true|false] [--focus-window=true|false]
+    Navigate a managed browser tab.
+
+  browser-tab-evaluate <tab-ref> <expression> [--user-gesture=true|false]
+    Evaluate JavaScript in a managed browser tab.
+
+  browser-tab-close <tab-ref>
+    Close a managed browser tab.
+
+  Compatibility:
+    The SDK also exposes this module as sdk.v1.desktopBrowser.
 
 sdk.acpAgent.* — Session Management:
   acp-agents [--models=true]

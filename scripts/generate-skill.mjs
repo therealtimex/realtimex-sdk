@@ -576,6 +576,8 @@ function generateApiReference(modules, pkgVersion) {
     ['mcp.servers',      '`sdk.mcp.getServers()`'],
     ['mcp.tools',        '`sdk.mcp.getTools/executeTool()`'],
     ['acp.agent',        '`sdk.acpAgent.*`'],
+    ['desktop.runtime-sessions', '`sdk.desktopRuntimeSessions.*`'],
+    ['desktop.browser',  '`sdk.desktopBrowser.*`'],
   ]) L.push(`| \`${p}\` | ${d} |`);
   L.push(``);
   L.push(`---`);
@@ -653,6 +655,63 @@ function generateApiReference(modules, pkgVersion) {
   L.push('```');
   L.push(``);
   L.push(`Compatibility: \`sdk.v1.desktopRuntimeSessions\` remains available, but prefer the top-level alias.`);
+  L.push(``);
+  L.push(`---`);
+  L.push(``);
+
+  L.push(`## sdk.desktopBrowser — RealTimeX Browser`);
+  L.push(``);
+  L.push(`Use this module for the managed RealTimeX Browser control plane. This is the correct path for:`);
+  L.push(`- listing named browser sessions`);
+  L.push(`- creating a named browser session`);
+  L.push(`- opening a URL in a managed browser tab`);
+  L.push(`- reading/evaluating/focusing/navigating/closing managed browser tabs`);
+  L.push(``);
+  L.push(`Do not use ACP for these unless the user explicitly asks for ACP browser handoff behavior.`);
+  L.push(`Do not use desktop terminal sessions for browser tabs.`);
+  L.push(``);
+  L.push(`### \`V1DesktopBrowserModule\``);
+  L.push(``);
+  L.push('```ts');
+  L.push(`async listSessions(): Promise<unknown>`);
+  L.push(`async createSession(body: { sessionName: string; remoteDebugPort?: number; }): Promise<unknown>`);
+  L.push(`async getSession(sessionName: string): Promise<unknown>`);
+  L.push(`async deleteSession(sessionName: string): Promise<unknown>`);
+  L.push(`async createTab(body: { sessionName?: string; url: string; focus?: boolean; focusWindow?: boolean; }): Promise<unknown>`);
+  L.push(`async getTab(tabRef: string): Promise<unknown>`);
+  L.push(`async evaluateTab(tabRef: string, body: { expression: string; userGesture?: boolean; }): Promise<unknown>`);
+  L.push(`async focusTab(tabRef: string, body?: { focusWindow?: boolean; }): Promise<unknown>`);
+  L.push(`async navigateTab(tabRef: string, body: { url: string; focus?: boolean; focusWindow?: boolean; }): Promise<unknown>`);
+  L.push(`async deleteTab(tabRef: string): Promise<unknown>`);
+  L.push('```');
+  L.push(``);
+  L.push(`### Correct examples`);
+  L.push(``);
+  L.push('```js');
+  L.push(`await sdk.desktopBrowser.createSession({`);
+  L.push(`  sessionName: 'github-review'`);
+  L.push(`});`);
+  L.push(``);
+  L.push(`await sdk.desktopBrowser.createTab({`);
+  L.push(`  sessionName: 'github-review',`);
+  L.push(`  url: 'https://example.com'`);
+  L.push(`});`);
+  L.push(``);
+  L.push(`await sdk.desktopBrowser.navigateTab('cli-browser:9555:tab:3', {`);
+  L.push(`  url: 'https://docs.realtimex.ai',`);
+  L.push(`  focus: true,`);
+  L.push(`  focusWindow: true`);
+  L.push(`});`);
+  L.push(``);
+  L.push(`await sdk.desktopBrowser.evaluateTab('cli-browser:9555:tab:3', {`);
+  L.push(`  expression: 'document.title',`);
+  L.push(`  userGesture: true`);
+  L.push(`});`);
+  L.push('```');
+  L.push(``);
+  L.push(`Prefer normal named sessions like \`github-review\` or \`docs-research\`.`);
+  L.push(`Avoid mutating reserved/system-managed sessions like \`acp-*\` unless the user explicitly asks for internal ACP browser flows.`);
+  L.push(`Compatibility: \`sdk.v1.desktopBrowser\` remains available, but prefer the top-level alias.`);
   L.push(``);
   L.push(`---`);
   L.push(``);

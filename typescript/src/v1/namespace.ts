@@ -22,6 +22,7 @@ import { V1UsersModule } from './modules/v1Users';
 import { V1OpenAIModule } from './modules/v1OpenAI';
 import { V1EmbedModule } from './modules/v1Embed';
 import { V1DesktopRuntimeSessionsModule } from './modules/v1DesktopRuntimeSessions';
+import { V1DesktopBrowserModule } from './modules/v1DesktopBrowser';
 // [GENERATED-IMPORTS-END]
 
 export class V1ApiNamespace {
@@ -39,6 +40,7 @@ export class V1ApiNamespace {
     public openai: V1OpenAIModule;
     public embed: V1EmbedModule;
     public desktopRuntimeSessions: V1DesktopRuntimeSessionsModule;
+    public desktopBrowser: V1DesktopBrowserModule;
 // [GENERATED-PROPS-END]
 
     constructor(baseUrl: string, apiKey: string, appId?: string) {
@@ -55,6 +57,7 @@ export class V1ApiNamespace {
         this.openai = new V1OpenAIModule(this._client);
         this.embed = new V1EmbedModule(this._client);
         this.desktopRuntimeSessions = new V1DesktopRuntimeSessionsModule(this._client);
+        this.desktopBrowser = new V1DesktopBrowserModule(this._client);
 // [GENERATED-INIT-END]
     }
 }

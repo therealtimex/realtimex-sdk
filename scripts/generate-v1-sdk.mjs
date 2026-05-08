@@ -55,6 +55,7 @@ const TAG_CONFIG = {
   'Custom Themes':               { ts: 'v1CustomThemes',  py: 'v1_custom_themes', cls: 'V1CustomThemesModule', prop: 'customThemes', prefix: ['custom-themes'] },
   'Desktop Embed':               { ts: 'v1DesktopEmbed',  py: 'v1_desktop_embed', cls: 'V1DesktopEmbedModule', prop: 'desktopEmbed', prefix: ['desktop-public-embed'] },
   'SDK - Desktop Runtime Sessions': { ts: 'v1DesktopRuntimeSessions', py: 'v1_desktop_runtime_sessions', cls: 'V1DesktopRuntimeSessionsModule', prop: 'desktopRuntimeSessions', prefix: ['desktop', 'runtime-sessions'] },
+  'SDK - Desktop Browser':          { ts: 'v1DesktopBrowser', py: 'v1_desktop_browser', cls: 'V1DesktopBrowserModule', prop: 'desktopBrowser', prefix: ['desktop', 'browser'] },
 };
 
 // Tags handled by SDK core — skip
@@ -108,11 +109,26 @@ const AUTO_TAG_RULES = [
   ['/v1/custom-themes',         'Custom Themes'],
   ['/v1/desktop-public-embed/', 'Desktop Embed'],
   ['/sdk/desktop/runtime-sessions/', 'SDK - Desktop Runtime Sessions'],
+  ['/sdk/desktop/browser/', 'SDK - Desktop Browser'],
 ];
 
 function isGeneratedSdkPath(pathname = '') {
   return pathname.startsWith('/v1/') || pathname.startsWith('/sdk/desktop/');
 }
+
+const METHOD_NAME_OVERRIDES = new Map([
+  ['POST /sdk/desktop/browser/tabs/{tabRef}/focus', 'focusTab'],
+  ['POST /sdk/desktop/browser/tabs/{tabRef}/navigate', 'navigateTab'],
+  ['POST /sdk/desktop/browser/tabs/{tabRef}/evaluate', 'evaluateTab'],
+]);
+
+const BODY_OVERRIDE_PATHS = new Set([
+  'POST /sdk/desktop/browser/sessions',
+  'POST /sdk/desktop/browser/tabs',
+  'POST /sdk/desktop/browser/tabs/{tabRef}/focus',
+  'POST /sdk/desktop/browser/tabs/{tabRef}/navigate',
+  'POST /sdk/desktop/browser/tabs/{tabRef}/evaluate',
+]);
 
 // Paths that require streaming stub (not a full implementation)
 const STREAMING_PATHS = new Set([
@@ -355,11 +371,16 @@ ${methods}
 function renderTsMethod(op, cfg) {
   const { method, path, description } = op;
   const pathParams = extractPathParams(path);
-  const hasBody = ['post', 'put', 'patch'].includes(method.toLowerCase()) && op.hasBody;
+  const opKey = `${method.toUpperCase()} ${path}`;
+  const hasBody =
+    ['post', 'put', 'patch'].includes(method.toLowerCase()) &&
+    (op.hasBody || BODY_OVERRIDE_PATHS.has(opKey));
   const isStreaming = STREAMING_PATHS.has(path);
   const isUpload = UPLOAD_PATHS.has(path);
 
-  const methodName = deriveMethodName(method, path, cfg.prefix);
+  const methodName =
+    METHOD_NAME_OVERRIDES.get(opKey) ||
+    deriveMethodName(method, path, cfg.prefix);
   const tsParams = buildTsParams(pathParams, hasBody, isUpload);
   const pathArg = buildTsPathArg(path, pathParams);
 
@@ -418,11 +439,16 @@ ${methods}
 function renderPyMethod(op, cfg) {
   const { method, path, description } = op;
   const pathParams = extractPathParams(path);
-  const hasBody = ['post', 'put', 'patch'].includes(method.toLowerCase()) && op.hasBody;
+  const opKey = `${method.toUpperCase()} ${path}`;
+  const hasBody =
+    ['post', 'put', 'patch'].includes(method.toLowerCase()) &&
+    (op.hasBody || BODY_OVERRIDE_PATHS.has(opKey));
   const isStreaming = STREAMING_PATHS.has(path);
   const isUpload = UPLOAD_PATHS.has(path);
 
-  const methodNameTs = deriveMethodName(method, path, cfg.prefix);
+  const methodNameTs =
+    METHOD_NAME_OVERRIDES.get(opKey) ||
+    deriveMethodName(method, path, cfg.prefix);
   const methodName = toSnakeCase(methodNameTs);
   const pyParams = buildPyParams(pathParams, hasBody, isUpload);
   const pathArg = buildPyPathArg(path, pathParams);
@@ -667,7 +693,9 @@ function main() {
         method,
         path: rawPath,
         description: op.description || op.summary || '',
-        hasBody: !!op.requestBody,
+        hasBody:
+          !!op.requestBody ||
+          BODY_OVERRIDE_PATHS.has(`${method.toUpperCase()} ${rawPath}`),
         params: op.parameters || [],
       });
     }
