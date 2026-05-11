@@ -1147,8 +1147,7 @@ sdk.desktopBrowser.* — RealTimeX Browser sessions and tabs:
     Close a managed browser tab.
 
   Workflow note:
-    Prefer one session per target URL. If you need another URL, create a new browser
-    session first, then use that session's remoteDebugPort with the agent-browser skill
+    Each session has seperated browser profile, use session's remoteDebugPort with the agent-browser skill
     over CDP for page interaction and automation.
 
   Compatibility:
