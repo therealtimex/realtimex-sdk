@@ -14,6 +14,7 @@
  */
 
 const path = require('path');
+const fs = require('fs');
 const { initSDK } = require('./lib/sdk-init');
 
 // ---------------------------------------------------------------------------
@@ -68,6 +69,84 @@ function resolveWorkspaceFlagOrContext(context = {}) {
   return flags.workspace || context?.workspaceSlug || null;
 }
 
+const SKILL_ROOT = path.resolve(__dirname, '..');
+const REFERENCES_DIR = path.join(SKILL_ROOT, 'references');
+
+const SKILL_DOCS = {
+  core: ['quickstart.md', 'permissions.md', 'workspaces.md'],
+  quickstart: ['quickstart.md'],
+  permissions: ['permissions.md'],
+  workspaces: ['workspaces.md'],
+  workspace: ['workspaces.md'],
+  threads: ['workspaces.md'],
+  agents: ['agents.md'],
+  agent: ['agents.md'],
+  terminal: ['terminal-sessions.md'],
+  terminals: ['terminal-sessions.md'],
+  'terminal-sessions': ['terminal-sessions.md'],
+  browser: ['browser.md'],
+  channels: ['channels.md'],
+  channel: ['channels.md'],
+  llm: ['llm.md'],
+  vectors: ['llm.md'],
+  'vector-store': ['llm.md'],
+  mcp: ['mcp.md'],
+  activities: ['activities.md'],
+  activity: ['activities.md'],
+  credentials: ['credentials.md'],
+  issues: ['known-issues.md'],
+  'known-issues': ['known-issues.md'],
+  concepts: ['app-concepts.md'],
+  api: ['api-reference/index.md'],
+};
+
+function readReferenceFile(relPath) {
+  const fullPath = path.resolve(REFERENCES_DIR, relPath);
+  if (!fullPath.startsWith(REFERENCES_DIR + path.sep)) {
+    throw new Error('Invalid skill reference path');
+  }
+  return fs.readFileSync(fullPath, 'utf-8');
+}
+
+function listApiReferenceSlugs() {
+  const apiDir = path.join(REFERENCES_DIR, 'api-reference');
+  if (!fs.existsSync(apiDir)) return [];
+  return fs.readdirSync(apiDir)
+    .filter((file) => file.endsWith('.md') && file !== 'index.md')
+    .map((file) => `api:${file.replace(/\.md$/, '')}`)
+    .sort();
+}
+
+function resolveSkillDoc(topic) {
+  const normalized = String(topic || 'core').trim().toLowerCase();
+  if (normalized.startsWith('api:')) {
+    const slug = normalized.slice(4);
+    if (!slug) return ['api-reference/index.md'];
+    return [`api-reference/${slug}.md`];
+  }
+  return SKILL_DOCS[normalized] || null;
+}
+
+function printSkillDoc(topic, { full = false } = {}) {
+  const refs = resolveSkillDoc(topic);
+  if (!refs) {
+    console.error(`Unknown skill topic: ${topic}`);
+    console.error('Run: node rtx.js skills list');
+    process.exit(1);
+  }
+
+  const chunks = [];
+  for (const rel of refs) {
+    chunks.push(readReferenceFile(rel).trimEnd());
+  }
+
+  if (full && topic !== 'api' && !String(topic || '').startsWith('api:')) {
+    chunks.push(readReferenceFile('api-reference/index.md').trimEnd());
+  }
+
+  console.log(chunks.join('\n\n---\n\n'));
+}
+
 // ---------------------------------------------------------------------------
 // Commands
 // ---------------------------------------------------------------------------
@@ -80,6 +159,36 @@ CMD.context = async () => {
     threadSlug: context?.threadSlug || null,
     hasContext: Boolean(context?.workspaceSlug || context?.threadSlug),
   });
+};
+
+CMD.skills = async () => {
+  const [subcommand, topic] = cmdArgs;
+  if (!subcommand || subcommand === 'list') {
+    console.log('Available skill topics:');
+    for (const key of Object.keys(SKILL_DOCS).sort()) {
+      console.log(`  ${key}`);
+    }
+    const apiTopics = listApiReferenceSlugs();
+    if (apiTopics.length) {
+      console.log('');
+      console.log('Available API reference topics:');
+      for (const key of apiTopics) {
+        console.log(`  ${key}`);
+      }
+    }
+    console.log('');
+    console.log('Usage: node rtx.js skills get <topic> [--full]');
+    return;
+  }
+
+  if (subcommand === 'get') {
+    printSkillDoc(topic || 'core', { full: flags.full === true || flags.full === 'true' });
+    return;
+  }
+
+  console.error('Usage: node rtx.js skills list');
+  console.error('   or: node rtx.js skills get <topic> [--full]');
+  process.exit(1);
 };
 
 // -- ping -------------------------------------------------------------------
@@ -1035,6 +1144,18 @@ Global flags:
 
 Connection:
   ping / info
+
+Skill docs:
+  skills list
+    List version-matched workflow/API skill topics bundled with this SDK.
+
+  skills get <topic> [--full]
+    Print a focused skill guide from the installed SDK version.
+    Examples:
+      skills get core
+      skills get channels
+      skills get browser
+      skills get api:v1-channels --full
 
 sdk.api.*:
   agents / workspaces / threads <slug> / task <uuid>

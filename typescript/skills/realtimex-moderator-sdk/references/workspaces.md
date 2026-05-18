@@ -1,6 +1,6 @@
 # Workspaces And Threads
 
-> Generated workflow guide · SDK **1.7.18** · 2026-05-18
+> Generated workflow guide · SDK **1.7.19** · 2026-05-18
 
 Use this before any task that needs workspace/thread context.
 

@@ -1,6 +1,6 @@
 # sdk.v1.openAI — v1 Open A I
 
-> Auto-generated from `@realtimex/sdk` source · v**1.7.18** · 2026-05-18
+> Auto-generated from `@realtimex/sdk` source · v**1.7.19** · 2026-05-18
 
 ## `V1OpenAIModule`
 

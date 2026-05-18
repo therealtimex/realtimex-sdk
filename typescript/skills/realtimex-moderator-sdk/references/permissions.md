@@ -1,6 +1,6 @@
 # Permissions
 
-> Generated workflow guide · SDK **1.7.18** · 2026-05-18
+> Generated workflow guide · SDK **1.7.19** · 2026-05-18
 
 LocalApps using `x-app-id` must request permissions before calling protected SDK routes.
 

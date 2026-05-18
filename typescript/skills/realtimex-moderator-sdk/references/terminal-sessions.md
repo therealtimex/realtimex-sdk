@@ -1,6 +1,6 @@
 # Desktop Terminal Sessions
 
-> Generated workflow guide · SDK **1.7.18** · 2026-05-18
+> Generated workflow guide · SDK **1.7.19** · 2026-05-18
 
 Use this for visible Electron terminal sessions.
 

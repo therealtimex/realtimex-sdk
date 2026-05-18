@@ -1,6 +1,6 @@
 # sdk.v1.customThemes — v1 Custom Themes
 
-> Auto-generated from `@realtimex/sdk` source · v**1.7.18** · 2026-05-18
+> Auto-generated from `@realtimex/sdk` source · v**1.7.19** · 2026-05-18
 
 ## `V1CustomThemesModule`
 

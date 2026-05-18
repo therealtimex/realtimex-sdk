@@ -1,6 +1,6 @@
 # LLM And Vector Store
 
-> Generated workflow guide · SDK **1.7.18** · 2026-05-18
+> Generated workflow guide · SDK **1.7.19** · 2026-05-18
 
 Use `sdk.llm` for chat, streaming, embeddings, and vector helpers.
 
