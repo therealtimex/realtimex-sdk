@@ -204,6 +204,7 @@ A platform user account.
 | `dailyMessageLimit` | Int? | — | — |
 | `bio` | String? |  | — |
 | `workspace_chats` | workspace_chats[] | — | — |
+| `terminal_ui_events` | terminal_ui_events[] | — | — |
 | `workspace_users` | workspace_users[] | — | — |
 | `created_workspaces` | workspaces[] | — | — |
 | `embed_configs` | embed_configs[] | — | — |
@@ -247,6 +248,7 @@ A chat/knowledge space with its own documents, LLM config, and agent settings.
 | `similarityThreshold` | Float? | 0.25 | — |
 | `chatProvider` | String? | — | — |
 | `chatModel` | String? | — | — |
+| `chatTuningConfig` | String? | — | — |
 | `topN` | Int? | 4 | — |
 | `chatMode` | String? | chat | — |
 | `pfpFilename` | String? | — | — |
@@ -288,6 +290,11 @@ A chat/knowledge space with its own documents, LLM config, and agent settings.
 | `knowledgeConfig` | String? | — | — |
 | `type` | String? | default | — |
 | `workspace_tasks` | workspace_tasks[] | — | — |
+| `goal_sources` | goal_sources[] | — | — |
+| `goal_runs` | goal_runs[] | — | — |
+| `goal_events` | goal_events[] | — | — |
+| `goal_artifacts` | goal_artifacts[] | — | — |
+| `terminal_ui_events` | terminal_ui_events[] | — | — |
 | `channel_plugins` | channel_plugins[] | — | — |
 | `agentic_cli_workspace_overrides` | agentic_cli_workspace_overrides[] | — | — |
 
@@ -356,6 +363,7 @@ A conversation thread within a workspace. Can represent a meeting or a standalon
 | `user_id` | Int? | — | — |
 | `chatProvider` | String? | — | — |
 | `chatModel` | String? | — | — |
+| `chatTuningConfig` | String? | — | — |
 | `meeting_source` | String? | manual | — |
 | `meeting_status` | String? | draft | — |
 | `scheduled_start_at` | DateTime? | — | — |
@@ -373,6 +381,10 @@ A conversation thread within a workspace. Can represent a meeting or a standalon
 | `meeting_outputs` | meeting_outputs[] | — | — |
 | `workspace_parsed_files` | workspace_parsed_files[] | — | — |
 | `workspace_tasks` | workspace_tasks[] | — | — |
+| `goal_sources` | goal_sources[] | — | — |
+| `goal_runs` | goal_runs[] | — | — |
+| `goal_events` | goal_events[] | — | — |
+| `goal_artifacts` | goal_artifacts[] | — | — |
 
 ### workspace_chats (`workspace_chats`)
 | Field | Type | Default | Notes |
@@ -387,6 +399,24 @@ A conversation thread within a workspace. Can represent a meeting or a standalon
 | `api_session_id` | String? | — | String identifier for only the dev API to partition chats in any mode. |
 | `feedbackScore` | Boolean? | — | — |
 | `users` | users? | — | — |
+
+### terminal_ui_events (`terminal_ui_events`)
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `workspaceId` | Int | — | — |
+| `scope_key` | String | — | — |
+| `event_key` | String | — | — |
+| `type` | String | — | — |
+| `domain` | String? | — | — |
+| `content` | String | — | — |
+| `assistant_agent` | String? | — | — |
+| `source_chat_id` | Int? | — | — |
+| `user_id` | Int? | — | — |
+| `thread_id` | Int? | — | — |
+| `api_session_id` | String? | — | — |
+| `occurredAt` | DateTime? | — | — |
+| `workspace` | workspaces | — | — |
+| `user` | users? | — | — |
 
 ### AgentInvocation (`workspace_agent_invocations`)
 A single agent task invocation with lifecycle state tracking.
@@ -828,6 +858,124 @@ A discrete task created within a workspace.
 | `updated_at` | DateTime | — | — |
 | `workspace` | workspaces | — | — |
 | `user` | users? | — | — |
+| `thread` | workspace_threads? | — | — |
+
+### goals (`goals`)
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `uuid` | String | uuid( | — |
+| `goal_key` | String | — | — |
+| `title` | String | — | — |
+| `description` | String? | — | — |
+| `status` | String | idle | idle, running, due, acted, blocked, disabled, achieved |
+| `priority` | String? | normal | — |
+| `last_run_at` | DateTime? | — | — |
+| `last_achieved_at` | DateTime? | — | — |
+| `metadata` | String? | — | — |
+| `created_at` | DateTime | now( | — |
+| `updated_at` | DateTime | — | — |
+| `sources` | goal_sources[] | — | — |
+| `runs` | goal_runs[] | — | — |
+| `events` | goal_events[] | — | — |
+| `artifacts` | goal_artifacts[] | — | — |
+
+### goal_sources (`goal_sources`)
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `uuid` | String | uuid( | — |
+| `goal_id` | Int | — | — |
+| `source_type` | String | — | — |
+| `source_ref` | String | — | — |
+| `workspace_id` | Int? | — | — |
+| `thread_id` | Int? | — | — |
+| `metadata` | String? | — | — |
+| `created_at` | DateTime | now( | — |
+| `updated_at` | DateTime | — | — |
+| `goal` | goals | — | — |
+| `workspace` | workspaces? | — | — |
+| `thread` | workspace_threads? | — | — |
+| `runs` | goal_runs[] | — | — |
+| `events` | goal_events[] | — | — |
+
+### goal_runs (`goal_runs`)
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `uuid` | String | uuid( | — |
+| `goal_id` | Int | — | — |
+| `goal_source_id` | Int? | — | — |
+| `run_role` | String | monitoring | — |
+| `workspace_id` | Int? | — | — |
+| `thread_id` | Int? | — | — |
+| `thread_slug` | String? | — | — |
+| `task_session_key` | String? | — | — |
+| `status` | String | running | running, acted, no_action, error, blocked, achieved |
+| `trigger` | String? | — | — |
+| `started_at` | DateTime | — | — |
+| `completed_at` | DateTime? | — | — |
+| `message_preview` | String? | — | — |
+| `error` | String? | — | — |
+| `activity_card_id` | String? | — | — |
+| `runtime_session_id` | String? | — | — |
+| `executor_agent` | String? | — | — |
+| `executor_type` | String? | — | — |
+| `executor_provider_id` | String? | — | — |
+| `executor_model` | String? | — | — |
+| `metadata` | String? | — | — |
+| `created_at` | DateTime | now( | — |
+| `updated_at` | DateTime | — | — |
+| `goal` | goals | — | — |
+| `source` | goal_sources? | — | — |
+| `workspace` | workspaces? | — | — |
+| `thread` | workspace_threads? | — | — |
+| `events` | goal_events[] | — | — |
+| `artifacts` | goal_artifacts[] | — | — |
+
+### goal_events (`goal_events`)
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `uuid` | String | uuid( | — |
+| `goal_id` | Int | — | — |
+| `goal_source_id` | Int? | — | — |
+| `goal_run_id` | Int? | — | — |
+| `activity_role` | String? | — | — |
+| `workspace_id` | Int? | — | — |
+| `thread_id` | Int? | — | — |
+| `thread_slug` | String? | — | — |
+| `event_type` | String | — | — |
+| `activity_card_id` | String? | — | — |
+| `runtime_session_id` | String? | — | — |
+| `payload` | String? | — | — |
+| `occurred_at` | DateTime | — | — |
+| `created_at` | DateTime | now( | — |
+| `goal` | goals | — | — |
+| `source` | goal_sources? | — | — |
+| `run` | goal_runs? | — | — |
+| `workspace` | workspaces? | — | — |
+| `thread` | workspace_threads? | — | — |
+
+### goal_artifacts (`goal_artifacts`)
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `uuid` | String | uuid( | — |
+| `goal_id` | Int | — | — |
+| `goal_run_id` | Int? | — | — |
+| `workspace_id` | Int? | — | — |
+| `thread_id` | Int? | — | — |
+| `thread_slug` | String? | — | — |
+| `activity_role` | String? | — | — |
+| `artifact_role` | String | supporting | supporting, completion |
+| `artifact_type` | String | file | file, report, document, output |
+| `label` | String | — | — |
+| `path` | String | — | — |
+| `is_absolute` | Boolean | false | — |
+| `activity_card_id` | String? | — | — |
+| `runtime_session_id` | String? | — | — |
+| `metadata` | String? | — | — |
+| `created_at` | DateTime | now( | — |
+| `updated_at` | DateTime | — | — |
+| `goal` | goals | — | — |
+| `run` | goal_runs? | — | — |
+| `workspace` | workspaces? | — | — |
 | `thread` | workspace_threads? | — | — |
 
 ### ChannelPlugin (`channel_plugins`)

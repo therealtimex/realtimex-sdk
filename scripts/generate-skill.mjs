@@ -541,6 +541,335 @@ function renderMethodSig(m) {
   return `${statKw}${asyncKw}${genKw}${m.name}(${m.params}): ${m.returnType}`;
 }
 
+function slugify(value) {
+  return String(value || '')
+    .replace(/sdk\.v1\./g, 'v1-')
+    .replace(/sdk\./g, '')
+    .replace(/—.*$/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase();
+}
+
+function moduleReferenceFileName(key, group) {
+  if (key === 'sdk') return 'core.md';
+  return `${slugify(group || key)}.md`;
+}
+
+function renderModuleReference(group, data, pkgVersion) {
+  const L = [];
+  L.push(`# ${group}`);
+  L.push(``);
+  L.push(`> Auto-generated from \`@realtimex/sdk\` source · v**${pkgVersion}** · ${new Date().toISOString().slice(0,10)}`);
+  L.push(``);
+
+  if (!data?.classes?.length && !data?.interfaces?.length) {
+    L.push(`No exported SDK classes or surface interfaces were detected for this module.`);
+    return L.join('\n');
+  }
+
+  for (const cls of data.classes || []) {
+    if (['ContractRuntime','ContractCache','ContractClient','RetryPolicy',
+         'ScopeGuard','StaticAuthProvider','ToolProjector','ExecutionStore',
+         'LifecycleReporter','LLMPermissionError','LLMProviderError',
+         'PermissionDeniedError','PermissionRequiredError'].includes(cls.name)) continue;
+
+    L.push(`## \`${cls.name}\`${cls.extends ? ` *(extends ${cls.extends})*` : ''}`);
+    L.push(``);
+    if (cls.jsDoc) {
+      L.push(`> ${cls.jsDoc}`);
+      L.push(``);
+    }
+
+    const notableProps = cls.props.filter(p =>
+      !['realtimexUrl','baseUrl','appId','appName','apiKey','httpClient',
+        'callbackSecret','signCallbacksByDefault','permissions'].includes(p.name)
+    );
+    if (notableProps.length) {
+      L.push(`### Public Properties`);
+      L.push(``);
+      for (const p of notableProps) {
+        L.push(`- \`${p.readonly ? 'readonly ' : ''}${p.name}: ${p.type}\``);
+      }
+      L.push(``);
+    }
+
+    if (cls.methods.length) {
+      L.push(`### Methods`);
+      L.push(``);
+      L.push('```ts');
+      for (const m of cls.methods) {
+        if (m.jsDoc) L.push(`// ${m.jsDoc}`);
+        L.push(renderMethodSig(m));
+        L.push('');
+      }
+      while (L[L.length - 1] === '') L.pop();
+      L.push('```');
+      L.push(``);
+    }
+  }
+
+  for (const iface of (data.interfaces || [])) {
+    if (!SURFACE_INTERFACES.has(iface.name)) continue;
+    L.push(`## \`${iface.name}\``);
+    L.push(``);
+    if (iface.jsDoc) {
+      L.push(`> ${iface.jsDoc}`);
+      L.push(``);
+    }
+    if (iface.members.length) {
+      L.push('```ts');
+      for (const m of iface.members) L.push(m);
+      L.push('```');
+      L.push(``);
+    }
+  }
+
+  while (L[L.length - 1] === '') L.pop();
+  return L.join('\n') + '\n';
+}
+
+function generateApiReferenceIndex(modules, pkgVersion) {
+  const L = [];
+  L.push(`# API Reference Index`);
+  L.push(``);
+  L.push(`> Auto-generated from \`@realtimex/sdk\` source · v**${pkgVersion}** · ${new Date().toISOString().slice(0,10)}`);
+  L.push(``);
+  L.push(`Use these files for exact SDK signatures. Topic guides in \`references/*.md\` explain workflows.`);
+  L.push(``);
+  L.push(`| Module | File |`);
+  L.push(`|---|---|`);
+  for (const [, key, group, data] of modules) {
+    if (!data?.classes?.length && !data?.interfaces?.length) continue;
+    const file = moduleReferenceFileName(key, group);
+    L.push(`| ${group} | [${file}](./${file}) |`);
+  }
+  L.push(``);
+  L.push(`The legacy aggregate reference remains available at \`../api-reference.md\`.`);
+  return L.join('\n') + '\n';
+}
+
+function generateTopicReferences(pkgVersion) {
+  const date = new Date().toISOString().slice(0, 10);
+  const header = (title) => `# ${title}\n\n> Generated workflow guide · SDK **${pkgVersion}** · ${date}\n\n`;
+  return {
+    'quickstart.md': header('Quickstart') + [
+      'Use this when starting any SDK task.',
+      '',
+      '```js',
+      "const { initSDK } = require('<SKILL_DIR>/scripts/lib/sdk-init');",
+      'const { sdk, context } = await initSDK();',
+      '```',
+      '',
+      'Rules:',
+      '- Use the working directory or system temp for helper scripts, never the skill directory.',
+      '- Exit scripts explicitly with `process.exit(0)` or `process.exit(1)`.',
+      '- Check `context.workspaceSlug` and `context.threadSlug` before asking the user.',
+      '- For exact signatures, open `references/api-reference/index.md`.',
+      '',
+    ].join('\n'),
+    'permissions.md': header('Permissions') + [
+      'LocalApps using `x-app-id` must request permissions before calling protected SDK routes.',
+      '',
+      '| Permission | Use For |',
+      '|---|---|',
+      '| `api.agents` | List agents |',
+      '| `api.workspaces` | List workspaces |',
+      '| `api.threads` | List workspace threads |',
+      '| `api.task` | Read task status |',
+      '| `activities.read` | Read activities |',
+      '| `activities.write` | Create/update/delete activities |',
+      '| `llm.chat` | LLM chat and streaming chat |',
+      '| `llm.embed` | Generate embeddings |',
+      '| `llm.providers` | List LLM/embed providers |',
+      '| `vectors.read` | Query/list vector stores |',
+      '| `vectors.write` | Upsert/delete vectors |',
+      '| `mcp.servers` | List MCP servers |',
+      '| `mcp.tools` | List/execute MCP tools |',
+      '| `acp.agent` | ACP agent sessions |',
+      '| `desktop.runtime-sessions` | Visible Electron terminal sessions |',
+      '| `desktop.browser` | RealTimeX Browser sessions and tabs |',
+      '| `channels.manage` | External chat channel setup and administration |',
+      '| `tts.generate` | Text-to-speech |',
+      '| `stt.listen` | Speech-to-text |',
+      '| `credentials.read` | Read stored credentials |',
+      '',
+      'API-key dev mode has wildcard access.',
+      '',
+    ].join('\n'),
+    'workspaces.md': header('Workspaces And Threads') + [
+      'Use this before any task that needs workspace/thread context.',
+      '',
+      'Priority order:',
+      '1. Explicit user-provided workspace/thread.',
+      '2. `context.workspaceSlug` / `context.threadSlug` from `initSDK()`.',
+      '3. `RTX_WORKSPACE_SLUG` / `RTX_THREAD_SLUG` in spawned sessions.',
+      '4. List workspaces and threads, then ask only if ambiguous.',
+      '',
+      'Useful calls:',
+      '',
+      '```js',
+      'await sdk.api.getWorkspaces();',
+      'await sdk.api.getThreads(workspaceSlug);',
+      'await sdk.v1.workspace.listWorkspaces();',
+      'await sdk.v1.thread.listWorkspaceThreads(slug);',
+      '```',
+      '',
+    ].join('\n'),
+    'agents.md': header('Agents') + [
+      'Use `sdk.api` for lightweight lists and `sdk.agent` / `sdk.acpAgent` for execution.',
+      '',
+      '```js',
+      'await sdk.api.getAgents();',
+      'await sdk.webhook.triggerAgent(agentSlug, workspaceSlug, message);',
+      'await sdk.agent.chat({ workspaceSlug, agent: agentSlug, message });',
+      '```',
+      '',
+      'Use ACP only for headless/background CLI agent sessions. Use `sdk.desktopRuntimeSessions` for visible Electron terminals.',
+      '',
+    ].join('\n'),
+    'terminal-sessions.md': header('Desktop Terminal Sessions') + [
+      'Use this for visible Electron terminal sessions.',
+      '',
+      'Correct namespace:',
+      '',
+      '```js',
+      'sdk.desktopRuntimeSessions',
+      '```',
+      '',
+      'Do not use ACP for visible terminals unless the user explicitly asks for headless ACP.',
+      '',
+      'Examples:',
+      '',
+      '```js',
+      'await sdk.desktopRuntimeSessions.launchTerminalCliAgent({',
+      '  workspaceSlug,',
+      '  threadSlug,',
+      '  agentName: "claude",',
+      '  providerId: "claude-cli",',
+      '  presentationMode: "panel",',
+      '  message: "what is current working dir"',
+      '});',
+      '',
+      'await sdk.desktopRuntimeSessions.launchTerminalShell({',
+      '  workspaceSlug,',
+      '  threadSlug,',
+      '  presentationMode: "panel",',
+      '  initialCommand: "pwd",',
+      '  initialCommandMode: "direct"',
+      '});',
+      '```',
+      '',
+    ].join('\n'),
+    'browser.md': header('RealTimeX Browser') + [
+      'Use this for managed RealTimeX Browser sessions and tabs.',
+      '',
+      'Correct namespace:',
+      '',
+      '```js',
+      'sdk.desktopBrowser',
+      '```',
+      '',
+      'Preferred flow:',
+      '1. Create or get a named browser session.',
+      '2. Read its `remoteDebugPort`.',
+      '3. Use the `agent-browser` skill against that CDP port for page interaction.',
+      '',
+      '```js',
+      'await sdk.desktopBrowser.createSession({ sessionName: "docs-research" });',
+      'await sdk.desktopBrowser.createTab({',
+      '  sessionName: "docs-research",',
+      '  url: "https://example.com"',
+      '});',
+      'const session = await sdk.desktopBrowser.getSession("docs-research");',
+      '```',
+      '',
+      'Avoid mutating reserved `acp-*` browser sessions unless the user explicitly asks for internal ACP browser flows.',
+      '',
+    ].join('\n'),
+    'channels.md': header('External Chat Channels') + [
+      'Use this for Telegram, Zalo, WhatsApp, Discord, Slack, and other chat channel setup.',
+      '',
+      'Required LocalApp permission for `x-app-id` mode:',
+      '',
+      '```js',
+      'permissions: ["channels.manage"]',
+      '```',
+      '',
+      'Main namespace:',
+      '',
+      '```js',
+      'sdk.v1.channels',
+      '```',
+      '',
+      'RealTimeX-side setup flow:',
+      '1. Choose workspace and optional thread.',
+      '2. Collect provider credentials or start QR flow.',
+      '3. Test credentials with `pluginsTest(...)` when the provider supports it.',
+      '4. Create the plugin with `createPlugin(...)`.',
+      '5. For QR providers, call `pluginsQrLoginStart(...)`, ask the user to scan, then poll `getState(...)`.',
+      '6. Configure policies with `pluginsPolicies(...)` where relevant.',
+      '7. Start the plugin with `pluginsStart(...)`.',
+      '8. Verify `getStatus()` and ask the user to send a first message from the external platform.',
+      '',
+      'Telegram still requires the user to create a bot in BotFather and provide the bot token. WhatsApp and Zalo personal require the user to scan a QR code.',
+      '',
+      'Example:',
+      '',
+      '```js',
+      'await sdk.v1.channels.createPlugin({',
+      '  workspace_id: 1,',
+      '  plugin_type: "telegram",',
+      '  name: "Support Telegram",',
+      '  enabled: false,',
+      '  config: { botToken: process.env.TELEGRAM_BOT_TOKEN },',
+      '  settings: { thread_id: null, agentWhitelist: ["*"] }',
+      '});',
+      '```',
+      '',
+      'Exact generated methods are in `api-reference/v1-channels.md`.',
+      '',
+    ].join('\n'),
+    'llm.md': header('LLM And Vector Store') + [
+      'Use `sdk.llm` for chat, streaming, embeddings, and vector helpers.',
+      '',
+      'Common permissions: `llm.chat`, `llm.embed`, `llm.providers`, `vectors.read`, `vectors.write`.',
+      '',
+      '```js',
+      'await sdk.llm.chat([{ role: "user", content: "Hello" }]);',
+      'await sdk.llm.embed(["text to embed"]);',
+      'await sdk.llm.vectors.query(vector, { workspaceId });',
+      '```',
+      '',
+    ].join('\n'),
+    'mcp.md': header('MCP') + [
+      'Use `sdk.mcp` to list MCP servers, list tools, and execute tools.',
+      '',
+      'Required permissions: `mcp.servers` and `mcp.tools`.',
+      '',
+      '```js',
+      'await sdk.mcp.getServers();',
+      'await sdk.mcp.getTools(serverName);',
+      'await sdk.mcp.executeTool(serverName, toolName, args);',
+      '```',
+      '',
+    ].join('\n'),
+    'activities.md': header('Activities') + [
+      'Use `sdk.activities` for activity CRUD.',
+      '',
+      'Required permissions: `activities.read` and/or `activities.write`.',
+      '',
+      '```js',
+      'await sdk.activities.list({ status: "pending" });',
+      'await sdk.activities.insert({ type: "note", text: "..." });',
+      'await sdk.activities.update(id, updates);',
+      'await sdk.activities.delete(id);',
+      '```',
+      '',
+    ].join('\n'),
+  };
+}
+
 function generateApiReference(modules, pkgVersion) {
   const L = [];
 
@@ -917,9 +1246,12 @@ console.log(`  ${issues.filter(i=>i.detected).length}/${issues.length} detected\
 const apiRef     = generateApiReference(modules, pkgVersion);
 const knownIssues = generateKnownIssues(issues, pkgVersion);
 const skillMd    = generateSkillMd(modules, pkgVersion, issues);
+const apiIndex   = generateApiReferenceIndex(modules, pkgVersion);
+const topicRefs  = generateTopicReferences(pkgVersion);
 
 const skillMdPath  = path.join(OUT_DIR, 'SKILL.md');
 const apiRefPath   = path.join(OUT_DIR, 'references', 'api-reference.md');
+const apiRefDir    = path.join(OUT_DIR, 'references', 'api-reference');
 const issuesPath   = path.join(OUT_DIR, 'references', 'known-issues.md');
 
 // Runtime scripts — read from templates, always written (never conditional on --force)
@@ -934,6 +1266,17 @@ if (fs.existsSync(credRefSrc)) {
 
 // Markdown — api-reference and known-issues always updated
 write(apiRefPath,  apiRef);
+write(path.join(apiRefDir, 'index.md'), apiIndex);
+for (const [, key, group, data] of modules) {
+  if (!data?.classes?.length && !data?.interfaces?.length) continue;
+  write(
+    path.join(apiRefDir, moduleReferenceFileName(key, group)),
+    renderModuleReference(group, data, pkgVersion)
+  );
+}
+for (const [file, content] of Object.entries(topicRefs)) {
+  write(path.join(OUT_DIR, 'references', file), content);
+}
 write(issuesPath,  knownIssues);
 
 // SKILL.md — only overwrite if --force or new

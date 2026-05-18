@@ -25,6 +25,7 @@ from .v1_thread import V1ThreadModule
 from .v1_users import V1UsersModule
 from .v1_openai import V1OpenAIModule
 from .v1_embed import V1EmbedModule
+from .v1_channels import V1ChannelsModule
 from .v1_desktop_runtime_sessions import V1DesktopRuntimeSessionsModule
 from .v1_desktop_browser import V1DesktopBrowserModule
 # [GENERATED-IMPORTS-END]
@@ -52,6 +53,7 @@ __all__ = [
     "V1UsersModule",
     "V1OpenAIModule",
     "V1EmbedModule",
+    "V1ChannelsModule",
     "V1DesktopRuntimeSessionsModule",
     "V1DesktopBrowserModule",
 # [GENERATED-ALL-END]

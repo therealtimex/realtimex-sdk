@@ -27,6 +27,7 @@ export { V1ThreadModule } from './modules/v1Thread';
 export { V1UsersModule } from './modules/v1Users';
 export { V1OpenAIModule } from './modules/v1OpenAI';
 export { V1EmbedModule } from './modules/v1Embed';
+export { V1ChannelsModule } from './modules/v1Channels';
 export { V1DesktopRuntimeSessionsModule } from './modules/v1DesktopRuntimeSessions';
 export { V1DesktopBrowserModule } from './modules/v1DesktopBrowser';
 // [GENERATED-MODULE-EXPORTS-END]
