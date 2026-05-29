@@ -16,6 +16,7 @@ const path = require('path');
 const fs   = require('fs');
 const os   = require('os');
 const readline = require('readline');
+const { createRequire } = require('module');
 
 const ALL_PERMISSIONS = [
   'api.agents', 'api.workspaces', 'api.threads', 'api.task',
@@ -29,6 +30,35 @@ const ALL_PERMISSIONS = [
 
 /** Well-known file written by RealtimeX server for seamless auth. */
 const SDK_APP_ID_FILE = path.join(os.homedir(), '.realtimex.ai', '.sdk-app-id');
+
+function requireRealtimeXSDK() {
+  try {
+    return require('@realtimex/sdk');
+  } catch (err) {
+    if (err?.code !== 'MODULE_NOT_FOUND') throw err;
+  }
+
+  const moduleRoots = [
+    process.env.RTX_SDK_MODULE_ROOT,
+    process.env.RTX_SERVER_ROOT,
+    path.join(os.homedir(), '.realtimex.ai', 'Resources', 'server'),
+  ].filter(Boolean);
+
+  for (const root of moduleRoots) {
+    const packagePath = path.join(root, 'package.json');
+    if (!fs.existsSync(packagePath)) continue;
+
+    try {
+      return createRequire(packagePath)('@realtimex/sdk');
+    } catch (err) {
+      if (err?.code !== 'MODULE_NOT_FOUND') throw err;
+    }
+  }
+
+  throw new Error(
+    'Cannot find @realtimex/sdk. Install it with this skill, set RTX_SDK_MODULE_ROOT, or set RTX_SERVER_ROOT to the RealTimeX server directory.'
+  );
+}
 
 function normalizeContextValue(value) {
   const normalized = String(value || '').trim();
@@ -108,7 +138,7 @@ function resolveDefaultWorkspaceThreadContext(overrides = {}) {
 }
 
 async function initSDK(opts = {}) {
-  const { RealtimeXSDK } = require('@realtimex/sdk');
+  const { RealtimeXSDK } = requireRealtimeXSDK();
   const { apiKey, appId } = await resolveCredentials(opts);
   const context = resolveDefaultWorkspaceThreadContext(opts);
 
@@ -132,6 +162,7 @@ async function initSDK(opts = {}) {
 
 module.exports = {
   initSDK,
+  requireRealtimeXSDK,
   resolveCredentials,
   resolveDefaultWorkspaceThreadContext,
   parseEnvFile,

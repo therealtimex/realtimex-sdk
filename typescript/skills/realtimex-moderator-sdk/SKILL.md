@@ -1,13 +1,13 @@
 ---
 name: realtimex-moderator-sdk
 description: Control and interact with the RealTimeX application through its Node.js SDK. Use for workspaces, threads, agents, activities, LLM chat, vector store, MCP tools, ACP sessions, desktop terminal/browser sessions, chat channels, TTS/STT, and other RealTimeX platform APIs. Load detailed version-matched instructions with `rtx.js skills get <topic>`.
-generated: 2026-05-18
-sdk_version: 1.7.19
+generated: 2026-05-29
+sdk_version: 1.7.22
 ---
 
 # RealTimeX Moderator SDK
 
-SDK-backed control of the local RealTimeX platform (`http://localhost:3001`) using `@realtimex/sdk` **v1.7.19**.
+SDK-backed control of the local RealTimeX platform (`http://localhost:3001`) using `@realtimex/sdk` **v1.7.22**.
 
 This file is the discovery stub. Load workflow content from the bundled CLI so instructions match the installed SDK version.
 

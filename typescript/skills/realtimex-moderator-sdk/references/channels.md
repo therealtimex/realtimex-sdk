@@ -1,6 +1,6 @@
 # External Chat Channels
 
-> Generated workflow guide · SDK **1.7.19** · 2026-05-18
+> Generated workflow guide · SDK **1.7.22** · 2026-05-29
 
 Use this for Telegram, Zalo, WhatsApp, Discord, Slack, and other chat channel setup.
 

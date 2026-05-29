@@ -1,6 +1,6 @@
 # Agents
 
-> Generated workflow guide · SDK **1.7.19** · 2026-05-18
+> Generated workflow guide · SDK **1.7.22** · 2026-05-29
 
 Use `sdk.api` for lightweight lists and `sdk.agent` / `sdk.acpAgent` for execution.
 

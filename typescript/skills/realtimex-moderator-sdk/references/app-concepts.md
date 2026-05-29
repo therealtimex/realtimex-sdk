@@ -137,7 +137,7 @@ Skills are loaded from git repositories, zip files, or installed plugins.
 
 ### Skill Status
 
-Valid values: `draft`, `published`
+Valid values: `candidate`, `draft`, `published`
 
 ---
 
@@ -221,7 +221,9 @@ A platform user account.
 | `desktop_mobile_devices` | desktop_mobile_devices[] | — | — |
 | `workspace_parsed_files` | workspace_parsed_files[] | — | — |
 | `workspace_tasks` | workspace_tasks[] | — | — |
+| `webhook_ingress_endpoints` | webhook_ingress_endpoints[] | — | — |
 | `agent_working_directories` | agent_working_directories[] | — | — |
+| `acp_activity_events` | acp_activity_events[] | — | — |
 
 ### agent_working_directories (`agent_working_directories`)
 | Field | Type | Default | Notes |
@@ -287,6 +289,7 @@ A chat/knowledge space with its own documents, LLM config, and agent settings.
 | `workspace_configs` | workspace_configs? | — | — |
 | `webhook_data` | webhook_data[] | — | — |
 | `workspace_parsed_files` | workspace_parsed_files[] | — | — |
+| `webhook_ingress_endpoints` | webhook_ingress_endpoints[] | — | — |
 | `knowledgeConfig` | String? | — | — |
 | `type` | String? | default | — |
 | `workspace_tasks` | workspace_tasks[] | — | — |
@@ -295,6 +298,7 @@ A chat/knowledge space with its own documents, LLM config, and agent settings.
 | `goal_events` | goal_events[] | — | — |
 | `goal_artifacts` | goal_artifacts[] | — | — |
 | `terminal_ui_events` | terminal_ui_events[] | — | — |
+| `acp_activity_events` | acp_activity_events[] | — | — |
 | `channel_plugins` | channel_plugins[] | — | — |
 | `agentic_cli_workspace_overrides` | agentic_cli_workspace_overrides[] | — | — |
 
@@ -364,6 +368,7 @@ A conversation thread within a workspace. Can represent a meeting or a standalon
 | `chatProvider` | String? | — | — |
 | `chatModel` | String? | — | — |
 | `chatTuningConfig` | String? | — | — |
+| `terminalAgent` | String? | — | — |
 | `meeting_source` | String? | manual | — |
 | `meeting_status` | String? | draft | — |
 | `scheduled_start_at` | DateTime? | — | — |
@@ -381,6 +386,7 @@ A conversation thread within a workspace. Can represent a meeting or a standalon
 | `meeting_outputs` | meeting_outputs[] | — | — |
 | `workspace_parsed_files` | workspace_parsed_files[] | — | — |
 | `workspace_tasks` | workspace_tasks[] | — | — |
+| `webhook_ingress_endpoints` | webhook_ingress_endpoints[] | — | — |
 | `goal_sources` | goal_sources[] | — | — |
 | `goal_runs` | goal_runs[] | — | — |
 | `goal_events` | goal_events[] | — | — |
@@ -401,6 +407,24 @@ A conversation thread within a workspace. Can represent a meeting or a standalon
 | `users` | users? | — | — |
 
 ### terminal_ui_events (`terminal_ui_events`)
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `workspaceId` | Int | — | — |
+| `scope_key` | String | — | — |
+| `event_key` | String | — | — |
+| `type` | String | — | — |
+| `domain` | String? | — | — |
+| `content` | String | — | — |
+| `assistant_agent` | String? | — | — |
+| `source_chat_id` | Int? | — | — |
+| `user_id` | Int? | — | — |
+| `thread_id` | Int? | — | — |
+| `api_session_id` | String? | — | — |
+| `occurredAt` | DateTime? | — | — |
+| `workspace` | workspaces | — | — |
+| `user` | users? | — | — |
+
+### acp_activity_events (`acp_activity_events`)
 | Field | Type | Default | Notes |
 |---|---|---|---|
 | `workspaceId` | Int | — | — |
@@ -589,6 +613,147 @@ Configuration for an embeddable chat widget hosted on an external site.
 | `a2aMetadata` | String | {} | A2A protocol metadata (Agent Card) |
 | `tags` | String? | — | JSON array of tags |
 | `lastModified` | DateTime | now( | — |
+
+### webhook_ingress_endpoints (`webhook_ingress_endpoints`)
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `endpoint_id` | String | uuid( | — |
+| `public_id` | String | — | — |
+| `name` | String | — | — |
+| `preset` | String | generic-hmac | — |
+| `preset_version` | Int | 1 | — |
+| `enabled` | Boolean | true | — |
+| `workspace_id` | Int | — | — |
+| `thread_id` | Int? | — | — |
+| `thread_name` | String? | — | — |
+| `verification_mode` | String | hmac-sha256 | — |
+| `secret_ciphertext` | String | — | — |
+| `profile_config` | String? | — | JSON object for provider/profile-specific endpoint settings |
+| `signature_header` | String | — | — |
+| `signature_prefix` | String? | sha256= | — |
+| `timestamp_header` | String? | — | — |
+| `delivery_id_header` | String? | — | — |
+| `event_type_header` | String? | — | — |
+| `source_header` | String? | — | — |
+| `allowed_source_paths` | String? | — | JSON array of provider source paths like "owner/repo" or "group/project" |
+| `replay_window_seconds` | Int | 300 | — |
+| `payload_size_limit_bytes` | Int | 1048576 | — |
+| `created_by` | Int? | — | — |
+| `last_delivery_at` | DateTime? | — | — |
+| `last_delivery_status` | String? | — | — |
+| `workspace` | workspaces | — | — |
+| `thread` | workspace_threads? | — | — |
+| `user` | users? | — | — |
+| `deliveries` | webhook_ingress_deliveries[] | — | — |
+| `events` | webhook_ingress_events[] | — | — |
+
+### webhook_ingress_deliveries (`webhook_ingress_deliveries`)
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `delivery_id` | String | uuid( | — |
+| `endpoint_row_id` | Int | — | — |
+| `request_method` | String | — | — |
+| `request_path` | String | — | — |
+| `request_query` | String? | — | — |
+| `request_headers` | String? | — | — |
+| `raw_body` | String? | — | — |
+| `body_hash` | String | — | — |
+| `content_type` | String? | — | — |
+| `body_size_bytes` | Int | 0 | — |
+| `signature_header_value` | String? | — | — |
+| `extracted_delivery_id` | String? | — | — |
+| `extracted_event_type` | String? | — | — |
+| `extracted_source` | String? | — | — |
+| `signature_status` | String | pending | — |
+| `replay_status` | String | pending | — |
+| `dedupe_status` | String | pending | — |
+| `route_status` | String | pending | — |
+| `processing_status` | String | received | — |
+| `verification_error` | String? | — | — |
+| `route_error` | String? | — | — |
+| `routed_thread_id` | Int? | — | — |
+| `routed_task_id` | Int? | — | — |
+| `received_at` | DateTime | now( | — |
+| `processed_at` | DateTime? | — | — |
+| `endpoint` | webhook_ingress_endpoints | — | — |
+| `normalized_event` | webhook_ingress_events? | — | — |
+
+### webhook_ingress_events (`webhook_ingress_events`)
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `event_id` | String | uuid( | — |
+| `endpoint_id` | String | — | — |
+| `delivery_id` | String | — | — |
+| `provider` | String | — | — |
+| `normalized_type` | String | — | — |
+| `source_key` | String? | — | — |
+| `source_label` | String? | — | — |
+| `subject_key` | String? | — | — |
+| `subject_label` | String? | — | — |
+| `ref_name` | String? | — | — |
+| `status_text` | String? | — | — |
+| `event_url` | String? | — | — |
+| `summary_json` | String? | — | — |
+| `payload_json` | String? | — | — |
+| `repo_full_name` | String? | — | — |
+| `repository_url` | String? | — | — |
+| `action` | String? | — | — |
+| `conclusion` | String? | — | — |
+| `workflow_name` | String? | — | — |
+| `branch` | String? | — | — |
+| `commit_sha` | String? | — | — |
+| `run_url` | String? | — | — |
+| `external_id` | String? | — | — |
+| `payload` | String | — | — |
+| `route_status` | String | pending | — |
+| `route_reason` | String? | — | — |
+| `routed_thread_id` | Int? | — | — |
+| `routed_task_id` | Int? | — | — |
+| `endpoint` | webhook_ingress_endpoints | — | — |
+| `delivery` | webhook_ingress_deliveries | — | — |
+
+### webhook_ingress_exposures (`webhook_ingress_exposures`)
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `scope_key` | String | — | — |
+| `provider` | String | cloudflare | — |
+| `status` | String | idle | — |
+| `exposure_id` | String? | — | — |
+| `tunnel_id` | String? | — | — |
+| `tunnel_name` | String? | — | — |
+| `hostname` | String? | — | — |
+| `public_base_url` | String? | — | — |
+| `connector_command` | String? | — | — |
+| `connector_args` | String? | — | — |
+| `connector_token_ciphertext` | String? | — | — |
+| `dns_record_id` | String? | — | — |
+| `dns_record_name` | String? | — | — |
+| `last_error` | String? | — | — |
+| `provisioned_at` | DateTime? | — | — |
+| `last_started_at` | DateTime? | — | — |
+| `last_verified_at` | DateTime? | — | — |
+| `released_at` | DateTime? | — | — |
+| `created_by` | Int? | — | — |
+
+### webhook_ingress_relays (`webhook_ingress_relays`)
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `scope_key` | String | — | — |
+| `mode` | String | broker-relay | — |
+| `provider` | String | broker | — |
+| `site_id` | String? | — | — |
+| `public_base_url` | String? | — | — |
+| `inbound_base_url` | String? | — | — |
+| `management_token_ciphertext` | String? | — | — |
+| `status` | String | idle | — |
+| `backlog_count` | Int | 0 | — |
+| `oldest_queued_at` | DateTime? | — | — |
+| `last_claimed_at` | DateTime? | — | — |
+| `last_delivery_at` | DateTime? | — | — |
+| `last_result_status` | String? | — | — |
+| `last_error` | String? | — | — |
+| `recent_attempts` | String? | — | — |
+| `created_by` | Int? | — | — |
 
 ### desktop_mobile_devices (`desktop_mobile_devices`)
 | Field | Type | Default | Notes |

@@ -1,6 +1,6 @@
 # RealTimeX Browser
 
-> Generated workflow guide · SDK **1.7.19** · 2026-05-18
+> Generated workflow guide · SDK **1.7.22** · 2026-05-29
 
 Use this for managed RealTimeX Browser sessions and tabs.
 

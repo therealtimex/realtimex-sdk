@@ -1,6 +1,6 @@
 # sdk.v1.desktopBrowser — v1 Desktop Browser
 
-> Auto-generated from `@realtimex/sdk` source · v**1.7.19** · 2026-05-18
+> Auto-generated from `@realtimex/sdk` source · v**1.7.22** · 2026-05-29
 
 ## `V1DesktopBrowserModule`
 
