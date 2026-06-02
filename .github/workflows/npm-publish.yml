@@ -8,7 +8,6 @@ on:
 
 permissions:
   contents: read
-  id-token: write  # Required for npm Trusted Publishing (OIDC)
 
 concurrency:
   group: publish-npm-${{ github.ref }}
@@ -31,16 +30,6 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
           cache: 'npm'
           cache-dependency-path: typescript/package-lock.json
-
-      - name: Get OIDC token for npm Trusted Publishing
-        id: oidc
-        run: |
-          TOKEN=$(curl -s \
-            -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=npm" \
-            | jq -r '.value')
-          echo "::add-mask::$TOKEN"
-          echo "token=$TOKEN" >> $GITHUB_OUTPUT
 
       - name: Fetch app repo source files from GitLab
         working-directory: .
@@ -81,6 +70,6 @@ jobs:
         run: npm run build
       
       - name: Publish to npm
-        run: npm publish --provenance --access public
+        run: npm publish --access public
         env:
-          NODE_AUTH_TOKEN: ${{ steps.oidc.outputs.token }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
