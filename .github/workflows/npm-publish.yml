@@ -32,6 +32,9 @@ jobs:
           cache: 'npm'
           cache-dependency-path: typescript/package-lock.json
 
+      - name: Remove auth token for OIDC
+        run: sed -i '/\/\/registry.npmjs.org\/:_authToken/d' "$NPM_CONFIG_USERCONFIG"
+
       - name: Fetch app repo source files from GitLab
         working-directory: .
         env:
@@ -71,6 +74,4 @@ jobs:
         run: npm run build
       
       - name: Publish to npm
-        run: |
-          npm config delete //registry.npmjs.org/:_authToken 2>/dev/null || true
-          npm publish --provenance --access public
+        run: npm publish --provenance --access public
