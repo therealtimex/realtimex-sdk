@@ -32,8 +32,15 @@ jobs:
           cache: 'npm'
           cache-dependency-path: typescript/package-lock.json
 
-      - name: Remove auth token for OIDC
-        run: sed -i '/\/\/registry.npmjs.org\/:_authToken/d' "$NPM_CONFIG_USERCONFIG"
+      - name: Get OIDC token for npm Trusted Publishing
+        id: oidc
+        run: |
+          TOKEN=$(curl -s \
+            -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=npm" \
+            | jq -r '.value')
+          echo "::add-mask::$TOKEN"
+          echo "token=$TOKEN" >> $GITHUB_OUTPUT
 
       - name: Fetch app repo source files from GitLab
         working-directory: .
@@ -75,3 +82,5 @@ jobs:
       
       - name: Publish to npm
         run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ steps.oidc.outputs.token }}
