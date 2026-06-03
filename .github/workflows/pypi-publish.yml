@@ -1,9 +1,6 @@
-name: Publish to PyPI
+name: Publish to PyPI (disabled)
 
 on:
-  push:
-    tags:
-      - 'v*'  # Trigger on version tags (e.g., v1.0.8)
   workflow_dispatch:
 
 permissions:
@@ -15,6 +12,7 @@ concurrency:
 
 jobs:
   build-and-publish:
+    if: ${{ false }}
     runs-on: ubuntu-latest
     
     steps:

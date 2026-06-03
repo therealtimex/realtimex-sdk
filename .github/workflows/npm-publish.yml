@@ -38,7 +38,7 @@ jobs:
         run: |
           API="https://rtgit.rta.vn/api/v4"
           PROJECT_ID="1583"
-          REF="realtimex-dev"
+          REF="756-milestone-1-unify-workspace-api-through-app-derived-operations"
           DEST="../realtimex-ai-app"
 
           fetch() {
