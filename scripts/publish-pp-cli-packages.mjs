@@ -9,7 +9,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
 const PACKAGES_ROOT = path.join(REPO_ROOT, 'pp-cli', 'packages');
 const MAIN_ROOT = path.join(REPO_ROOT, 'pp-cli', 'main');
-const NPM_SCOPE = 'realtimex';
 
 function run(command, args, options = {}) {
   const printable = [command, ...args].join(' ');
@@ -45,14 +44,6 @@ function npmPreflight() {
   }
 
   run('npm', ['whoami']);
-
-  try {
-    run('npm', ['org', 'ls', NPM_SCOPE]);
-  } catch (error) {
-    throw new Error(
-      `npm token cannot access @${NPM_SCOPE}. Create the npm org/scope and use an automation token from an npm user with publish rights for @${NPM_SCOPE}.`
-    );
-  }
 }
 
 npmPreflight();
