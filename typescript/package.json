@@ -25,6 +25,7 @@
         "sdk:generate:force": "node ../scripts/generate-v1-sdk.mjs --force",
         "sdk:diff": "node ../scripts/generate-v1-sdk.mjs --dry-run",
         "skill:generate": "node ../scripts/generate-skill.mjs --force",
+        "skill:local-test": "node ../scripts/local-test-realtimex-skill.mjs",
         "pp-cli:build": "node ../scripts/build-pp-cli-packages.mjs",
         "pp-cli:publish": "node ../scripts/publish-pp-cli-packages.mjs",
         "prepublishOnly": "npm run build && npm run skill:generate"
