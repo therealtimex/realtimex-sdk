@@ -31,6 +31,15 @@ jobs:
           cache: 'npm'
           cache-dependency-path: typescript/package-lock.json
 
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.4'
+
+      - name: Install cli-printing-press
+        working-directory: .
+        run: go install github.com/mvanhorn/cli-printing-press/v4/cmd/cli-printing-press@v4.20.1
+
       - name: Fetch app repo source files from GitLab
         working-directory: .
         env:
@@ -68,6 +77,9 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Generate bundled skill
+        run: npm run skill:generate
       
       - name: Publish to npm
         run: npm publish --access public
