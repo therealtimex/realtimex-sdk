@@ -33,6 +33,12 @@ const DEFAULT_OUT = path.join(
   'skills',
   'realtimex-moderator-sdk'
 );
+const DEFAULT_TEMPLATE = path.join(
+  REPO_ROOT,
+  'scripts',
+  'skill-templates',
+  'realtimex-moderator-sdk.md'
+);
 
 const SKILL_FILES = [
   'SKILL.md',
@@ -59,6 +65,9 @@ const SPEC_PATH = path.resolve(
   flags.spec || path.join(APP_ROOT, 'server', 'swagger', 'openapi.json')
 );
 const OUT_DIR = path.resolve(flags.out || DEFAULT_OUT);
+const TEMPLATE_PATH = flags.template === false || flags.template === 'false'
+  ? ''
+  : path.resolve(flags.template || DEFAULT_TEMPLATE);
 const CLI_NAME = String(flags.name || 'realtimex');
 const AUTH_PREFERENCE = String(flags['auth-preference'] || 'AppIdAuth');
 const PP_OUTPUT_DIR = path.resolve(
@@ -284,30 +293,93 @@ function packageSkill() {
   for (const relativePath of SKILL_FILES) {
     copySkillFile(relativePath);
   }
-  patchSkillInstallInstructions();
+  applySkillTemplate();
 }
 
-function patchSkillInstallInstructions() {
+function parseFrontmatter(markdown) {
+  if (!markdown.startsWith('---\n')) {
+    return { frontmatter: '', body: markdown };
+  }
+
+  const endIndex = markdown.indexOf('\n---\n', 4);
+  if (endIndex === -1) {
+    return { frontmatter: '', body: markdown };
+  }
+
+  return {
+    frontmatter: markdown.slice(4, endIndex),
+    body: markdown.slice(endIndex + 5).replace(/^\n/, ''),
+  };
+}
+
+function parseFrontmatterLines(frontmatter) {
+  const values = new Map();
+  for (const line of frontmatter.split('\n')) {
+    const match = line.match(/^([A-Za-z0-9_-]+):\s*(.*)$/);
+    if (!match) continue;
+    values.set(match[1], match[2]);
+  }
+  return values;
+}
+
+function mergeFrontmatter(baseFrontmatter, templateFrontmatter) {
+  const overrides = parseFrontmatterLines(templateFrontmatter);
+  if (!overrides.size) return baseFrontmatter;
+
+  const seen = new Set();
+  const lines = baseFrontmatter.split('\n').map((line) => {
+    const match = line.match(/^([A-Za-z0-9_-]+):\s*(.*)$/);
+    if (!match || !overrides.has(match[1])) return line;
+    seen.add(match[1]);
+    return `${match[1]}: ${overrides.get(match[1])}`;
+  });
+
+  for (const [key, value] of overrides.entries()) {
+    if (!seen.has(key)) lines.push(`${key}: ${value}`);
+  }
+
+  return lines.join('\n');
+}
+
+function sectionTitle(sectionMarkdown) {
+  const match = sectionMarkdown.match(/^##\s+(.+?)\s*$/m);
+  return match?.[1]?.trim();
+}
+
+function replaceSection(markdown, title, replacement) {
+  const heading = `## ${title}`;
+  const start = markdown.indexOf(heading);
+  if (start === -1) {
+    return `${markdown.trimEnd()}\n\n${replacement.trim()}\n`;
+  }
+
+  const next = markdown.indexOf('\n## ', start + heading.length);
+  const end = next === -1 ? markdown.length : next + 1;
+  return `${markdown.slice(0, start)}${replacement.trim()}\n\n${markdown.slice(end).replace(/^\n/, '')}`;
+}
+
+function applySkillTemplate() {
   const skillPath = path.join(OUT_DIR, 'SKILL.md');
   if (DRY_RUN) {
-    console.log(`[DRY-RUN] patch npm install instructions in ${skillPath}`);
+    console.log(`[DRY-RUN] apply skill template ${TEMPLATE_PATH} to ${skillPath}`);
     return;
   }
-  if (!fs.existsSync(skillPath)) return;
+  if (!fs.existsSync(skillPath) || !TEMPLATE_PATH || !fs.existsSync(TEMPLATE_PATH)) return;
 
-  const contents = fs.readFileSync(skillPath, 'utf-8');
-  const patched = contents.replace(
-    /1\. Install via the Printing Press installer:[\s\S]*?If `--version` reports "command not found" after install, the install step did not put the binary on `\$PATH`\. Do not proceed with skill commands until verification succeeds\./,
-    `1. Install via npm:
-   \`\`\`bash
-   npm install -g @realtimex/pp-cli
-   \`\`\`
-2. Verify: \`realtimex-pp-cli --version\`
-
-If \`--version\` reports "command not found" after install, the npm global bin directory is not on \`$PATH\`. Do not proceed with skill commands until verification succeeds.`
+  const base = parseFrontmatter(fs.readFileSync(skillPath, 'utf-8'));
+  const template = parseFrontmatter(
+    fs.readFileSync(TEMPLATE_PATH, 'utf-8').replaceAll('${SDK_VERSION}', SDK_VERSION)
   );
+  let body = base.body;
 
-  fs.writeFileSync(skillPath, patched);
+  for (const section of template.body.split(/\n(?=##\s+)/).map((part) => part.trim()).filter(Boolean)) {
+    const title = sectionTitle(section);
+    if (!title) continue;
+    body = replaceSection(body, title, section);
+  }
+
+  const frontmatter = mergeFrontmatter(base.frontmatter, template.frontmatter);
+  fs.writeFileSync(skillPath, `---\n${frontmatter.trim()}\n---\n\n${body.trim()}\n`);
 }
 
 function main() {
