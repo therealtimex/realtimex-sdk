@@ -18,6 +18,7 @@ export {
 // Generated module exports are appended here by generate-v1-sdk.mjs
 
 // [GENERATED-MODULE-EXPORTS-START]
+export { V1ChatModule } from './modules/v1Chat';
 export { V1WorkspaceModule } from './modules/v1Workspace';
 export { V1ThreadModule } from './modules/v1Thread';
 // [GENERATED-MODULE-EXPORTS-END]

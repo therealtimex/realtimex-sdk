@@ -12,6 +12,7 @@
 import { DeveloperApiClient } from './client';
 
 // [GENERATED-IMPORTS-START]
+import { V1ChatModule } from './modules/v1Chat';
 import { V1WorkspaceModule } from './modules/v1Workspace';
 import { V1ThreadModule } from './modules/v1Thread';
 // [GENERATED-IMPORTS-END]
@@ -21,6 +22,7 @@ export class V1ApiNamespace {
     readonly _client: DeveloperApiClient;
 
     // [GENERATED-PROPS-START]
+    public chat: V1ChatModule;
     public workspace: V1WorkspaceModule;
     public thread: V1ThreadModule;
 // [GENERATED-PROPS-END]
@@ -29,6 +31,7 @@ export class V1ApiNamespace {
         this._client = new DeveloperApiClient(baseUrl, apiKey, appId);
 
         // [GENERATED-INIT-START]
+        this.chat = new V1ChatModule(this._client);
         this.workspace = new V1WorkspaceModule(this._client);
         this.thread = new V1ThreadModule(this._client);
 // [GENERATED-INIT-END]

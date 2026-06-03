@@ -1,6 +1,6 @@
 {
     "name": "@realtimex/sdk",
-    "version": "1.7.28",
+    "version": "2.0.1",
     "description": "SDK for building Local Apps that integrate with RealtimeX",
     "main": "dist/index.js",
     "module": "dist/index.mjs",
@@ -25,6 +25,8 @@
         "sdk:generate:force": "node ../scripts/generate-v1-sdk.mjs --force",
         "sdk:diff": "node ../scripts/generate-v1-sdk.mjs --dry-run",
         "skill:generate": "node ../scripts/generate-skill.mjs --force",
+        "pp-cli:build": "node ../scripts/build-pp-cli-packages.mjs",
+        "pp-cli:publish": "node ../scripts/publish-pp-cli-packages.mjs",
         "prepublishOnly": "npm run build"
     },
     "keywords": [

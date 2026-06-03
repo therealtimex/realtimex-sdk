@@ -15,6 +15,7 @@ from __future__ import annotations
 from .client import DeveloperApiClient
 
 # [GENERATED-IMPORTS-START]
+from .v1_chat import V1ChatModule
 from .v1_workspace import V1WorkspaceModule
 from .v1_thread import V1ThreadModule
 # [GENERATED-IMPORTS-END]
@@ -26,6 +27,7 @@ class V1ApiNamespace:
         self._client = DeveloperApiClient(base_url, api_key)
 
         # [GENERATED-INIT-START]
+        self.chat = V1ChatModule(self._client)
         self.workspace = V1WorkspaceModule(self._client)
         self.thread = V1ThreadModule(self._client)
 # [GENERATED-INIT-END]

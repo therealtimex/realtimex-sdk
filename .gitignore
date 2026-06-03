@@ -36,10 +36,6 @@ ENV/
 .coverage.*
 htmlcov/
 build/
-!typescript/skills/realtimex-moderator-sdk/build/
-!typescript/skills/realtimex-moderator-sdk/build/stage/
-!typescript/skills/realtimex-moderator-sdk/build/stage/bin/
-!typescript/skills/realtimex-moderator-sdk/build/stage/bin/realtimex-pp-cli
 dist/
 site/
 .eggs/
@@ -62,3 +58,9 @@ pnpm-debug.log*
 .cache/
 tmp/
 *.tmp
+
+# Generated npm packages for @realtimex/pp-cli
+pp-cli/
+
+# Generated agent skill packaged from Printing Press output
+typescript/skills/realtimex-moderator-sdk/

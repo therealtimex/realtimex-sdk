@@ -22,6 +22,9 @@ import { spawnSync } from 'child_process';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
+const SDK_VERSION = JSON.parse(
+  fs.readFileSync(path.join(REPO_ROOT, 'typescript', 'package.json'), 'utf-8')
+).version;
 
 const DEFAULT_APP_ROOT = path.resolve(REPO_ROOT, '..', 'realtimex-ai-app');
 const DEFAULT_OUT = path.join(
@@ -215,6 +218,34 @@ function generatePrintingPressProject() {
   run(cliPrintingPress, args);
 }
 
+function patchCliVersion() {
+  const rootGo = path.join(PP_OUTPUT_DIR, 'internal', 'cli', 'root.go');
+  if (DRY_RUN) {
+    console.log(`[DRY-RUN] patch ${rootGo} version to ${SDK_VERSION}`);
+    return;
+  }
+  if (!fs.existsSync(rootGo)) return;
+
+  const contents = fs.readFileSync(rootGo, 'utf-8');
+  fs.writeFileSync(
+    rootGo,
+    contents.replace(/var version = ".*?"/, `var version = "${SDK_VERSION}"`)
+  );
+}
+
+function rebuildSkillCliBinary() {
+  if (DRY_RUN) {
+    console.log(`[DRY-RUN] rebuild ${path.join(PP_OUTPUT_DIR, 'build', 'stage', 'bin', 'realtimex-pp-cli')}`);
+    return;
+  }
+
+  const binPath = path.join(PP_OUTPUT_DIR, 'build', 'stage', 'bin', 'realtimex-pp-cli');
+  fs.mkdirSync(path.dirname(binPath), { recursive: true });
+  run('go', ['build', '-o', binPath, './cmd/realtimex-pp-cli'], {
+    cwd: PP_OUTPUT_DIR,
+  });
+}
+
 function prepareOutputDir() {
   if (!FORCE && fs.existsSync(OUT_DIR)) {
     throw new Error(`${OUT_DIR} already exists. Re-run with --force to replace it.`);
@@ -253,6 +284,30 @@ function packageSkill() {
   for (const relativePath of SKILL_FILES) {
     copySkillFile(relativePath);
   }
+  patchSkillInstallInstructions();
+}
+
+function patchSkillInstallInstructions() {
+  const skillPath = path.join(OUT_DIR, 'SKILL.md');
+  if (DRY_RUN) {
+    console.log(`[DRY-RUN] patch npm install instructions in ${skillPath}`);
+    return;
+  }
+  if (!fs.existsSync(skillPath)) return;
+
+  const contents = fs.readFileSync(skillPath, 'utf-8');
+  const patched = contents.replace(
+    /1\. Install via the Printing Press installer:[\s\S]*?If `--version` reports "command not found" after install, the install step did not put the binary on `\$PATH`\. Do not proceed with skill commands until verification succeeds\./,
+    `1. Install via npm:
+   \`\`\`bash
+   npm install -g @realtimex/pp-cli
+   \`\`\`
+2. Verify: \`realtimex-pp-cli --version\`
+
+If \`--version\` reports "command not found" after install, the npm global bin directory is not on \`$PATH\`. Do not proceed with skill commands until verification succeeds.`
+  );
+
+  fs.writeFileSync(skillPath, patched);
 }
 
 function main() {
@@ -263,6 +318,8 @@ function main() {
   console.log(`[generate-skill] skill output: ${OUT_DIR}`);
 
   generatePrintingPressProject();
+  patchCliVersion();
+  rebuildSkillCliBinary();
   packageSkill();
 
   console.log('[generate-skill] done');
