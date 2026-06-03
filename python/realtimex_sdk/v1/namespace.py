@@ -7,7 +7,7 @@ are added automatically when `node scripts/generate-v1-sdk.mjs` is run.
 Usage:
     sdk = RealtimeXSDK(config=SDKConfig(api_key="sk-..."))
     await sdk.v1.workspace.list_workspaces()
-    await sdk.v1.admin.list_users()
+    await sdk.v1.thread.create_thread("workspace-slug")
 """
 
 from __future__ import annotations
@@ -15,31 +15,10 @@ from __future__ import annotations
 from .client import DeveloperApiClient
 
 # [GENERATED-IMPORTS-START]
-from .v1_auth import V1AuthModule
-from .v1_admin import V1AdminModule
-from .v1_document import V1DocumentModule
+from .v1_chat import V1ChatModule
 from .v1_workspace import V1WorkspaceModule
-from .v1_system import V1SystemModule
 from .v1_thread import V1ThreadModule
-from .v1_users import V1UsersModule
-from .v1_openai import V1OpenAIModule
-from .v1_embed import V1EmbedModule
-from .v1_channels import V1ChannelsModule
-from .v1_desktop_runtime_sessions import V1DesktopRuntimeSessionsModule
-from .v1_desktop_browser import V1DesktopBrowserModule
 # [GENERATED-IMPORTS-END]
-
-# --- Generated module imports (added by generate-v1-sdk.mjs) ---
-# from .v1_auth import V1AuthModule
-# from .v1_admin import V1AdminModule
-# from .v1_workspace import V1WorkspaceModule
-# from .v1_thread import V1ThreadModule
-# from .v1_document import V1DocumentModule
-# from .v1_system import V1SystemModule
-# from .v1_users import V1UsersModule
-# from .v1_openai import V1OpenAIModule
-# from .v1_embed import V1EmbedModule
-
 
 class V1ApiNamespace:
     """Container for all v1 Developer API modules."""
@@ -48,27 +27,7 @@ class V1ApiNamespace:
         self._client = DeveloperApiClient(base_url, api_key)
 
         # [GENERATED-INIT-START]
-        self.auth = V1AuthModule(self._client)
-        self.admin = V1AdminModule(self._client)
-        self.document = V1DocumentModule(self._client)
+        self.chat = V1ChatModule(self._client)
         self.workspace = V1WorkspaceModule(self._client)
-        self.system = V1SystemModule(self._client)
         self.thread = V1ThreadModule(self._client)
-        self.users = V1UsersModule(self._client)
-        self.openai = V1OpenAIModule(self._client)
-        self.embed = V1EmbedModule(self._client)
-        self.channels = V1ChannelsModule(self._client)
-        self.desktopRuntimeSessions = V1DesktopRuntimeSessionsModule(self._client)
-        self.desktopBrowser = V1DesktopBrowserModule(self._client)
 # [GENERATED-INIT-END]
-
-        # --- Generated module initialisation (added by generate-v1-sdk.mjs) ---
-        # self.auth = V1AuthModule(self._client)
-        # self.admin = V1AdminModule(self._client)
-        # self.workspace = V1WorkspaceModule(self._client)
-        # self.thread = V1ThreadModule(self._client)
-        # self.document = V1DocumentModule(self._client)
-        # self.system = V1SystemModule(self._client)
-        # self.users = V1UsersModule(self._client)
-        # self.openai = V1OpenAIModule(self._client)
-        # self.embed = V1EmbedModule(self._client)

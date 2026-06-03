@@ -1,7 +1,7 @@
 {
-  "sha256": "146edc2864715e5d",
-  "path_count": 99,
-  "module_count": 12,
-  "generated_at": "2026-05-29T07:11:35.174Z",
-  "spec_path": "/Users/phuongnguyen/Documents/projects/realtimex-ai-app/server/swagger/openapi.json"
+  "sha256": "6e1eed2d292acbcc",
+  "path_count": 57,
+  "module_count": 3,
+  "generated_at": "2026-06-03T02:46:32.313Z",
+  "spec_path": "/Volumes/MAC-DATA/RTA/projects/realtimex-ai-app/server/swagger/openapi.json"
 }

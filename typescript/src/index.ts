@@ -24,8 +24,6 @@ import { DatabaseModule } from './modules/database';
 import { AuthModule } from './modules/auth';
 import { CredentialsModule } from './modules/credentials';
 import { V1ApiNamespace } from './v1/namespace';
-import { V1DesktopBrowserModule } from './v1/modules/v1DesktopBrowser';
-import { V1DesktopRuntimeSessionsModule } from './v1/modules/v1DesktopRuntimeSessions';
 
 export class RealtimeXSDK {
     public activities: ActivitiesModule;
@@ -49,16 +47,6 @@ export class RealtimeXSDK {
      * Provides access to workspace management, admin, documents, system settings, and more.
      */
     public v1: V1ApiNamespace | undefined;
-    /**
-     * Desktop terminal sessions — top-level alias for the desktop runtime session APIs.
-     * Backed by `sdk.v1.desktopRuntimeSessions` for compatibility with generated v1 modules.
-     */
-    public desktopRuntimeSessions: V1DesktopRuntimeSessionsModule | undefined;
-    /**
-     * Desktop browser control — top-level alias for the RealTimeX Browser session and tab APIs.
-     * Backed by `sdk.v1.desktopBrowser` for compatibility with generated v1 modules.
-     */
-    public desktopBrowser: V1DesktopBrowserModule | undefined;
     public readonly appId: string;
     public readonly appName: string | undefined;
     public readonly apiKey: string | undefined;
@@ -115,8 +103,6 @@ export class RealtimeXSDK {
         this.v1 = (this.apiKey || this.appId)
             ? new V1ApiNamespace(this.realtimexUrl, this.apiKey ?? '', this.appId || undefined)
             : undefined;
-        this.desktopRuntimeSessions = this.v1?.desktopRuntimeSessions;
-        this.desktopBrowser = this.v1?.desktopBrowser;
 
         // Auto-register with declared permissions (only for production mode)
         if (this.permissions.length > 0 && this.appId && !this.apiKey) {

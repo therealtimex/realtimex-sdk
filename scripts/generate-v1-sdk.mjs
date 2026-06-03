@@ -12,7 +12,7 @@
  *   node scripts/generate-v1-sdk.mjs --spec=./path/to/openapi.json
  */
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, unlinkSync } from 'fs';
 import { createHash } from 'crypto';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -39,32 +39,12 @@ const SPEC_PATH = specArg ? resolve(specArg.split('=')[1]) : DEFAULT_SPEC;
 // ─── Tag → Module config ──────────────────────────────────────────────────────
 
 const TAG_CONFIG = {
-  'Authentication':              { ts: 'v1Auth',          py: 'v1_auth',          cls: 'V1AuthModule',         prop: 'auth',         prefix: ['auth'] },
-  'Admin':                       { ts: 'v1Admin',         py: 'v1_admin',         cls: 'V1AdminModule',        prop: 'admin',        prefix: ['admin'] },
   'Workspaces':                  { ts: 'v1Workspace',     py: 'v1_workspace',     cls: 'V1WorkspaceModule',    prop: 'workspace',    prefix: ['workspace', 'workspaces'] },
   'Workspace Threads':           { ts: 'v1Thread',        py: 'v1_thread',        cls: 'V1ThreadModule',       prop: 'thread',       prefix: ['workspace', 'thread'] },
-  'Documents':                   { ts: 'v1Document',      py: 'v1_document',      cls: 'V1DocumentModule',     prop: 'document',     prefix: ['document', 'documents'] },
-  'System Settings':             { ts: 'v1System',        py: 'v1_system',        cls: 'V1SystemModule',       prop: 'system',       prefix: ['system'] },
-  'User Management':             { ts: 'v1Users',         py: 'v1_users',         cls: 'V1UsersModule',        prop: 'users',        prefix: ['users', 'user'] },
-  'OpenAI Compatible Endpoints': { ts: 'v1OpenAI',        py: 'v1_openai',        cls: 'V1OpenAIModule',       prop: 'openai',       prefix: ['openai'] },
-  'Embed':                       { ts: 'v1Embed',         py: 'v1_embed',         cls: 'V1EmbedModule',        prop: 'embed',        prefix: ['embed'] },
-  'STT':                         { ts: 'v1SttApi',        py: 'v1_stt_api',       cls: 'V1SttApiModule',       prop: 'sttApi',       prefix: ['stt'] },
-  'Credentials':                 { ts: 'v1Credentials',   py: 'v1_credentials',   cls: 'V1CredentialsModule',  prop: 'credentials',  prefix: ['credentials'] },
-  'ACP Auth':                    { ts: 'v1AcpAuth',       py: 'v1_acp_auth',      cls: 'V1AcpAuthModule',      prop: 'acpAuth',      prefix: ['acp', 'auth'] },
-  'ACP Commands':                { ts: 'v1AcpCommands',   py: 'v1_acp_commands',  cls: 'V1AcpCommandsModule',  prop: 'acpCommands',  prefix: ['acp', 'command'] },
-  'Custom Themes':               { ts: 'v1CustomThemes',  py: 'v1_custom_themes', cls: 'V1CustomThemesModule', prop: 'customThemes', prefix: ['custom-themes'] },
-  'Desktop Embed':               { ts: 'v1DesktopEmbed',  py: 'v1_desktop_embed', cls: 'V1DesktopEmbedModule', prop: 'desktopEmbed', prefix: ['desktop-public-embed'] },
-  'SDK - Desktop Runtime Sessions': { ts: 'v1DesktopRuntimeSessions', py: 'v1_desktop_runtime_sessions', cls: 'V1DesktopRuntimeSessionsModule', prop: 'desktopRuntimeSessions', prefix: ['desktop', 'runtime-sessions'] },
-  'SDK - Desktop Browser':          { ts: 'v1DesktopBrowser', py: 'v1_desktop_browser', cls: 'V1DesktopBrowserModule', prop: 'desktopBrowser', prefix: ['desktop', 'browser'] },
+  'Chat':                        { ts: 'v1Chat',          py: 'v1_chat',          cls: 'V1ChatModule',         prop: 'chat',         prefix: ['workspace'] },
 };
 
-// Tags handled by SDK core — skip
-const SKIP_TAGS = new Set([
-  'SDK - Permissions', 'SDK - System', 'SDK - Webhooks', 'SDK - Platform API',
-  'SDK - LLM', 'SDK - Vector Store', 'SDK - Activities', 'SDK - Agent',
-  'SDK - Agent Session', 'System - Auth', 'SDK - Auth', 'SDK - Database',
-  'SDK - MCP Servers', 'SDK - STT', 'SDK - TTS',
-]);
+const SKIP_TAGS = new Set();
 
 /**
  * Auto-derive a module config from an unknown swagger tag.
@@ -101,34 +81,16 @@ function deriveTagConfig(tag) {
 }
 
 // Auto-tag rules for "Untagged" paths (ordered — first match wins)
-const AUTO_TAG_RULES = [
-  ['/v1/stt/',                  'STT'],
-  ['/v1/credentials',           'Credentials'],
-  ['/v1/acp/auth/',             'ACP Auth'],
-  ['/v1/acp/command',           'ACP Commands'],
-  ['/v1/custom-themes',         'Custom Themes'],
-  ['/v1/desktop-public-embed/', 'Desktop Embed'],
-  ['/sdk/desktop/runtime-sessions/', 'SDK - Desktop Runtime Sessions'],
-  ['/sdk/desktop/browser/', 'SDK - Desktop Browser'],
-];
+const AUTO_TAG_RULES = [];
+
+const GENERATED_PATH_PREFIXES = ['/v1/workspace'];
 
 function isGeneratedSdkPath(pathname = '') {
-  return pathname.startsWith('/v1/') || pathname.startsWith('/sdk/desktop/');
+  return GENERATED_PATH_PREFIXES.some(prefix => pathname.startsWith(prefix));
 }
 
-const METHOD_NAME_OVERRIDES = new Map([
-  ['POST /sdk/desktop/browser/tabs/{tabRef}/focus', 'focusTab'],
-  ['POST /sdk/desktop/browser/tabs/{tabRef}/navigate', 'navigateTab'],
-  ['POST /sdk/desktop/browser/tabs/{tabRef}/evaluate', 'evaluateTab'],
-]);
-
-const BODY_OVERRIDE_PATHS = new Set([
-  'POST /sdk/desktop/browser/sessions',
-  'POST /sdk/desktop/browser/tabs',
-  'POST /sdk/desktop/browser/tabs/{tabRef}/focus',
-  'POST /sdk/desktop/browser/tabs/{tabRef}/navigate',
-  'POST /sdk/desktop/browser/tabs/{tabRef}/evaluate',
-]);
+const METHOD_NAME_OVERRIDES = new Map();
+const BODY_OVERRIDE_PATHS = new Set();
 
 // Paths that require streaming stub (not a full implementation)
 const STREAMING_PATHS = new Set([
@@ -138,8 +100,9 @@ const STREAMING_PATHS = new Set([
 
 // Paths that require multipart/upload stub
 const UPLOAD_PATHS = new Set([
-  '/v1/document/upload',
-  '/v1/document/upload/{folderName}',
+  '/v1/workspace/{slug}/upload',
+  '/v1/workspace/{slug}/upload-pfp',
+  '/v1/workspace/{slug}/upload-and-embed',
 ]);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -179,6 +142,40 @@ function writeFile(filePath, content) {
     return;
   }
   writeFileSync(filePath, content, 'utf-8');
+}
+
+function unlinkGeneratedFile(filePath) {
+  if (DRY_RUN) {
+    dryLog(`Would remove stale generated file: ${filePath.replace(SDK_ROOT + '/', '')}`);
+    return;
+  }
+  unlinkSync(filePath);
+}
+
+function isGeneratedFile(filePath, generatedPrefix) {
+  if (!existsSync(filePath)) return false;
+  return readFileSync(filePath, 'utf-8').startsWith(generatedPrefix);
+}
+
+function pruneStaleGeneratedFiles(generatedModules) {
+  const keepTs = new Set(generatedModules.map(({ ts }) => `${ts}.ts`));
+  const keepPy = new Set(generatedModules.map(({ py }) => `${py}.py`));
+
+  for (const fileName of readdirSync(TS_MODULES_DIR)) {
+    if (!fileName.endsWith('.ts') || keepTs.has(fileName)) continue;
+    const filePath = resolve(TS_MODULES_DIR, fileName);
+    if (isGeneratedFile(filePath, '// AUTO-GENERATED from openapi.json')) {
+      unlinkGeneratedFile(filePath);
+    }
+  }
+
+  for (const fileName of readdirSync(PY_V1_DIR)) {
+    if (!fileName.startsWith('v1_') || !fileName.endsWith('.py') || keepPy.has(fileName)) continue;
+    const filePath = resolve(PY_V1_DIR, fileName);
+    if (isGeneratedFile(filePath, '# AUTO-GENERATED from openapi.json')) {
+      unlinkGeneratedFile(filePath);
+    }
+  }
 }
 
 // ─── Method name derivation ───────────────────────────────────────────────────
@@ -369,17 +366,16 @@ ${methods}
 }
 
 function renderTsMethod(op, cfg) {
-  const { method, path, description } = op;
+  const { method, path, description, operationId } = op;
   const pathParams = extractPathParams(path);
   const opKey = `${method.toUpperCase()} ${path}`;
-  const hasBody =
-    ['post', 'put', 'patch'].includes(method.toLowerCase()) &&
-    (op.hasBody || BODY_OVERRIDE_PATHS.has(opKey));
   const isStreaming = STREAMING_PATHS.has(path);
   const isUpload = UPLOAD_PATHS.has(path);
+  const hasBody = !isUpload && (op.hasBody || BODY_OVERRIDE_PATHS.has(opKey));
 
   const methodName =
     METHOD_NAME_OVERRIDES.get(opKey) ||
+    operationId ||
     deriveMethodName(method, path, cfg.prefix);
   const tsParams = buildTsParams(pathParams, hasBody, isUpload);
   const pathArg = buildTsPathArg(path, pathParams);
@@ -437,17 +433,16 @@ ${methods}
 }
 
 function renderPyMethod(op, cfg) {
-  const { method, path, description } = op;
+  const { method, path, description, operationId } = op;
   const pathParams = extractPathParams(path);
   const opKey = `${method.toUpperCase()} ${path}`;
-  const hasBody =
-    ['post', 'put', 'patch'].includes(method.toLowerCase()) &&
-    (op.hasBody || BODY_OVERRIDE_PATHS.has(opKey));
   const isStreaming = STREAMING_PATHS.has(path);
   const isUpload = UPLOAD_PATHS.has(path);
+  const hasBody = !isUpload && (op.hasBody || BODY_OVERRIDE_PATHS.has(opKey));
 
   const methodNameTs =
     METHOD_NAME_OVERRIDES.get(opKey) ||
+    operationId ||
     deriveMethodName(method, path, cfg.prefix);
   const methodName = toSnakeCase(methodNameTs);
   const pyParams = buildPyParams(pathParams, hasBody, isUpload);
@@ -692,6 +687,7 @@ function main() {
       tagOps[tag].push({
         method,
         path: rawPath,
+        operationId: op.operationId || '',
         description: op.description || op.summary || '',
         hasBody:
           !!op.requestBody ||
@@ -729,7 +725,7 @@ function main() {
       if (DRY_RUN) {
         dryLog(`Would write: typescript/src/v1/modules/${cfg.ts}.ts (${ops.length} methods)`);
         ops.forEach(op => {
-          const name = deriveMethodName(op.method, op.path, cfg.prefix);
+          const name = op.operationId || deriveMethodName(op.method, op.path, cfg.prefix);
           const flag = STREAMING_PATHS.has(op.path) ? ' [STREAMING]' : UPLOAD_PATHS.has(op.path) ? ' [UPLOAD]' : '';
           dryLog(`  ${op.method.toUpperCase()} ${op.path} → ${name}()${flag}`);
         });
@@ -763,6 +759,8 @@ function main() {
 
   // 7. Update namespace, index, and Python __init__
   log('\nUpdating namespace and barrel exports...');
+  pruneStaleGeneratedFiles(generatedModules);
+
   if (!DRY_RUN) {
     updateNamespace(generatedModules);
     updateTsIndex(generatedModules);

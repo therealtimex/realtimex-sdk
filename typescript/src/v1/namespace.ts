@@ -4,7 +4,7 @@
  * Usage:
  *   const sdk = new RealtimeXSDK({ realtimex: { apiKey: 'sk-...' } });
  *   await sdk.v1?.workspace.listWorkspaces();
- *   await sdk.v1?.admin.listUsers();
+ *   await sdk.v1?.thread.createThread('workspace-slug');
  *
  * Regenerate modules: node scripts/generate-v1-sdk.mjs --force
  */
@@ -12,18 +12,9 @@
 import { DeveloperApiClient } from './client';
 
 // [GENERATED-IMPORTS-START]
-import { V1AuthModule } from './modules/v1Auth';
-import { V1AdminModule } from './modules/v1Admin';
-import { V1DocumentModule } from './modules/v1Document';
+import { V1ChatModule } from './modules/v1Chat';
 import { V1WorkspaceModule } from './modules/v1Workspace';
-import { V1SystemModule } from './modules/v1System';
 import { V1ThreadModule } from './modules/v1Thread';
-import { V1UsersModule } from './modules/v1Users';
-import { V1OpenAIModule } from './modules/v1OpenAI';
-import { V1EmbedModule } from './modules/v1Embed';
-import { V1ChannelsModule } from './modules/v1Channels';
-import { V1DesktopRuntimeSessionsModule } from './modules/v1DesktopRuntimeSessions';
-import { V1DesktopBrowserModule } from './modules/v1DesktopBrowser';
 // [GENERATED-IMPORTS-END]
 
 export class V1ApiNamespace {
@@ -31,36 +22,18 @@ export class V1ApiNamespace {
     readonly _client: DeveloperApiClient;
 
     // [GENERATED-PROPS-START]
-    public auth: V1AuthModule;
-    public admin: V1AdminModule;
-    public document: V1DocumentModule;
+    public chat: V1ChatModule;
     public workspace: V1WorkspaceModule;
-    public system: V1SystemModule;
     public thread: V1ThreadModule;
-    public users: V1UsersModule;
-    public openai: V1OpenAIModule;
-    public embed: V1EmbedModule;
-    public channels: V1ChannelsModule;
-    public desktopRuntimeSessions: V1DesktopRuntimeSessionsModule;
-    public desktopBrowser: V1DesktopBrowserModule;
 // [GENERATED-PROPS-END]
 
     constructor(baseUrl: string, apiKey: string, appId?: string) {
         this._client = new DeveloperApiClient(baseUrl, apiKey, appId);
 
         // [GENERATED-INIT-START]
-        this.auth = new V1AuthModule(this._client);
-        this.admin = new V1AdminModule(this._client);
-        this.document = new V1DocumentModule(this._client);
+        this.chat = new V1ChatModule(this._client);
         this.workspace = new V1WorkspaceModule(this._client);
-        this.system = new V1SystemModule(this._client);
         this.thread = new V1ThreadModule(this._client);
-        this.users = new V1UsersModule(this._client);
-        this.openai = new V1OpenAIModule(this._client);
-        this.embed = new V1EmbedModule(this._client);
-        this.channels = new V1ChannelsModule(this._client);
-        this.desktopRuntimeSessions = new V1DesktopRuntimeSessionsModule(this._client);
-        this.desktopBrowser = new V1DesktopBrowserModule(this._client);
 // [GENERATED-INIT-END]
     }
 }
