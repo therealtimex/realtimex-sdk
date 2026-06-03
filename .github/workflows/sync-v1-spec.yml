@@ -73,14 +73,22 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.4'
+
+      - name: Install cli-printing-press
+        run: go install github.com/mvanhorn/cli-printing-press/v4/cmd/cli-printing-press@v4.20.1
+
       - name: Run SDK generator
         run: |
           node scripts/generate-v1-sdk.mjs \
             --spec=_app_repo/server/swagger/openapi.json \
             --force
-          node scripts/generate-concepts.mjs \
-            --app-root=_app_repo
-          node scripts/generate-skill.mjs --force
+          node scripts/generate-skill.mjs \
+            --app-root=_app_repo \
+            --force
 
       - name: Check for changes
         id: diff
@@ -92,7 +100,8 @@ jobs:
             'typescript/src/v1/index.ts' \
             'python/realtimex_sdk/v1/__init__.py' \
             'python/realtimex_sdk/v1/namespace.py' \
-            'typescript/skills/realtimex-moderator-sdk/references/app-concepts.md' \
+            'scripts/generate-skill.mjs' \
+            'typescript/skills/realtimex-moderator-sdk/' \
             && echo "changed=false" >> "$GITHUB_OUTPUT" \
             || echo "changed=true" >> "$GITHUB_OUTPUT"
 
@@ -120,9 +129,8 @@ jobs:
             python/realtimex_sdk/v1/__init__.py \
             python/realtimex_sdk/v1/namespace.py \
             scripts/.sdk-spec-digest.json \
-            typescript/skills/realtimex-moderator-sdk/references/app-concepts.md \
-            typescript/skills/realtimex-moderator-sdk/references/api-reference.md \
-            typescript/skills/realtimex-moderator-sdk/SKILL.md
+            scripts/generate-skill.mjs \
+            typescript/skills/realtimex-moderator-sdk/
 
           git commit -m "chore: sync v1 SDK from openapi.json @ ${{ inputs.app_ref }}"
           git push origin "$BRANCH"

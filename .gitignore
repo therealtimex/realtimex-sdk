@@ -36,6 +36,10 @@ ENV/
 .coverage.*
 htmlcov/
 build/
+!typescript/skills/realtimex-moderator-sdk/build/
+!typescript/skills/realtimex-moderator-sdk/build/stage/
+!typescript/skills/realtimex-moderator-sdk/build/stage/bin/
+!typescript/skills/realtimex-moderator-sdk/build/stage/bin/realtimex-pp-cli
 dist/
 site/
 .eggs/

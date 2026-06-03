@@ -16,7 +16,6 @@ from .client import DeveloperApiClient
 from .namespace import V1ApiNamespace
 
 # [GENERATED-IMPORTS-START]
-from .v1_chat import V1ChatModule
 from .v1_workspace import V1WorkspaceModule
 from .v1_thread import V1ThreadModule
 # [GENERATED-IMPORTS-END]
@@ -34,7 +33,6 @@ __all__ = [
     "ValidationError",
     "ServerError",
     # [GENERATED-ALL-START]
-    "V1ChatModule",
     "V1WorkspaceModule",
     "V1ThreadModule",
 # [GENERATED-ALL-END]
