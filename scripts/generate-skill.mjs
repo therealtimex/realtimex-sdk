@@ -77,6 +77,9 @@ const PP_OUTPUT_DIR = path.resolve(
 const FILTER_PREFIX = flags['filter-prefix'] === false || flags['filter-prefix'] === 'false'
   ? ''
   : String(flags['filter-prefix'] || '/cli');
+const STRIP_PATH_PREFIX = flags['strip-path-prefix'] === false || flags['strip-path-prefix'] === 'false'
+  ? ''
+  : String(flags['strip-path-prefix'] || FILTER_PREFIX);
 const CLI_PRINTING_PRESS_BIN = flags.bin || process.env.CLI_PRINTING_PRESS_BIN;
 
 function rel(filePath) {
@@ -147,6 +150,28 @@ function filteredSpecPath() {
   return path.join(PP_OUTPUT_DIR, 'filtered-openapi.json');
 }
 
+function stripPathPrefix(pathname) {
+  if (!STRIP_PATH_PREFIX || !pathname.startsWith(STRIP_PATH_PREFIX)) {
+    return pathname;
+  }
+
+  const stripped = pathname.slice(STRIP_PATH_PREFIX.length);
+  return stripped.startsWith('/') ? stripped : `/${stripped}`;
+}
+
+function appendServerPathPrefix(serverUrl, prefix) {
+  if (!prefix || !serverUrl || typeof serverUrl !== 'string') {
+    return serverUrl;
+  }
+
+  const normalizedPrefix = prefix.startsWith('/') ? prefix : `/${prefix}`;
+  const trimmedServerUrl = serverUrl.replace(/\/+$/, '');
+  if (trimmedServerUrl.endsWith(normalizedPrefix)) {
+    return trimmedServerUrl;
+  }
+  return `${trimmedServerUrl}${normalizedPrefix}`;
+}
+
 function prepareSpecForPrintingPress() {
   if (!FILTER_PREFIX) return SPEC_PATH;
 
@@ -156,7 +181,7 @@ function prepareSpecForPrintingPress() {
 
   for (const [pathname, pathItem] of Object.entries(rawSpec.paths || {})) {
     if (!pathname.startsWith(FILTER_PREFIX)) continue;
-    filteredPaths[pathname] = pathItem;
+    filteredPaths[stripPathPrefix(pathname)] = pathItem;
 
     for (const operation of Object.values(pathItem || {})) {
       if (!operation || typeof operation !== 'object') continue;
@@ -170,6 +195,12 @@ function prepareSpecForPrintingPress() {
 
   const filteredSpec = {
     ...rawSpec,
+    servers: Array.isArray(rawSpec.servers)
+      ? rawSpec.servers.map((server) => ({
+          ...server,
+          url: appendServerPathPrefix(server.url, STRIP_PATH_PREFIX),
+        }))
+      : rawSpec.servers,
     tags: Array.isArray(rawSpec.tags)
       ? rawSpec.tags.filter((tag) => usedTags.has(tag.name))
       : rawSpec.tags,
@@ -203,7 +234,8 @@ function prepareSpecForPrintingPress() {
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   fs.writeFileSync(outputPath, `${JSON.stringify(filteredSpec, null, 2)}\n`);
   console.log(
-    `[generate-skill] filtered spec: ${Object.keys(filteredPaths).length} paths matching ${FILTER_PREFIX}`
+    `[generate-skill] filtered spec: ${Object.keys(filteredPaths).length} paths matching ${FILTER_PREFIX}` +
+      (STRIP_PATH_PREFIX ? `, stripped ${STRIP_PATH_PREFIX}` : '')
   );
   return outputPath;
 }
