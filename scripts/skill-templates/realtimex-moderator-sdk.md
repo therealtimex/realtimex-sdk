@@ -6,38 +6,80 @@ argument-hint: "<command> [args] | install cli"
 
 ## Prerequisites: Install the CLI
 
-This skill drives the `realtimex-pp-cli` binary. Verify the CLI is installed before invoking any command from this skill. If it is missing, install it first:
+This skill drives the `realtimex-pp-cli` binary. Verify the CLI is installed and exactly matches this skill's SDK version before invoking any command from this skill. If it is missing or the version does not match, reinstall the pinned version first:
 
-1. Install via npm:
+1. Install or reinstall the pinned version via npm:
    ```bash
    npm install -g @realtimex/pp-cli@${SDK_VERSION}
    ```
-2. Verify: `realtimex-pp-cli --version`
+2. Verify the exact version:
+   ```bash
+   realtimex-pp-cli --version
+   ```
+   The output must be `realtimex-pp-cli ${SDK_VERSION}`.
 
-If `--version` reports "command not found" after install, the npm global bin directory is not on `$PATH`. Do not proceed with skill commands until verification succeeds.
+If `--version` reports "command not found" after install, the npm global bin directory is not on `$PATH`. If it reports any version other than `${SDK_VERSION}`, reinstall with the pinned npm command above. Do not proceed with skill commands until exact-version verification succeeds.
+
+## Direct Use
+
+1. Check whether the CLI is installed and version-matched:
+   ```bash
+   realtimex-pp-cli --version
+   ```
+   If the command is missing or the output is not exactly `realtimex-pp-cli ${SDK_VERSION}`, reinstall the pinned version:
+   ```bash
+   npm install -g @realtimex/pp-cli@${SDK_VERSION}
+   ```
+   Then run `realtimex-pp-cli --version` again and proceed only after exact-version verification succeeds.
+2. Match the user query to the best command from the Unique Capabilities and Command Reference above.
+3. Execute with the `--agent` flag:
+   ```bash
+   realtimex-pp-cli <command> [subcommand] [args] --agent
+   ```
+4. If ambiguous, drill into subcommand help: `realtimex-pp-cli <command> --help`.
 
 ## Constraints
 
-Use only the `realtimex-pp-cli` commands documented by this skill. Never call the RealTimeX API directly with `curl`, `fetch`, raw HTTP clients, or custom scripts.
+This skill intentionally exposes a small action-first command set. Prefer these generated commands over older nested resource commands.
 
-If a requested task is impossible with the current CLI commands, do not work around it through direct API calls or undocumented behavior. Say the feature is not available and will be added soon.
+* Use only documented `realtimex-pp-cli` commands.
+* Never call the RealTimeX API directly with `curl`, `fetch`, raw HTTP clients, or custom scripts.
+* If the current CLI cannot do the requested task, say the feature is not available and will be added soon.
+* Use `--agent` on every command.
+* Always run first:
 
-If the task requires any CLI argument, identifier, selection, target, content, or option and the user has not provided enough context to identify it unambiguously, ask a concise clarification question before running commands. Do not guess required values from unrelated prior context. Examples: if the user says "send a message with model gpt-4.1-nano" but does not name the workspace and thread, ask which workspace and thread to use; if the user says "delete it" but the target is unclear, ask what to delete; if multiple matching workspaces, threads, models, agents, or messages exist, ask which one.
+  ```bash
+  realtimex-pp-cli prepare --agent
+  ```
 
-Before choosing workspace slugs, thread slugs, LLM providers, LLM models, or default-agent values, call `realtimex-pp-cli prepare --agent` and use exact ids from that response. Ask the user only when `prepare` returns multiple plausible matches or the requested value is not available.
+* Use exact workspace slugs, thread slugs, provider ids, model ids, agent `canonical`, and agent `modelId` values from `prepare`.
+* Do not guess workspace, thread, model, provider, agent, message, target, or option values.
+* If required context is missing or ambiguous, ask a concise clarification question before running a command.
+* Never assume a workspace or thread that the user has not referenced.
+* If the user does not name or contextually reference a workspace for a workspace/thread/message operation, ask which workspace to use before running a command.
+* If the user names or contextually references a thread but does not name or contextually reference its workspace, ask which workspace contains that thread before running a command.
+* When the user explicitly uses contextual references such as "current workspace", "this thread", "the thread just created", "that workspace", or similar references, resolve them from the available conversation context only when the reference is unambiguous.
+* If multiple plausible matches exist, ask the user to choose.
 
-For `send-llm-message`, never guess `chatProvider` or `chatModel`. Use only LLM provider/model data from `prepare.models`, `list-llm-providers`, and `list-llm-models`. Never use `prepare.agents[].models` for `send-llm-message`; those are CLI-agent/default-agent models only. Prefer provider `realtimexai` when the user did not explicitly ask for local `nodellama`, but still choose only an exact model id from the `realtimexai` LLM model list. If the user names a model that is not present in the selected provider's LLM model list, ask which available LLM model to use instead.
+For `send-llm-message`:
 
-## Action-First API
+* Require all four values to be explicitly named or explicitly referenced in the current request:
+  * workspace
+  * thread
+  * LLM provider
+  * LLM model
+* If any of those four values are missing or ambiguous, ask for the missing values before running the command.
+* Use provider/model only from:
+  * `prepare.models`
+  * `list-llm-providers`
+  * `list-llm-models`
+* Never use `prepare.agents[].models` for `send-llm-message`.
+* Prefer provider `realtimexai` unless the user explicitly asks for local `nodellama`.
+* Only choose a model id that exists in the selected provider's LLM model list.
+* If the requested model is unavailable, ask which available model to use instead.
 
-This skill intentionally exposes a small action-first command set. Prefer these generated commands over older nested resource commands. Use `--agent` on every command.
+For workspace default-agent setup:
 
-Typical flow:
-
-1. Prepare context:
-   ```bash
-   realtimex-pp-cli prepare --agent
-   ```
-2. Create or select exact workspace/thread slugs from `prepare`.
-3. For LLM messages, use exact `chatProvider` and `chatModel` ids from `prepare.models`. Do not use `prepare.agents` here.
-4. For workspace default agents, use exact `canonical` and optional `modelId` values from `prepare.agents`. Do not use `prepare.models` here.
+* Use `prepare.agents` only.
+* Use exact agent `canonical` and optional agent `modelId` values from `prepare.agents`.
+* Never use `prepare.models` for workspace default-agent setup.
