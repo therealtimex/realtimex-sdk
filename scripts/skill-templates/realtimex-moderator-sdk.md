@@ -1,6 +1,6 @@
 ---
 name: realtimex-moderator-sdk
-description: "Use the RealTimeX API through the generated CLI for workspace, thread, and chat operations."
+description: "Use the RealTimeX API through the generated CLI for workspace, thread, channel (Telegram, Zalo, Discord) and chat operations."
 argument-hint: "<command> [args] | install cli"
 ---
 
@@ -19,6 +19,12 @@ This skill drives the `realtimex-pp-cli` binary. Verify the CLI is installed and
    The output must be `realtimex-pp-cli ${SDK_VERSION}`.
 
 If `--version` reports "command not found" after install, the npm global bin directory is not on `$PATH`. If it reports any version other than `${SDK_VERSION}`, reinstall with the pinned npm command above. Do not proceed with skill commands until exact-version verification succeeds.
+
+* Always run first:
+
+  ```bash
+  realtimex-pp-cli prepare --workspace-slug "$RTX_WORKSPACE_SLUG" --thread-slug "$RTX_THREAD_SLUG" --agent
+  ```
 
 ## Direct Use
 
@@ -49,7 +55,7 @@ This skill intentionally exposes a small action-first command set. Prefer these 
 * Always run first:
 
   ```bash
-  realtimex-pp-cli prepare --agent
+  realtimex-pp-cli prepare --workspace-slug "$RTX_WORKSPACE_SLUG" --thread-slug "$RTX_THREAD_SLUG" --agent
   ```
 
 * Use exact workspace slugs, thread slugs, provider ids, model ids, agent `canonical`, and agent `modelId` values from `prepare`.
@@ -61,22 +67,14 @@ This skill intentionally exposes a small action-first command set. Prefer these 
 * When the user explicitly uses contextual references such as "current workspace", "this thread", "the thread just created", "that workspace", or similar references, resolve them from the available conversation context only when the reference is unambiguous.
 * If multiple plausible matches exist, ask the user to choose.
 
-For `send-llm-message`:
+For `send-message`:
 
-* Require all four values to be explicitly named or explicitly referenced in the current request:
+* Require these values to be explicitly named or explicitly referenced in the current request:
   * workspace
   * thread
-  * LLM provider
-  * LLM model
-* If any of those four values are missing or ambiguous, ask for the missing values before running the command.
-* Use provider/model only from:
-  * `prepare.models`
-  * `list-llm-providers`
-  * `list-llm-models`
-* Never use `prepare.agents[].models` for `send-llm-message`.
-* Prefer provider `realtimexai` unless the user explicitly asks for local `nodellama`.
-* Only choose a model id that exists in the selected provider's LLM model list.
-* If the requested model is unavailable, ask which available model to use instead.
+  * message
+* If any of those values are missing or ambiguous, ask for the missing values before running the command.
+* Do not provide LLM provider/model arguments to `send-message`; the server routes the message based on the thread/workspace configuration.
 
 For workspace default-agent setup:
 
