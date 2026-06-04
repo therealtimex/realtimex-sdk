@@ -40,6 +40,34 @@ jobs:
         working-directory: .
         run: go install github.com/mvanhorn/cli-printing-press/v4/cmd/cli-printing-press@v4.20.1
 
+      - name: Fetch app repo source files from GitLab
+        working-directory: .
+        env:
+          APP_REPO_READ_TOKEN: ${{ secrets.APP_REPO_READ_TOKEN }}
+        run: |
+          API="https://rtgit.rta.vn/api/v4"
+          PROJECT_ID="1583"
+          REF="realtimex-dev"
+          DEST="../realtimex-ai-app"
+
+          fetch() {
+            local file="$1"
+            local encoded=$(echo "$file" | sed 's|/|%2F|g')
+            mkdir -p "$DEST/$(dirname "$file")"
+            curl -fsSL \
+              -H "PRIVATE-TOKEN: $APP_REPO_READ_TOKEN" \
+              "$API/projects/$PROJECT_ID/repository/files/$encoded/raw?ref=$REF" \
+              -o "$DEST/$file"
+            echo "  $(wc -c < "$DEST/$file") bytes  $file"
+          }
+
+          echo "Fetching app repo source files @ $REF"
+          fetch server/prisma/schema.prisma
+          fetch server/utils/files/personalityStorage.js
+          fetch server/models/heartbeat.js
+          fetch server/models/workspace.js
+          fetch server/models/agentSkills.js
+
       - name: Install dependencies
         run: npm ci
 
