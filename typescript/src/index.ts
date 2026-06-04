@@ -7,12 +7,14 @@
 
 import { SDKConfig } from './types';
 import { V1ApiNamespace } from './v1/namespace';
+import { CliApiNamespace } from './cli/namespace';
 
 export class RealtimeXSDK {
     public readonly appId: string;
     public readonly apiKey: string | undefined;
     public readonly realtimexUrl: string;
     public readonly v1: V1ApiNamespace;
+    public readonly cli: CliApiNamespace;
 
     private static DEFAULT_REALTIMEX_URL = 'http://localhost:3001';
 
@@ -26,6 +28,11 @@ export class RealtimeXSDK {
             config.realtimex?.url || RealtimeXSDK.DEFAULT_REALTIMEX_URL;
 
         this.v1 = new V1ApiNamespace(
+            this.realtimexUrl,
+            this.apiKey ?? '',
+            this.appId || undefined
+        );
+        this.cli = new CliApiNamespace(
             this.realtimexUrl,
             this.apiKey ?? '',
             this.appId || undefined
@@ -44,6 +51,8 @@ export class RealtimeXSDK {
 }
 
 export * from './types';
+export { CliApiClient } from './cli/client';
+export { CliApiNamespace } from './cli/namespace';
 export { V1ApiNamespace } from './v1/namespace';
 export { DeveloperApiClient } from './v1/client';
 export {

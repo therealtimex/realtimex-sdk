@@ -5,7 +5,7 @@
  * Defaults:
  *   - builds realtimex-pp-cli for macOS amd64
  *   - symlinks it to /usr/local/bin/realtimex-pp-cli
- *   - regenerates typescript/skills/realtimex-moderator-sdk
+ *   - regenerates typescript/skills/realtimex-moderator-sdk/SKILL.md
  *   - copies the skill into the test workspace .claude/skills directory
  *
  * Environment overrides:
@@ -67,7 +67,7 @@ function regenerateSkill() {
 
 function rebuildSkillBinary() {
   const binaryPath = path.join(
-    SKILL_OUT,
+    PP_OUTPUT_DIR,
     'build',
     'stage',
     'bin',

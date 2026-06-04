@@ -2,11 +2,13 @@
 /**
  * generate-skill.mjs
  *
- * Builds the RealTimeX Printing Press CLI from the app OpenAPI spec, then
- * packages the CLI-only agent skill artifacts into the TypeScript package:
+ * Generates the RealTimeX Printing Press skill from the app OpenAPI spec, then
+ * packages the CLI-only agent skill instructions into the TypeScript package:
  *
  *   - SKILL.md
- *   - build/stage/bin/realtimex-pp-cli
+ *
+ * The realtimex-pp-cli binary is distributed separately through
+ * @realtimex/pp-cli. The skill installs that pinned package at runtime.
  *
  * Usage:
  *   node scripts/generate-skill.mjs --force
@@ -42,7 +44,6 @@ const DEFAULT_TEMPLATE = path.join(
 
 const SKILL_FILES = [
   'SKILL.md',
-  path.join('build', 'stage', 'bin', 'realtimex-pp-cli'),
 ];
 
 function parseFlags(argv) {
@@ -423,7 +424,6 @@ function main() {
 
   generatePrintingPressProject();
   patchCliVersion();
-  rebuildSkillCliBinary();
   packageSkill();
 
   console.log('[generate-skill] done');

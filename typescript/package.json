@@ -7,19 +7,24 @@
     "types": "dist/index.d.ts",
     "exports": {
         ".": {
+            "types": "./dist/index.d.ts",
             "import": "./dist/index.mjs",
-            "require": "./dist/index.js",
-            "types": "./dist/index.d.ts"
+            "require": "./dist/index.js"
         },
         "./v1": {
+            "types": "./dist/v1/index.d.ts",
             "import": "./dist/v1/index.mjs",
-            "require": "./dist/v1/index.js",
-            "types": "./dist/v1/index.d.ts"
+            "require": "./dist/v1/index.js"
+        },
+        "./cli": {
+            "types": "./dist/cli/index.d.ts",
+            "import": "./dist/cli/index.mjs",
+            "require": "./dist/cli/index.js"
         }
     },
     "scripts": {
-        "build": "node ../scripts/generate-v1-sdk.mjs --force && tsup src/index.ts src/v1/index.ts --format cjs,esm --dts --clean",
-        "dev": "tsup src/index.ts src/v1/index.ts --format cjs,esm --dts --watch",
+        "build": "node ../scripts/generate-v1-sdk.mjs --force && tsup src/index.ts src/v1/index.ts src/cli/index.ts --format cjs,esm --dts --clean",
+        "dev": "tsup src/index.ts src/v1/index.ts src/cli/index.ts --format cjs,esm --dts --watch",
         "test": "vitest run --passWithNoTests",
         "sdk:generate": "node ../scripts/generate-v1-sdk.mjs",
         "sdk:generate:force": "node ../scripts/generate-v1-sdk.mjs --force",
