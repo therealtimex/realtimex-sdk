@@ -47,7 +47,7 @@ jobs:
         run: |
           API="https://rtgit.rta.vn/api/v4"
           PROJECT_ID="1583"
-          REF="756-milestone-1-unify-workspace-api-through-app-derived-operations"
+          REF="realtimex-dev"
           DEST="../realtimex-ai-app"
           FILE="server/swagger/openapi.json"
           ENCODED=$(echo "$FILE" | sed 's|/|%2F|g')
