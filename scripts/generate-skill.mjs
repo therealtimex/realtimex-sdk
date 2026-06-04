@@ -76,7 +76,7 @@ const PP_OUTPUT_DIR = path.resolve(
 );
 const FILTER_PREFIX = flags['filter-prefix'] === false || flags['filter-prefix'] === 'false'
   ? ''
-  : String(flags['filter-prefix'] || '/v1');
+  : String(flags['filter-prefix'] || '/cli');
 const CLI_PRINTING_PRESS_BIN = flags.bin || process.env.CLI_PRINTING_PRESS_BIN;
 
 function rel(filePath) {
