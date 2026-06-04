@@ -1,0 +1,96 @@
+name: Regenerate from local OpenAPI spec
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: regenerate-from-openapi
+  cancel-in-progress: true
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout SDK repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: typescript/package-lock.json
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.4'
+
+      - name: Install cli-printing-press
+        run: go install github.com/mvanhorn/cli-printing-press/v4/cmd/cli-printing-press@v4.20.1
+
+      - name: Install dependencies
+        working-directory: typescript
+        run: npm ci
+
+      - name: Run generators
+        run: |
+          node scripts/generate-v1-sdk.mjs --force
+          node scripts/generate-skill.mjs --force
+
+      - name: Check for changes
+        id: diff
+        run: |
+          git diff --quiet -- \
+            'openapi.json' \
+            'typescript/src/v1/modules/' \
+            'python/realtimex_sdk/v1/' \
+            'typescript/src/v1/namespace.ts' \
+            'typescript/src/v1/index.ts' \
+            'python/realtimex_sdk/v1/__init__.py' \
+            'python/realtimex_sdk/v1/namespace.py' \
+            'scripts/.sdk-spec-digest.json' \
+            'typescript/skills/realtimex-moderator-sdk/' \
+            && echo "changed=false" >> "$GITHUB_OUTPUT" \
+            || echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: No changes
+        if: steps.diff.outputs.changed == 'false'
+        run: echo "No generated changes detected. Local openapi.json is already in sync."
+
+      - name: Open regeneration PR
+        if: steps.diff.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="ci/regenerate-openapi-$(date +%Y%m%d-%H%M%S)"
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+
+          git add \
+            openapi.json \
+            typescript/src/v1/modules/ \
+            python/realtimex_sdk/v1/ \
+            typescript/src/v1/namespace.ts \
+            typescript/src/v1/index.ts \
+            python/realtimex_sdk/v1/__init__.py \
+            python/realtimex_sdk/v1/namespace.py \
+            scripts/.sdk-spec-digest.json \
+            typescript/skills/realtimex-moderator-sdk/
+
+          git commit -m "chore: regenerate from local openapi.json"
+          git push origin "$BRANCH"
+
+          gh pr create \
+            --title "chore: regenerate from local openapi.json" \
+            --body "Regenerated SDK and skill artifacts from the checked-in \`openapi.json\`." \
+            --base realtimex-dev \
+            --head "$BRANCH"

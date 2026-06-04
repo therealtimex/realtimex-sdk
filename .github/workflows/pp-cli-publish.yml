@@ -40,24 +40,6 @@ jobs:
         working-directory: .
         run: go install github.com/mvanhorn/cli-printing-press/v4/cmd/cli-printing-press@v4.20.1
 
-      - name: Fetch app OpenAPI spec from GitLab
-        working-directory: .
-        env:
-          APP_REPO_READ_TOKEN: ${{ secrets.APP_REPO_READ_TOKEN }}
-        run: |
-          API="https://rtgit.rta.vn/api/v4"
-          PROJECT_ID="1583"
-          REF="realtimex-dev"
-          DEST="../realtimex-ai-app"
-          FILE="server/swagger/openapi.json"
-          ENCODED=$(echo "$FILE" | sed 's|/|%2F|g')
-
-          mkdir -p "$DEST/$(dirname "$FILE")"
-          curl -fsSL \
-            -H "PRIVATE-TOKEN: $APP_REPO_READ_TOKEN" \
-            "$API/projects/$PROJECT_ID/repository/files/$ENCODED/raw?ref=$REF" \
-            -o "$DEST/$FILE"
-
       - name: Install dependencies
         run: npm ci
 
