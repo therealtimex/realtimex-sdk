@@ -1,0 +1,1766 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "version": "1.0.0",
+    "title": "RealtimeX CLI API",
+    "description": "Action-first API endpoints for the generated RealtimeX CLI and agent skill. UI supplied by Swagger.io."
+  },
+  "paths": {
+    "/cli/prepare": {
+      "get": {
+        "tags": [
+          "Prepare"
+        ],
+        "description": "Return compact workspace, thread, current workspace/thread from explicit workspaceSlug and threadSlug query parameters, LLM provider, model, and CLI agent context for agents before choosing arguments. Agents should pass --workspace-slug \"$RTX_WORKSPACE_SLUG\" and --thread-slug \"$RTX_THREAD_SLUG\" when those environment variables exist.",
+        "operationId": "prepare",
+        "parameters": [
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "workspaceSlug",
+            "in": "query",
+            "required": false,
+            "description": "Current workspace slug from the caller context. Pass the RTX_WORKSPACE_SLUG environment value here when available.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "threadSlug",
+            "in": "query",
+            "required": false,
+            "description": "Current thread slug from the caller context. Pass the RTX_THREAD_SLUG environment value here when available.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Compact context for CLI agents.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "currentWorkspace": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number",
+                          "example": 1
+                        },
+                        "slug": {
+                          "type": "string",
+                          "example": "workspace-slug"
+                        },
+                        "name": {
+                          "type": "string",
+                          "example": "Workspace"
+                        },
+                        "missing": {
+                          "type": "boolean",
+                          "example": false
+                        }
+                      }
+                    },
+                    "currentThread": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number",
+                          "example": 1
+                        },
+                        "slug": {
+                          "type": "string",
+                          "example": "thread-slug"
+                        },
+                        "name": {
+                          "type": "string",
+                          "example": "Thread"
+                        },
+                        "workspaceId": {
+                          "type": "number",
+                          "example": 1
+                        },
+                        "workspaceSlug": {
+                          "type": "string",
+                          "example": "workspace-slug"
+                        },
+                        "missing": {
+                          "type": "boolean",
+                          "example": false
+                        }
+                      }
+                    },
+                    "workspaces": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "number",
+                            "example": 1
+                          },
+                          "slug": {
+                            "type": "string",
+                            "example": "workspace-slug"
+                          },
+                          "name": {
+                            "type": "string",
+                            "example": "Workspace"
+                          }
+                        }
+                      }
+                    },
+                    "threads": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "number",
+                            "example": 1
+                          },
+                          "slug": {
+                            "type": "string",
+                            "example": "thread-slug"
+                          },
+                          "name": {
+                            "type": "string",
+                            "example": "Thread"
+                          },
+                          "workspaceId": {
+                            "type": "number",
+                            "example": 1
+                          },
+                          "workspaceSlug": {
+                            "type": "string",
+                            "example": "workspace-slug"
+                          }
+                        }
+                      }
+                    },
+                    "providers": {
+                      "type": "array",
+                      "example": [],
+                      "items": {}
+                    },
+                    "models": {
+                      "type": "array",
+                      "example": [],
+                      "items": {}
+                    },
+                    "agents": {
+                      "type": "array",
+                      "example": [],
+                      "items": {}
+                    }
+                  },
+                  "xml": {
+                    "name": "main"
+                  }
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "currentWorkspace": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number",
+                          "example": 1
+                        },
+                        "slug": {
+                          "type": "string",
+                          "example": "workspace-slug"
+                        },
+                        "name": {
+                          "type": "string",
+                          "example": "Workspace"
+                        },
+                        "missing": {
+                          "type": "boolean",
+                          "example": false
+                        }
+                      }
+                    },
+                    "currentThread": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number",
+                          "example": 1
+                        },
+                        "slug": {
+                          "type": "string",
+                          "example": "thread-slug"
+                        },
+                        "name": {
+                          "type": "string",
+                          "example": "Thread"
+                        },
+                        "workspaceId": {
+                          "type": "number",
+                          "example": 1
+                        },
+                        "workspaceSlug": {
+                          "type": "string",
+                          "example": "workspace-slug"
+                        },
+                        "missing": {
+                          "type": "boolean",
+                          "example": false
+                        }
+                      }
+                    },
+                    "workspaces": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "number",
+                            "example": 1
+                          },
+                          "slug": {
+                            "type": "string",
+                            "example": "workspace-slug"
+                          },
+                          "name": {
+                            "type": "string",
+                            "example": "Workspace"
+                          }
+                        }
+                      }
+                    },
+                    "threads": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "number",
+                            "example": 1
+                          },
+                          "slug": {
+                            "type": "string",
+                            "example": "thread-slug"
+                          },
+                          "name": {
+                            "type": "string",
+                            "example": "Thread"
+                          },
+                          "workspaceId": {
+                            "type": "number",
+                            "example": 1
+                          },
+                          "workspaceSlug": {
+                            "type": "string",
+                            "example": "workspace-slug"
+                          }
+                        }
+                      }
+                    },
+                    "providers": {
+                      "type": "array",
+                      "example": [],
+                      "items": {}
+                    },
+                    "models": {
+                      "type": "array",
+                      "example": [],
+                      "items": {}
+                    },
+                    "agents": {
+                      "type": "array",
+                      "example": [],
+                      "items": {}
+                    }
+                  },
+                  "xml": {
+                    "name": "main"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/cli/list-workspaces": {
+      "get": {
+        "tags": [
+          "Workspaces"
+        ],
+        "description": "List all workspaces visible to the current API caller. Use this before choosing a workspace slug.",
+        "operationId": "listWorkspaces",
+        "parameters": [
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/cli/create-workspace": {
+      "post": {
+        "tags": [
+          "Workspaces"
+        ],
+        "description": "Create a workspace. Requires a human-readable workspace name.",
+        "operationId": "createWorkspace",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Required human-readable name. Do not pass a slug here.",
+                    "minLength": 1
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cli/get-workspace/{workspaceSlug}": {
+      "get": {
+        "tags": [
+          "Workspaces"
+        ],
+        "description": "Get one workspace by exact workspace slug.",
+        "operationId": "getWorkspace",
+        "parameters": [
+          {
+            "name": "workspaceSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/cli/rename-workspace/{workspaceSlug}": {
+      "post": {
+        "tags": [
+          "Workspaces"
+        ],
+        "description": "Rename one workspace by exact workspace slug. Only the name is changed.",
+        "operationId": "renameWorkspace",
+        "parameters": [
+          {
+            "name": "workspaceSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Required human-readable name. Do not pass a slug here.",
+                    "minLength": 1
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cli/delete-workspace/{workspaceSlug}": {
+      "delete": {
+        "tags": [
+          "Workspaces"
+        ],
+        "description": "Delete one workspace by exact workspace slug.",
+        "operationId": "deleteWorkspace",
+        "parameters": [
+          {
+            "name": "workspaceSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/cli/set-workspace-default-agent/{workspaceSlug}": {
+      "post": {
+        "tags": [
+          "Workspaces"
+        ],
+        "description": "Set the default CLI agent for a workspace. Use prepare first to find a valid agent canonical/providerId and optional modelId.",
+        "operationId": "setWorkspaceDefaultAgent",
+        "parameters": [
+          {
+            "name": "workspaceSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "canonical"
+                ],
+                "properties": {
+                  "canonical": {
+                    "type": "string",
+                    "description": "Required CLI agent canonical id from prepare.agents, for example claude, codex, gemini, or qwen.",
+                    "minLength": 1
+                  },
+                  "providerId": {
+                    "type": "string",
+                    "description": "Optional CLI agent provider id from prepare.agents when canonical alone is ambiguous."
+                  },
+                  "modelId": {
+                    "type": "string",
+                    "description": "Optional model id from the selected prepare.agents entry. Omit only when the user explicitly wants the CLI default model."
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cli/clear-workspace-default-agent/{workspaceSlug}": {
+      "delete": {
+        "tags": [
+          "Workspaces"
+        ],
+        "description": "Clear the default CLI agent from a workspace.",
+        "operationId": "clearWorkspaceDefaultAgent",
+        "parameters": [
+          {
+            "name": "workspaceSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/cli/list-threads/{workspaceSlug}": {
+      "get": {
+        "tags": [
+          "Threads"
+        ],
+        "description": "List threads for one exact workspace slug.",
+        "operationId": "listThreads",
+        "parameters": [
+          {
+            "name": "workspaceSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/cli/create-thread/{workspaceSlug}": {
+      "post": {
+        "tags": [
+          "Threads"
+        ],
+        "description": "Create a thread in one workspace. The name is optional but recommended.",
+        "operationId": "createThread",
+        "parameters": [
+          {
+            "name": "workspaceSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Optional human-readable thread name.",
+                    "minLength": 1
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cli/get-thread/{workspaceSlug}/{threadSlug}": {
+      "get": {
+        "tags": [
+          "Threads"
+        ],
+        "description": "Get one thread by exact workspace slug and exact thread slug.",
+        "operationId": "getThread",
+        "parameters": [
+          {
+            "name": "workspaceSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "threadSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/cli/rename-thread/{workspaceSlug}/{threadSlug}": {
+      "post": {
+        "tags": [
+          "Threads"
+        ],
+        "description": "Rename one thread by exact workspace slug and exact thread slug. Only the name is changed.",
+        "operationId": "renameThread",
+        "parameters": [
+          {
+            "name": "workspaceSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "threadSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Required human-readable name. Do not pass a slug here.",
+                    "minLength": 1
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cli/delete-thread/{workspaceSlug}/{threadSlug}": {
+      "delete": {
+        "tags": [
+          "Threads"
+        ],
+        "description": "Delete one thread by exact workspace slug and exact thread slug.",
+        "operationId": "deleteThread",
+        "parameters": [
+          {
+            "name": "workspaceSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "threadSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/cli/send-message/{workspaceSlug}/{threadSlug}": {
+      "post": {
+        "tags": [
+          "Messages"
+        ],
+        "description": "Send one message to an exact thread using the same routing as channel replies. Terminal-agent threads are dispatched to the terminal runtime; other threads use the configured LLM chat path.",
+        "operationId": "sendMessage",
+        "parameters": [
+          {
+            "name": "workspaceSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "threadSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "message"
+                ],
+                "properties": {
+                  "message": {
+                    "type": "string",
+                    "description": "Required user message to send to the thread.",
+                    "minLength": 1
+                  },
+                  "attachments": {
+                    "type": "array",
+                    "description": "Optional attachments using the app chat attachment shape.",
+                    "items": {
+                      "type": "object"
+                    }
+                  },
+                  "webSearchEnabled": {
+                    "type": "boolean",
+                    "description": "Optional web search toggle for this one message."
+                  },
+                  "broadcastThreadEvents": {
+                    "type": "boolean",
+                    "description": "Broadcast thread events to connected UI subscribers. Defaults to true."
+                  },
+                  "stripAgentPrefixForDelivery": {
+                    "type": "boolean",
+                    "description": "Strip @agent prefixes before delivery unless explicitly disabled. Defaults to true."
+                  },
+                  "channelTurnId": {
+                    "type": "string",
+                    "description": "Optional caller-provided id for correlating this CLI turn."
+                  }
+                },
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cli/list-llm-providers": {
+      "get": {
+        "tags": [
+          "LLM"
+        ],
+        "description": "List supported LLM providers. Use provider ids from this response when configuring workspace or thread LLM settings.",
+        "operationId": "listLlmProviders",
+        "parameters": [
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/cli/list-llm-models/{provider}": {
+      "get": {
+        "tags": [
+          "LLM"
+        ],
+        "description": "List models for one provider id. Use an exact model id from this response when configuring workspace or thread LLM settings.",
+        "operationId": "listLlmModels",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "{{idNumber(raw)}):null;if(byId)return{id:byId.id};constmatches=ChannelPairingCode.where({code:raw}": {
+      "get": {
+        "description": "",
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/cli/list-channels": {
+      "get": {
+        "tags": [
+          "Channels"
+        ],
+        "description": "List configured chat channels. Use returned channel ids with update-channel.",
+        "operationId": "listChannels",
+        "parameters": [
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/cli/create-channel/{workspaceSlug}": {
+      "post": {
+        "tags": [
+          "Channels"
+        ],
+        "description": "Create a chat channel in one exact workspace. Defaults to Telegram when plugin_type, channelType, and type are omitted. Use flat botToken and thread_id fields instead of nested config/settings.",
+        "operationId": "createChannel",
+        "parameters": [
+          {
+            "name": "workspaceSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Human-readable channel name."
+                  },
+                  "plugin_type": {
+                    "type": "string",
+                    "description": "Channel plugin type. Defaults to telegram.",
+                    "enum": [
+                      "telegram",
+                      "discord",
+                      "zalo"
+                    ],
+                    "default": "telegram"
+                  },
+                  "channelType": {
+                    "type": "string",
+                    "description": "CLI-friendly alias for plugin_type.",
+                    "enum": [
+                      "telegram",
+                      "discord",
+                      "zalo"
+                    ]
+                  },
+                  "type": {
+                    "type": "string",
+                    "description": "CLI-friendly alias for plugin_type.",
+                    "enum": [
+                      "telegram",
+                      "discord",
+                      "zalo"
+                    ]
+                  },
+                  "botToken": {
+                    "type": "string",
+                    "description": "Bot token for telegram, discord, or zalo. The API maps this to config.botToken internally."
+                  },
+                  "thread_id": {
+                    "type": "number",
+                    "description": "Thread id to attach the channel to. The API maps this to settings.thread_id internally."
+                  },
+                  "threadId": {
+                    "type": "number",
+                    "description": "Alias for thread_id."
+                  },
+                  "autoStart": {
+                    "type": "boolean",
+                    "description": "Start the channel immediately after create. Defaults to true."
+                  },
+                  "autostart": {
+                    "type": "boolean",
+                    "description": "Alias for autoStart."
+                  },
+                  "start": {
+                    "type": "boolean",
+                    "description": "Alias for autoStart."
+                  },
+                  "enabled": {
+                    "type": "boolean",
+                    "description": "Compatibility field. Defaults to the autoStart value."
+                  },
+                  "config": {
+                    "type": "object",
+                    "description": "Compatibility field; prefer flat botToken."
+                  },
+                  "settings": {
+                    "type": "object",
+                    "description": "Compatibility field; prefer flat thread_id."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cli/update-channel/{channelId}": {
+      "post": {
+        "tags": [
+          "Channels"
+        ],
+        "description": "Update one chat channel by exact channel id. Only channel writable fields are changed.",
+        "operationId": "updateChannel",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "thread_id": {
+                    "type": "number",
+                    "description": "Thread id to attach the channel to. Omit to keep the current thread_id."
+                  },
+                  "threadId": {
+                    "type": "number",
+                    "description": "Alias for thread_id."
+                  },
+                  "terminalProgressRelay": {
+                    "type": "boolean",
+                    "description": "Enable terminal progress relay. Omit to keep the current value."
+                  },
+                  "terminalProgressThrottleSeconds": {
+                    "type": "number",
+                    "description": "Terminal progress relay throttle in seconds. Omit to keep the current value."
+                  },
+                  "ttsEnabled": {
+                    "type": "boolean",
+                    "description": "Enable channel text-to-speech. Omit to keep the current value."
+                  },
+                  "tts_enabled": {
+                    "type": "boolean",
+                    "description": "Alias for ttsEnabled."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cli/start-channel/{channelId}": {
+      "post": {
+        "tags": [
+          "Channels"
+        ],
+        "description": "Start one chat channel by exact channel id.",
+        "operationId": "startChannel",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/cli/stop-channel/{channelId}": {
+      "post": {
+        "tags": [
+          "Channels"
+        ],
+        "description": "Stop one chat channel by exact channel id.",
+        "operationId": "stopChannel",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/cli/delete-channel/{channelId}": {
+      "delete": {
+        "tags": [
+          "Channels"
+        ],
+        "description": "Delete one chat channel by exact channel id.",
+        "operationId": "deleteChannel",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/cli/approve-channel-pairing-code/{code}": {
+      "post": {
+        "tags": [
+          "Channels"
+        ],
+        "description": "Approve one pending channel pairing code by visible 6-digit code or database id. Works for telegram, discord, and zalo channel pairing requests.",
+        "operationId": "approveChannelPairingCode",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "InvalidAPIKey": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "Invalid API Key"
+          }
+        },
+        "xml": {
+          "name": "InvalidAPIKey"
+        }
+      },
+      "ChatRequest": {
+        "type": "object",
+        "properties": {
+          "messages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "string",
+                  "example": "user"
+                },
+                "content": {
+                  "type": "string",
+                  "example": "Hello"
+                }
+              }
+            }
+          },
+          "model": {
+            "type": "string",
+            "example": "gpt-4o"
+          },
+          "temperature": {
+            "type": "number",
+            "example": 0.7
+          },
+          "max_tokens": {
+            "type": "number",
+            "example": 1000
+          }
+        },
+        "xml": {
+          "name": "ChatRequest"
+        }
+      }
+    },
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      },
+      "AppIdAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-app-id",
+        "description": "LocalApp ID for API access"
+      }
+    }
+  },
+  "security": [
+    {
+      "BearerAuth": []
+    },
+    {
+      "AppIdAuth": []
+    }
+  ],
+  "servers": [
+    {
+      "url": "http://localhost:3101"
+    }
+  ]
+}

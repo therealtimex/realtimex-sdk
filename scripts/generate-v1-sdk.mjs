@@ -10,6 +10,8 @@
  *   node scripts/generate-v1-sdk.mjs --force        # always regenerate
  *   node scripts/generate-v1-sdk.mjs --dry-run      # print what would change
  *   node scripts/generate-v1-sdk.mjs --spec=./path/to/openapi.json
+ *
+ * By default this reads ./openapi.json from the SDK repo root.
  */
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, unlinkSync } from 'fs';
@@ -27,7 +29,7 @@ const TS_V1_INDEX    = resolve(SDK_ROOT, 'typescript/src/v1/index.ts');
 const PY_V1_DIR      = resolve(SDK_ROOT, 'python/realtimex_sdk/v1');
 const PY_INIT        = resolve(SDK_ROOT, 'python/realtimex_sdk/v1/__init__.py');
 const DIGEST_FILE    = resolve(__dir, '.sdk-spec-digest.json');
-const DEFAULT_SPEC   = resolve(SDK_ROOT, '../realtimex-ai-app/server/swagger/openapi.json');
+const DEFAULT_SPEC   = resolve(SDK_ROOT, 'openapi.json');
 // ─── CLI Args ─────────────────────────────────────────────────────────────────
 
 const ARGS      = process.argv.slice(2);
@@ -633,7 +635,7 @@ function main() {
   // 1. Load spec
   if (!existsSync(SPEC_PATH)) {
     console.error(`ERROR: openapi.json not found at ${SPEC_PATH}`);
-    console.error('Run `yarn swagger` in the server directory first.');
+    console.error('Copy the generated OpenAPI spec to ./openapi.json in the SDK repo root.');
     process.exit(1);
   }
 

@@ -2,7 +2,7 @@
 /**
  * generate-skill.mjs
  *
- * Generates the RealTimeX Printing Press skill from the app OpenAPI spec, then
+ * Generates the RealTimeX Printing Press skill from the SDK repo OpenAPI spec, then
  * packages the CLI-only agent skill instructions into the TypeScript package:
  *
  *   - SKILL.md
@@ -12,8 +12,9 @@
  *
  * Usage:
  *   node scripts/generate-skill.mjs --force
- *   node scripts/generate-skill.mjs --app-root ../realtimex-ai-app --force
- *   node scripts/generate-skill.mjs --spec ../realtimex-ai-app/server/swagger/openapi.json --force
+ *   node scripts/generate-skill.mjs --spec ./openapi.json --force
+ *
+ * By default this reads ./openapi.json from the SDK repo root.
  */
 
 import fs from 'fs';
@@ -28,7 +29,7 @@ const SDK_VERSION = JSON.parse(
   fs.readFileSync(path.join(REPO_ROOT, 'typescript', 'package.json'), 'utf-8')
 ).version;
 
-const DEFAULT_APP_ROOT = path.resolve(REPO_ROOT, '..', 'realtimex-ai-app');
+const DEFAULT_SPEC = path.resolve(REPO_ROOT, 'openapi.json');
 const DEFAULT_OUT = path.join(
   REPO_ROOT,
   'typescript',
@@ -61,10 +62,7 @@ function parseFlags(argv) {
 const flags = parseFlags(process.argv.slice(2));
 const DRY_RUN = flags['dry-run'] === true || flags['dry-run'] === 'true';
 const FORCE = flags.force === true || flags.force === 'true';
-const APP_ROOT = path.resolve(flags['app-root'] || DEFAULT_APP_ROOT);
-const SPEC_PATH = path.resolve(
-  flags.spec || path.join(APP_ROOT, 'server', 'swagger', 'openapi.json')
-);
+const SPEC_PATH = path.resolve(flags.spec || DEFAULT_SPEC);
 const OUT_DIR = path.resolve(flags.out || DEFAULT_OUT);
 const TEMPLATE_PATH = flags.template === false || flags.template === 'false'
   ? ''
