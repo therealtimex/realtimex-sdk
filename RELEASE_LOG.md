@@ -1,5 +1,90 @@
 # RealtimeX SDK Release Log
 
+## 2.0.8 - 2026-06-05
+
+This release adds first-class CLI controls for RealTimeX agent skills and plugins. Agents can now inspect which skills/plugins are available, enable or disable workspace skills, and manage plugin runtime state without calling raw API endpoints.
+
+Install the matching CLI:
+
+```bash
+npm install -g @realtimex/pp-cli@2.0.8
+realtimex-pp-cli --version
+```
+
+The version output should be:
+
+```text
+realtimex-pp-cli 2.0.8
+```
+
+### New: Agent Skill Controls
+
+Agent skills are now exposed as CLI commands instead of requiring agents to inspect workspace config JSON manually.
+
+- `list-agent-skills` - List published agent skills.
+- `list-workspace-agent-skills <workspaceSlug>` - List published agent skills with enabled/disabled state for one workspace.
+- `enable-workspace-agent-skill <workspaceSlug> <skillId>` - Enable one agent skill in a workspace.
+- `disable-workspace-agent-skill <workspaceSlug> <skillId>` - Disable one agent skill in a workspace.
+
+Use exact skill ids, names, or display names from `list-workspace-agent-skills`. Workspace enable/disable updates the same `disabledAgentSkills` config used by the app UI.
+
+### New: Plugin Runtime Controls
+
+Installed plugins are now manageable from the CLI with compact status output suitable for agents.
+
+- `list-plugins` - List installed plugins with enabled state and runtime load status.
+- `enable-plugin <pluginId>` - Enable one installed plugin globally and load it into runtime.
+- `disable-plugin <pluginId>` - Disable one installed plugin globally and unload it from runtime.
+- `reload-plugin <pluginId>` - Reload one enabled plugin in runtime.
+
+Use exact plugin ids, names, or display names from `list-plugins`. The list response includes runtime status so agents can tell whether a plugin is loaded or unloaded.
+
+### New: Personality And Heartbeat Setup
+
+The generated skill now has clearer guidance for agent-authored workspace files:
+
+- `setup-personality` - Return the path and concise instructions for workspace or global personality markdown files such as `AGENTS.md` and `CLAUDE.md`.
+- `setup-heartbeat-tasks` - Return the path and concise instructions for workspace or global `HEARTBEAT.md` task setup.
+
+The generated skill package also includes reusable templates:
+
+- `templates/AGENTS.template.md`
+- `templates/HEARTBEAT.template.md`
+
+### New: Heartbeat Configuration Commands
+
+Heartbeat app settings are now available as small CLI actions:
+
+- `set-heartbeat-enabled`
+- `set-heartbeat-interval`
+- `set-heartbeat-active-hours`
+- `set-heartbeat-timezone`
+- `set-heartbeat-auto-pilot`
+- `set-heartbeat-default-agent`
+
+`set-heartbeat-default-agent` supports the same terminal agent shape used by workspace default agents.
+
+### New: Terminal Agent Reasoning Effort
+
+Workspace and heartbeat default-agent setup now support a flat `reasoning_effort` parameter for terminal models that expose this runtime option.
+
+- `set-workspace-default-agent <workspaceSlug>`
+- `set-heartbeat-default-agent`
+
+The CLI accepts `reasoning_effort` directly and the app persists it internally as `agent.acp.runtimeOptionValues.reasoning_effort`.
+
+### Existing Action-First Commands
+
+The 2.0.8 CLI still includes the existing action-first command set from 2.0.7:
+
+- Context: `prepare`
+- Workspace: `list-workspaces`, `create-workspace`, `get-workspace`, `rename-workspace`, `delete-workspace`, `set-workspace-default-agent`, `clear-workspace-default-agent`
+- Threads: `list-threads`, `create-thread`, `get-thread`, `rename-thread`, `delete-thread`, `send-message`
+- LLM: `list-llm-providers`, `list-llm-models`
+- Channels: `list-channels`, `create-channel`, `update-channel`, `start-channel`, `stop-channel`, `delete-channel`, `approve-channel-pairing-code`
+
+Use `--agent` on every command when automating with agents.
+
 ## 2.0.7 - 2026-06-04
 
 This release focuses on the generated `realtimex-pp-cli` package and the RealtimeX moderator skill. The CLI is generated from the checked-in `openapi.json` and exposes a small flat command set for workspace, thread, LLM, and channel operations.
