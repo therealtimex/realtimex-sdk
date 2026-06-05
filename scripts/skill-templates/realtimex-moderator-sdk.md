@@ -82,6 +82,12 @@ For workspace default-agent setup:
 * Use exact agent `canonical` and optional agent `modelId` values from `prepare.agents`.
 * Never use `prepare.models` for workspace default-agent setup.
 
+For agent skills:
+
+* Use `list-workspace-agent-skills` before enabling, disabling, or reloading workspace skills.
+* For `reload-agent-skills`, always pass a workspace slug.
+* If the user asks to reload skills for the current workspace, pass `--workspace-slug "$RTX_WORKSPACE_SLUG"`.
+
 For personality and heartbeat setup:
 
 * Use `setup-personality` to get the target directory for workspace or global personality files.

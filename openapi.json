@@ -1807,6 +1807,66 @@
         }
       }
     },
+    "/cli/reload-agent-skills": {
+      "post": {
+        "tags": [
+          "Agent Skills"
+        ],
+        "description": "Force reload all enabled agent skills into one workspace working directory. Pass workspaceSlug; agents should pass the current RTX_WORKSPACE_SLUG when reloading the current workspace.",
+        "operationId": "reloadAgentSkills",
+        "parameters": [
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [],
+                "properties": {
+                  "workspaceSlug": {
+                    "type": "string",
+                    "description": "Workspace slug to reload skills into. For current workspace, pass RTX_WORKSPACE_SLUG as this value."
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
     "/cli/list-plugins": {
       "get": {
         "tags": [

@@ -25,8 +25,10 @@ Agent skills are now exposed as CLI commands instead of requiring agents to insp
 - `list-workspace-agent-skills <workspaceSlug>` - List published agent skills with enabled/disabled state for one workspace.
 - `enable-workspace-agent-skill <workspaceSlug> <skillId>` - Enable one agent skill in a workspace.
 - `disable-workspace-agent-skill <workspaceSlug> <skillId>` - Disable one agent skill in a workspace.
+- `reload-agent-skills` - Force reload enabled agent skills into a workspace working directory.
 
 Use exact skill ids, names, or display names from `list-workspace-agent-skills`. Workspace enable/disable updates the same `disabledAgentSkills` config used by the app UI.
+When reloading the current workspace, pass `--workspace-slug "$RTX_WORKSPACE_SLUG"`.
 
 ### New: Plugin Runtime Controls
 
