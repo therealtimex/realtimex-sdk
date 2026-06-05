@@ -1,6 +1,6 @@
 ---
 name: realtimex-moderator-sdk
-description: "Use the RealTimeX API through the generated CLI for workspace, thread, channel (Telegram, Zalo, Discord) and chat operations."
+description: "Use the RealTimeX API through the generated CLI for workspace, thread, channel (Telegram, Zalo, Discord), send messages, setup personality, and heartbeat operations."
 argument-hint: "<command> [args] | install cli"
 ---
 
@@ -81,3 +81,12 @@ For workspace default-agent setup:
 * Use `prepare.agents` only.
 * Use exact agent `canonical` and optional agent `modelId` values from `prepare.agents`.
 * Never use `prepare.models` for workspace default-agent setup.
+
+For personality and heartbeat setup:
+
+* Use `setup-personality` to get the target directory for workspace or global personality files.
+* Start from `templates/AGENTS.template.md` when creating `AGENTS.md`.
+* Make `CLAUDE.md` a symlink to `AGENTS.md`.
+* Use `setup-heartbeat-tasks` to get the target `HEARTBEAT.md` path.
+* Start from `templates/HEARTBEAT.template.md` when creating `HEARTBEAT.md`.
+* Keep heartbeat instructions separate from personality files.

@@ -304,6 +304,368 @@
         }
       }
     },
+    "/cli/setup-personality": {
+      "get": {
+        "tags": [
+          "Personality"
+        ],
+        "description": "Set up AGENTS.md and CLAUDE.md personality files for a workspace or global ambient agent. Returns the target path, template, file paths, and concise editing instructions.",
+        "operationId": "setupPersonality",
+        "parameters": [
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "workspaceSlug",
+            "in": "query",
+            "required": false,
+            "description": "Workspace slug whose personality should be edited. Required when scope=workspace.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "required": true,
+            "enum": [
+              "workspace",
+              "ambient",
+              "global"
+            ],
+            "description": "Required. Use workspace for a workspace personality, or ambient/global for the global ambient agent personality at the fixed agent-heartbeat workspace.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Personality editing path and instructions.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string",
+                      "example": "/Users/rta/.realtimex.ai/desktop-user-data/app/users/phuongnguyen_rtanalytics_vn/storage/working-data/test-workspace"
+                    },
+                    "template": {
+                      "type": "string",
+                      "example": "templates/AGENTS.template.md"
+                    },
+                    "files": {
+                      "type": "object",
+                      "properties": {
+                        "agents": {
+                          "type": "string",
+                          "example": "/Users/rta/.realtimex.ai/desktop-user-data/app/users/phuongnguyen_rtanalytics_vn/storage/working-data/test-workspace/AGENTS.md"
+                        },
+                        "claude": {
+                          "type": "string",
+                          "example": "/Users/rta/.realtimex.ai/desktop-user-data/app/users/phuongnguyen_rtanalytics_vn/storage/working-data/test-workspace/CLAUDE.md"
+                        },
+                        "suggestedChildren": {
+                          "type": "array",
+                          "example": [
+                            "SOUL.md",
+                            "USER.md",
+                            "IDENTITY.md",
+                            "TOOLS.md",
+                            "MEMORY.md"
+                          ],
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "instructions": {
+                      "type": "array",
+                      "example": [
+                        "Create or edit AGENTS.md as the main personality file.",
+                        "Make CLAUDE.md a symlink to AGENTS.md so Claude reads the same main instructions.",
+                        "Do not include HEARTBEAT.md in personality; heartbeat instructions will be handled by another CLI operation."
+                      ],
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "xml": {
+                    "name": "main"
+                  }
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string",
+                      "example": "/Users/rta/.realtimex.ai/desktop-user-data/app/users/phuongnguyen_rtanalytics_vn/storage/working-data/test-workspace"
+                    },
+                    "template": {
+                      "type": "string",
+                      "example": "templates/AGENTS.template.md"
+                    },
+                    "files": {
+                      "type": "object",
+                      "properties": {
+                        "agents": {
+                          "type": "string",
+                          "example": "/Users/rta/.realtimex.ai/desktop-user-data/app/users/phuongnguyen_rtanalytics_vn/storage/working-data/test-workspace/AGENTS.md"
+                        },
+                        "claude": {
+                          "type": "string",
+                          "example": "/Users/rta/.realtimex.ai/desktop-user-data/app/users/phuongnguyen_rtanalytics_vn/storage/working-data/test-workspace/CLAUDE.md"
+                        },
+                        "suggestedChildren": {
+                          "type": "array",
+                          "example": [
+                            "SOUL.md",
+                            "USER.md",
+                            "IDENTITY.md",
+                            "TOOLS.md",
+                            "MEMORY.md"
+                          ],
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "instructions": {
+                      "type": "array",
+                      "example": [
+                        "Create or edit AGENTS.md as the main personality file.",
+                        "Make CLAUDE.md a symlink to AGENTS.md so Claude reads the same main instructions.",
+                        "Do not include HEARTBEAT.md in personality; heartbeat instructions will be handled by another CLI operation."
+                      ],
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "xml": {
+                    "name": "main"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or invalid scope/workspaceSlug.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "workspaceSlug is required when scope=workspace."
+                    }
+                  },
+                  "xml": {
+                    "name": "main"
+                  }
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "workspaceSlug is required when scope=workspace."
+                    }
+                  },
+                  "xml": {
+                    "name": "main"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/cli/setup-heartbeat-tasks": {
+      "get": {
+        "tags": [
+          "Personality"
+        ],
+        "description": "Set up HEARTBEAT.md task instructions for a workspace or global ambient agent. Returns the target path, template, file path, and concise editing instructions.",
+        "operationId": "setupHeartbeatTasks",
+        "parameters": [
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "workspaceSlug",
+            "in": "query",
+            "required": false,
+            "description": "Workspace slug whose HEARTBEAT.md should be edited. Required when scope=workspace.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "required": true,
+            "enum": [
+              "workspace",
+              "ambient",
+              "global"
+            ],
+            "description": "Required. Use workspace for a workspace heartbeat, or ambient/global for the global ambient agent HEARTBEAT.md at the fixed agent-heartbeat workspace.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Heartbeat editing path and instructions.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string",
+                      "example": "/Users/rta/.realtimex.ai/desktop-user-data/app/users/phuongnguyen_rtanalytics_vn/storage/working-data/test-workspace"
+                    },
+                    "template": {
+                      "type": "string",
+                      "example": "templates/HEARTBEAT.template.md"
+                    },
+                    "files": {
+                      "type": "object",
+                      "properties": {
+                        "heartbeat": {
+                          "type": "string",
+                          "example": "/Users/rta/.realtimex.ai/desktop-user-data/app/users/phuongnguyen_rtanalytics_vn/storage/working-data/test-workspace/HEARTBEAT.md"
+                        }
+                      }
+                    },
+                    "instructions": {
+                      "type": "array",
+                      "example": [
+                        "Create or edit HEARTBEAT.md for workspace or global ambient-agent heartbeat instructions.",
+                        "Use HEARTBEAT.md for recurring ambient behavior, periodic checks, proactive routines, and standing background tasks.",
+                        "Keep heartbeat instructions separate from personality files like AGENTS.md and CLAUDE.md.",
+                        "Use interval for simple task timing, cron for complex schedules, and optional agent/model/skills task fields when needed."
+                      ],
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "xml": {
+                    "name": "main"
+                  }
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string",
+                      "example": "/Users/rta/.realtimex.ai/desktop-user-data/app/users/phuongnguyen_rtanalytics_vn/storage/working-data/test-workspace"
+                    },
+                    "template": {
+                      "type": "string",
+                      "example": "templates/HEARTBEAT.template.md"
+                    },
+                    "files": {
+                      "type": "object",
+                      "properties": {
+                        "heartbeat": {
+                          "type": "string",
+                          "example": "/Users/rta/.realtimex.ai/desktop-user-data/app/users/phuongnguyen_rtanalytics_vn/storage/working-data/test-workspace/HEARTBEAT.md"
+                        }
+                      }
+                    },
+                    "instructions": {
+                      "type": "array",
+                      "example": [
+                        "Create or edit HEARTBEAT.md for workspace or global ambient-agent heartbeat instructions.",
+                        "Use HEARTBEAT.md for recurring ambient behavior, periodic checks, proactive routines, and standing background tasks.",
+                        "Keep heartbeat instructions separate from personality files like AGENTS.md and CLAUDE.md.",
+                        "Use interval for simple task timing, cron for complex schedules, and optional agent/model/skills task fields when needed."
+                      ],
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "xml": {
+                    "name": "main"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or invalid scope/workspaceSlug.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "workspaceSlug is required when scope=workspace."
+                    }
+                  },
+                  "xml": {
+                    "name": "main"
+                  }
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "workspaceSlug is required when scope=workspace."
+                    }
+                  },
+                  "xml": {
+                    "name": "main"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
     "/cli/list-workspaces": {
       "get": {
         "tags": [
@@ -651,6 +1013,10 @@
                   "modelId": {
                     "type": "string",
                     "description": "Optional model id from the selected prepare.agents entry. Omit only when the user explicitly wants the CLI default model."
+                  },
+                  "reasoning_effort": {
+                    "type": "string",
+                    "description": "Optional reasoning effort for terminal CLI models that support it, for example low, medium, high, xhigh, or max."
                   }
                 },
                 "additionalProperties": false
@@ -1680,6 +2046,462 @@
           },
           "500": {
             "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/cli/set-heartbeat-enabled": {
+      "post": {
+        "tags": [
+          "Heartbeat"
+        ],
+        "description": "Turn workspace or global ambient-agent heartbeat on or off.",
+        "operationId": "setHeartbeatEnabled",
+        "parameters": [
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "scope",
+                  "enabled"
+                ],
+                "properties": {
+                  "scope": {
+                    "type": "string",
+                    "enum": [
+                      "workspace",
+                      "global",
+                      "ambient"
+                    ],
+                    "description": "Required. Use workspace for a workspace heartbeat config, or global/ambient for the global ambient-agent heartbeat config."
+                  },
+                  "workspaceSlug": {
+                    "type": "string",
+                    "description": "Required when scope=workspace."
+                  },
+                  "enabled": {
+                    "type": "boolean",
+                    "description": "Required heartbeat enabled state."
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cli/set-heartbeat-interval": {
+      "post": {
+        "tags": [
+          "Heartbeat"
+        ],
+        "description": "Set workspace or global ambient-agent main executor interval. Supports simple intervals only: m, h, or d, for example 3m, 1h, or 1d.",
+        "operationId": "setHeartbeatInterval",
+        "parameters": [
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "scope",
+                  "interval"
+                ],
+                "properties": {
+                  "scope": {
+                    "type": "string",
+                    "enum": [
+                      "workspace",
+                      "global",
+                      "ambient"
+                    ],
+                    "description": "Required. Use workspace for a workspace heartbeat config, or global/ambient for the global ambient-agent heartbeat config."
+                  },
+                  "workspaceSlug": {
+                    "type": "string",
+                    "description": "Required when scope=workspace."
+                  },
+                  "interval": {
+                    "type": "string",
+                    "description": "Required simple interval using m, h, or d. Examples: 3m, 1h, 1d. Cron is not supported for the main executor interval.",
+                    "pattern": "^[1-9][0-9]*[mhd]$"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cli/set-heartbeat-active-hours": {
+      "post": {
+        "tags": [
+          "Heartbeat"
+        ],
+        "description": "Set workspace or global ambient-agent active hours using HH:mm start and end values.",
+        "operationId": "setHeartbeatActiveHours",
+        "parameters": [
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "scope",
+                  "start",
+                  "end"
+                ],
+                "properties": {
+                  "scope": {
+                    "type": "string",
+                    "enum": [
+                      "workspace",
+                      "global",
+                      "ambient"
+                    ],
+                    "description": "Required. Use workspace for a workspace heartbeat config, or global/ambient for the global ambient-agent heartbeat config."
+                  },
+                  "workspaceSlug": {
+                    "type": "string",
+                    "description": "Required when scope=workspace."
+                  },
+                  "start": {
+                    "type": "string",
+                    "description": "Required active-hours start in HH:mm format, for example 08:00."
+                  },
+                  "end": {
+                    "type": "string",
+                    "description": "Required active-hours end in HH:mm format, for example 24:00."
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cli/set-heartbeat-timezone": {
+      "post": {
+        "tags": [
+          "Heartbeat"
+        ],
+        "description": "Set workspace or global ambient-agent heartbeat timezone, for example Asia/Saigon or UTC.",
+        "operationId": "setHeartbeatTimezone",
+        "parameters": [
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "scope",
+                  "timezone"
+                ],
+                "properties": {
+                  "scope": {
+                    "type": "string",
+                    "enum": [
+                      "workspace",
+                      "global",
+                      "ambient"
+                    ],
+                    "description": "Required. Use workspace for a workspace heartbeat config, or global/ambient for the global ambient-agent heartbeat config."
+                  },
+                  "workspaceSlug": {
+                    "type": "string",
+                    "description": "Required when scope=workspace."
+                  },
+                  "timezone": {
+                    "type": "string",
+                    "description": "Required IANA timezone, for example Asia/Saigon or UTC."
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cli/set-heartbeat-auto-pilot": {
+      "post": {
+        "tags": [
+          "Heartbeat"
+        ],
+        "description": "Turn workspace or global ambient-agent heartbeat auto pilot on or off.",
+        "operationId": "setHeartbeatAutoPilot",
+        "parameters": [
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "scope",
+                  "enabled"
+                ],
+                "properties": {
+                  "scope": {
+                    "type": "string",
+                    "enum": [
+                      "workspace",
+                      "global",
+                      "ambient"
+                    ],
+                    "description": "Required. Use workspace for a workspace heartbeat config, or global/ambient for the global ambient-agent heartbeat config."
+                  },
+                  "workspaceSlug": {
+                    "type": "string",
+                    "description": "Required when scope=workspace."
+                  },
+                  "enabled": {
+                    "type": "boolean",
+                    "description": "Required heartbeat enabled state."
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cli/set-heartbeat-default-agent": {
+      "post": {
+        "tags": [
+          "Heartbeat"
+        ],
+        "description": "Set workspace or global ambient-agent main executor default terminal agent and optional model.",
+        "operationId": "setHeartbeatDefaultAgent",
+        "parameters": [
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "scope",
+                  "canonical"
+                ],
+                "properties": {
+                  "scope": {
+                    "type": "string",
+                    "enum": [
+                      "workspace",
+                      "global",
+                      "ambient"
+                    ],
+                    "description": "Required. Use workspace for a workspace heartbeat config, or global/ambient for the global ambient-agent heartbeat config."
+                  },
+                  "workspaceSlug": {
+                    "type": "string",
+                    "description": "Required when scope=workspace."
+                  },
+                  "canonical": {
+                    "type": "string",
+                    "description": "Required terminal agent canonical id from prepare.agents, for example codex, gemini, claude, or qwen."
+                  },
+                  "providerId": {
+                    "type": "string",
+                    "description": "Optional terminal agent provider id from prepare.agents."
+                  },
+                  "modelId": {
+                    "type": "string",
+                    "description": "Optional model id from the selected prepare.agents entry."
+                  },
+                  "reasoning_effort": {
+                    "type": "string",
+                    "description": "Optional reasoning effort for terminal CLI models that support it, for example low, medium, high, xhigh, or max."
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
           }
         }
       }

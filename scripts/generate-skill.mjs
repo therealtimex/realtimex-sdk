@@ -42,9 +42,20 @@ const DEFAULT_TEMPLATE = path.join(
   'skill-templates',
   'realtimex-moderator-sdk.md'
 );
+const TEMPLATE_ASSETS_DIR = path.join(REPO_ROOT, 'scripts', 'skill-templates');
 
 const SKILL_FILES = [
   'SKILL.md',
+];
+const TEMPLATE_ASSETS = [
+  {
+    source: 'AGENTS.template.md',
+    output: path.join('templates', 'AGENTS.template.md'),
+  },
+  {
+    source: 'HEARTBEAT.template.md',
+    output: path.join('templates', 'HEARTBEAT.template.md'),
+  },
 ];
 
 function parseFlags(argv) {
@@ -319,12 +330,33 @@ function copySkillFile(relativePath) {
   console.log(`  copied ${rel(outPath)}`);
 }
 
+function copyTemplateAsset(asset) {
+  const sourcePath = path.join(TEMPLATE_ASSETS_DIR, asset.source);
+  const outPath = path.join(OUT_DIR, asset.output);
+
+  if (DRY_RUN) {
+    console.log(`[DRY-RUN] copy ${sourcePath} -> ${outPath}`);
+    return;
+  }
+
+  if (!fs.existsSync(sourcePath)) {
+    throw new Error(`Expected skill template asset missing: ${sourcePath}`);
+  }
+
+  fs.mkdirSync(path.dirname(outPath), { recursive: true });
+  fs.copyFileSync(sourcePath, outPath);
+  console.log(`  copied ${rel(outPath)}`);
+}
+
 function packageSkill() {
   prepareOutputDir();
   for (const relativePath of SKILL_FILES) {
     copySkillFile(relativePath);
   }
   applySkillTemplate();
+  for (const asset of TEMPLATE_ASSETS) {
+    copyTemplateAsset(asset);
+  }
 }
 
 function parseFrontmatter(markdown) {

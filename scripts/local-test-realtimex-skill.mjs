@@ -12,6 +12,7 @@
  *   PP_CLI_GOOS=darwin
  *   PP_CLI_GOARCH=amd64
  *   PP_CLI_LINK_PATH=/usr/local/bin/realtimex-pp-cli
+ *   REALTIMEX_APP_REPO=/Volumes/MAC-DATA/RTA/projects/realtimex-ai-app
  *   SKILL_DEST=/path/to/.claude/skills/realtimex-moderator-sdk
  */
 
@@ -23,6 +24,10 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
+const DEFAULT_APP_REPO = path.resolve(REPO_ROOT, '..', 'realtimex-ai-app');
+const APP_REPO = path.resolve(process.env.REALTIMEX_APP_REPO || DEFAULT_APP_REPO);
+const APP_OPENAPI_PATH = path.join(APP_REPO, 'server', 'swagger', 'openapi.json');
+const SDK_OPENAPI_PATH = path.join(REPO_ROOT, 'openapi.json');
 const SKILL_NAME = 'realtimex-moderator-sdk';
 const GOOS = process.env.PP_CLI_GOOS || 'darwin';
 const GOARCH = process.env.PP_CLI_GOARCH || 'amd64';
@@ -52,6 +57,20 @@ function run(command, args, options = {}) {
 
 function rel(filePath) {
   return path.relative(REPO_ROOT, filePath) || '.';
+}
+
+function refreshOpenApiSpec() {
+  if (!fs.existsSync(APP_OPENAPI_PATH)) {
+    throw new Error(
+      `App OpenAPI spec not found at ${APP_OPENAPI_PATH}. ` +
+        'Set REALTIMEX_APP_REPO to the realtimex-ai-app repo path.'
+    );
+  }
+
+  fs.copyFileSync(APP_OPENAPI_PATH, SDK_OPENAPI_PATH);
+  console.log(
+    `[local-test] copied ${APP_OPENAPI_PATH} -> ${rel(SDK_OPENAPI_PATH)}`
+  );
 }
 
 function regenerateSkill() {
@@ -111,11 +130,13 @@ function verify(binaryPath) {
 
 function main() {
   console.log(`[local-test] repo: ${REPO_ROOT}`);
+  console.log(`[local-test] app repo: ${APP_REPO}`);
   console.log(`[local-test] target: ${GOOS}/${GOARCH}`);
   console.log(`[local-test] skill out: ${SKILL_OUT}`);
   console.log(`[local-test] skill dest: ${SKILL_DEST}`);
   console.log(`[local-test] cli link: ${LINK_PATH}`);
 
+  refreshOpenApiSpec();
   regenerateSkill();
   const binaryPath = rebuildSkillBinary();
   installCliSymlink(binaryPath);
