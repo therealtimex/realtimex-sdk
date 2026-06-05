@@ -1812,7 +1812,7 @@
         "tags": [
           "Agent Skills"
         ],
-        "description": "Force reload all enabled agent skills into one workspace working directory. Pass workspaceSlug; agents should pass the current RTX_WORKSPACE_SLUG when reloading the current workspace.",
+        "description": "Force reload all enabled agent skills into one workspace working directory. Pass workspaceSlug; agents should pass the current RTX_WORKSPACE_SLUG when reloading the current workspace. After files are reloaded, the running agent must reload its own skill context before relying on updated skill instructions.",
         "operationId": "reloadAgentSkills",
         "parameters": [
           {

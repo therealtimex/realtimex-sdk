@@ -1,6 +1,6 @@
 ---
 name: realtimex-moderator-sdk
-description: "Use the RealTimeX API through the generated CLI for workspace, thread, channel (Telegram, Zalo, Discord), send messages, setup personality, and heartbeat operations."
+description: "Use the RealTimeX API through the generated CLI for workspace, thread, channel (Telegram, Zalo, Discord), skills, plugins and send messages, setup personality, heartbeat tasks operations."
 argument-hint: "<command> [args] | install cli"
 ---
 
@@ -87,6 +87,7 @@ For agent skills:
 * Use `list-workspace-agent-skills` before enabling, disabling, or reloading workspace skills.
 * For `reload-agent-skills`, always pass a workspace slug.
 * If the user asks to reload skills for the current workspace, pass `--workspace-slug "$RTX_WORKSPACE_SLUG"`.
+* After `reload-agent-skills` succeeds, reload your own skill context before relying on updated skill instructions.
 
 For personality and heartbeat setup:
 
