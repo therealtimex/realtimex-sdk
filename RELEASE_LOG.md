@@ -1,5 +1,50 @@
 # RealtimeX SDK Release Log
 
+## 2.0.11 - 2026-06-10
+
+This release merges the terminal-session controls from `2.0.10` with new terminal-agent discovery and launch commands for the generated `realtimex-pp-cli`.
+
+Install the matching CLI:
+
+```bash
+npm install -g @realtimex/pp-cli@2.0.11
+realtimex-pp-cli --version
+```
+
+The version output should be:
+
+```text
+realtimex-pp-cli 2.0.11
+```
+
+### New: Terminal Agent Discovery And Launch
+
+- `list-terminal-agents` - List compact terminal agent descriptors from the same catalog returned by `prepare.agents`.
+- `open-terminal-session` - Open a new desktop terminal session for one terminal CLI agent. Requires `agentName`; accepts optional `workspaceSlug`, `threadSlug`, `providerId`, `modelId`, `message`, `firstTurnDelivery`, and `requestedBy`.
+
+`open-terminal-session` attaches the CLI controller at launch time through the desktop runtime controller hint. If `threadSlug` is provided, `workspaceSlug` is also required.
+
+### Included From 2.0.10: Terminal Session CLI Controls
+
+- `list-terminal-sessions` - List live and historical terminal runtime sessions grouped by `workspaceSlug` and `threadSlug`, with compact identity fields and `attached` status. Supports optional `workspaceSlug`, `threadSlug`, `includeClosed`, and per-thread `limit` filtering.
+- `resume-terminal-session <sessionId>` - Resume + attach a CLI controller to one terminal runtime session. Closed historical sessions are relaunched from resume metadata when available.
+- `resume-latest-terminal-session` - Resume + attach the latest terminal runtime session for one exact thread. Requires the current `workspaceSlug` and `threadSlug`.
+- `terminate-terminal-session <sessionId>` - Close + detach one terminal runtime session. Known already-closed historical sessions return success with `alreadyClosed: true`.
+
+Terminal-session command responses are compact and keep the fields needed by agents for identity and follow-up commands, such as `sessionId`, `activityCardId`, `status`, `attached`, `workspaceSlug`, `threadSlug`, `assistantAgent`, and `sessionMeta`.
+
+Known terminal-session failures return structured non-retry JSON errors instead of generic 5xx responses. Missing sessions return `SESSION_NOT_FOUND`; already closed, close failure, and detach failure responses return `SESSION_CLOSED`, `SESSION_CLOSE_FAILED`, or `SESSION_DETACH_FAILED`.
+
+### Updated: Moderator Skill Guidance
+
+The generated `realtimex-moderator-sdk` skill now tells agents to:
+
+- Treat `$RTX_WORKSPACE_SLUG` and `$RTX_THREAD_SLUG` as current workspace/thread context when set.
+- Use `prepare --workspace-slug "$RTX_WORKSPACE_SLUG" --thread-slug "$RTX_THREAD_SLUG" --agent` when resolved current workspace/thread details or related context are needed.
+- Use `list-terminal-agents` for terminal-agent discovery when workspace/thread context is not needed.
+- Use `open-terminal-session` to launch a new auto-attached terminal-agent session.
+- Use `list-terminal-sessions`, `resume-terminal-session`, `resume-latest-terminal-session`, and `terminate-terminal-session` for existing terminal sessions.
+
 ## 2.0.10 - 2026-06-10
 
 This release adds terminal-session controls to the generated `realtimex-pp-cli` and updates moderator skill guidance for current workspace/thread context.

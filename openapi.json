@@ -2981,6 +2981,130 @@
         }
       }
     },
+    "/cli/list-terminal-agents": {
+      "get": {
+        "tags": [
+          "Terminal Sessions"
+        ],
+        "description": "List terminal CLI agents that can be used with open-terminal-session. This is the same compact agent catalog returned by prepare.agents.",
+        "operationId": "listTerminalAgents",
+        "parameters": [
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/cli/open-terminal-session": {
+      "post": {
+        "tags": [
+          "Terminal Sessions"
+        ],
+        "description": "Open a new desktop terminal session for one terminal CLI agent. Use list-terminal-agents or prepare.agents to choose agentName/providerId/modelId. workspaceSlug is required when threadSlug is provided.",
+        "operationId": "openTerminalSession",
+        "parameters": [
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "agentName"
+                ],
+                "properties": {
+                  "agentName": {
+                    "type": "string",
+                    "description": "Required terminal agent name or canonical id from list-terminal-agents or prepare.agents, for example claude, codex, gemini, or qwen.",
+                    "minLength": 1
+                  },
+                  "workspaceSlug": {
+                    "type": "string",
+                    "description": "Optional workspace slug to associate with the new terminal session."
+                  },
+                  "threadSlug": {
+                    "type": "string",
+                    "description": "Optional thread slug to associate with the new terminal session. Requires workspaceSlug."
+                  },
+                  "providerId": {
+                    "type": "string",
+                    "description": "Optional terminal agent provider id from list-terminal-agents."
+                  },
+                  "modelId": {
+                    "type": "string",
+                    "description": "Optional model id from the selected terminal agent."
+                  },
+                  "message": {
+                    "type": "string",
+                    "description": "Optional first message to deliver to the launched terminal agent."
+                  },
+                  "firstTurnDelivery": {
+                    "type": "string",
+                    "enum": [
+                      "queued",
+                      "launch-args"
+                    ],
+                    "description": "Optional first-message delivery mode. Use launch-args when the agent supports prompt arguments."
+                  },
+                  "requestedBy": {
+                    "type": "string",
+                    "description": "Optional human-readable label for the CLI controller."
+                  }
+                },
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
     "/cli/list-terminal-sessions": {
       "get": {
         "tags": [
@@ -2989,13 +3113,6 @@
         "description": "List terminal runtime sessions known to the desktop app. Optionally filter by workspaceSlug and threadSlug. workspaceSlug is required when threadSlug is provided.",
         "operationId": "listTerminalSessions",
         "parameters": [
-          {
-            "name": "x-app-id",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "workspaceSlug",
             "in": "query",
@@ -3018,6 +3135,21 @@
             "description": "Include closed sessions. Defaults to true.",
             "schema": {
               "type": "boolean"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum sessions per thread group. Defaults to 3; maximum is 10.",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
             }
           }
         ],
@@ -3215,14 +3347,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
+            "description": "OK"
           },
           "400": {
             "description": "Bad Request"

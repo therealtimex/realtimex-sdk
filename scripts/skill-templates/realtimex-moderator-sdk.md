@@ -1,6 +1,6 @@
 ---
 name: realtimex-moderator-sdk
-description: "Use the RealTimeX API through the generated CLI for workspace, thread, channel (Telegram, Zalo, Discord), skills, plugins and send messages, setup personality, heartbeat tasks operations."
+description: "Use the RealTimeX API through the generated CLI for workspace, thread, terminal-agent sessions, channel (Telegram, Zalo, Discord), skills, plugins and send messages, setup personality, heartbeat tasks operations."
 argument-hint: "<command> [args] | install cli"
 ---
 
@@ -90,6 +90,15 @@ For workspace default-agent setup:
 * Use `prepare.agents` only.
 * Use exact agent `canonical` and optional agent `modelId` values from `prepare.agents`.
 * Never use `prepare.models` for workspace default-agent setup.
+
+For terminal agents and terminal sessions:
+
+* Use `list-terminal-agents` when you only need available terminal agents. Use `prepare` when you also need workspace/thread/provider/model context.
+* Use `open-terminal-session` to open a new desktop terminal session for a terminal agent. It auto-attaches the CLI controller through the desktop runtime launch request.
+* Use exact `agentName`, `providerId`, and `modelId` values from `list-terminal-agents` or `prepare.agents`.
+* When opening a terminal session for the current thread, pass both `--workspace-slug "$RTX_WORKSPACE_SLUG"` and `--thread-slug "$RTX_THREAD_SLUG"`.
+* Use `list-terminal-sessions` to inspect grouped terminal sessions by `workspaceSlug` and `threadSlug`. Each session includes compact identity fields and `attached` status.
+* Use `resume-terminal-session` or `resume-latest-terminal-session` to resume + attach an existing session. Use `terminate-terminal-session` to close + detach a session.
 
 For agent skills:
 
