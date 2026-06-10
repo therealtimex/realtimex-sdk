@@ -1,5 +1,42 @@
 # RealtimeX SDK Release Log
 
+## 2.0.10 - 2026-06-10
+
+This release adds terminal-session controls to the generated `realtimex-pp-cli` and updates moderator skill guidance for current workspace/thread context.
+
+Install the matching CLI:
+
+```bash
+npm install -g @realtimex/pp-cli@2.0.10
+realtimex-pp-cli --version
+```
+
+The version output should be:
+
+```text
+realtimex-pp-cli 2.0.10
+```
+
+### New: Terminal Session CLI Controls
+
+- `list-terminal-sessions` - List live and historical terminal runtime sessions with compact identity fields. Supports optional `workspaceSlug`, `threadSlug`, and `includeClosed` filtering.
+- `resume-terminal-session <sessionId>` - Resume + attach a CLI controller to one terminal runtime session. Closed historical sessions are relaunched from resume metadata when available.
+- `resume-latest-terminal-session` - Resume + attach the latest terminal runtime session for one exact thread. Requires the current `workspaceSlug` and `threadSlug`.
+- `terminate-terminal-session <sessionId>` - Close + detach one terminal runtime session.
+
+Terminal-session command responses are compact and keep the fields needed by agents for identity and follow-up commands, such as `sessionId`, `activityCardId`, `status`, `workspaceSlug`, `threadSlug`, `assistantAgent`, and `sessionMeta`.
+
+Known terminal-session failures now return structured non-retry JSON errors instead of generic 5xx responses. Missing sessions return `SESSION_NOT_FOUND`; already closed, close failure, and detach failure responses return `SESSION_CLOSED`, `SESSION_CLOSE_FAILED`, or `SESSION_DETACH_FAILED`.
+
+### Updated: Current Workspace And Thread Context
+
+The generated `realtimex-moderator-sdk` skill now tells agents to:
+
+- Treat `$RTX_WORKSPACE_SLUG` as the current workspace slug when set.
+- Treat `$RTX_THREAD_SLUG` as the current thread slug when set.
+- Use those environment values directly for "current workspace", "this workspace", "current thread", and "this thread" requests.
+- Call `realtimex-pp-cli prepare --workspace-slug "$RTX_WORKSPACE_SLUG" --thread-slug "$RTX_THREAD_SLUG" --agent` when resolved current workspace/thread details or related context are needed.
+
 ## 2.0.9 - 2026-06-05
 
 This release adds a CLI action for forcing workspace agent skills to be reloaded from the app, and updates the generated moderator skill guidance for that flow.

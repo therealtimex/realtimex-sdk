@@ -2980,6 +2980,264 @@
           }
         }
       }
+    },
+    "/cli/list-terminal-sessions": {
+      "get": {
+        "tags": [
+          "Terminal Sessions"
+        ],
+        "description": "List terminal runtime sessions known to the desktop app. Optionally filter by workspaceSlug and threadSlug. workspaceSlug is required when threadSlug is provided.",
+        "operationId": "listTerminalSessions",
+        "parameters": [
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "workspaceSlug",
+            "in": "query",
+            "description": "Optional workspace slug filter.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "threadSlug",
+            "in": "query",
+            "description": "Optional thread slug filter. Requires workspaceSlug.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "includeClosed",
+            "in": "query",
+            "description": "Include closed sessions. Defaults to true.",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/cli/resume-terminal-session/{sessionId}": {
+      "post": {
+        "tags": [
+          "Terminal Sessions"
+        ],
+        "description": "Resume a terminal runtime session by attaching a CLI controller. If the live session is closed or missing, historical resume metadata is used when available.",
+        "operationId": "resumeTerminalSession",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [],
+                "properties": {
+                  "workspaceSlug": {
+                    "type": "string",
+                    "description": "Optional exact workspace slug used to locate closed historical sessions faster."
+                  },
+                  "threadSlug": {
+                    "type": "string",
+                    "description": "Optional exact thread slug. When provided, workspaceSlug should also be provided."
+                  },
+                  "requestedBy": {
+                    "type": "string",
+                    "description": "Optional human-readable label for the CLI controller."
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cli/resume-latest-terminal-session": {
+      "post": {
+        "tags": [
+          "Terminal Sessions"
+        ],
+        "description": "Resume the latest terminal runtime session for one exact thread. workspaceSlug and threadSlug are required in the body or query string.",
+        "operationId": "resumeLatestTerminalSession",
+        "parameters": [
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "description": "Service Unavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "workspaceSlug",
+                  "threadSlug"
+                ],
+                "properties": {
+                  "workspaceSlug": {
+                    "type": "string",
+                    "description": "Required exact workspace slug containing the terminal session thread.",
+                    "minLength": 1
+                  },
+                  "threadSlug": {
+                    "type": "string",
+                    "description": "Required exact thread slug whose latest terminal session should resume.",
+                    "minLength": 1
+                  },
+                  "requestedBy": {
+                    "type": "string",
+                    "description": "Optional human-readable label for the CLI controller."
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cli/terminate-terminal-session/{sessionId}": {
+      "post": {
+        "tags": [
+          "Terminal Sessions"
+        ],
+        "description": "Terminate a terminal runtime session by detaching any controller and closing the underlying PTY session.",
+        "operationId": "terminateTerminalSession",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
     }
   },
   "components": {

@@ -52,6 +52,15 @@ This skill intentionally exposes a small action-first command set. Prefer these 
 * Never call the RealTimeX API directly with `curl`, `fetch`, raw HTTP clients, or custom scripts.
 * If the current CLI cannot do the requested task, say the feature is not available and will be added soon.
 * Use `--agent` on every command.
+* Treat `$RTX_WORKSPACE_SLUG` as the current workspace slug when it is set, and `$RTX_THREAD_SLUG` as the current thread slug when it is set.
+* For requests that refer to "current workspace", "this workspace", "current thread", or "this thread", use those environment values directly when they are available.
+* When you need the resolved current workspace/thread objects or related context, call:
+
+  ```bash
+  realtimex-pp-cli prepare --workspace-slug "$RTX_WORKSPACE_SLUG" --thread-slug "$RTX_THREAD_SLUG" --agent
+  ```
+
+* If `$RTX_WORKSPACE_SLUG` or `$RTX_THREAD_SLUG` is missing for a current-context request that requires it, ask for the missing workspace or thread before running the command.
 * Always run first:
 
   ```bash
