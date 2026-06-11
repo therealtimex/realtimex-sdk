@@ -1,5 +1,33 @@
 # RealtimeX SDK Release Log
 
+## 2.0.12 - 2026-06-11
+
+This release adds heartbeat shell executor and task-trigger support to the
+generated SDK/CLI surface.
+
+### New: Workspace Heartbeat Triggers
+
+- `trigger-workspace-heartbeat <workspaceSlug>` - Trigger the workspace's main
+  heartbeat executor immediately. This ignores the scheduled task block and is
+  useful for manually running the parent heartbeat executor from automation.
+- `trigger-workspace-heartbeat-tasks <workspaceSlug> --tasks <taskName...>` -
+  Trigger one or more named tasks from the workspace `HEARTBEAT.md` `tasks:`
+  block immediately. Shell tasks can also return selector JSON such as
+  `{"tasks":["task-name"],"reason":"..."}` to dispatch other tasks.
+
+Install the matching CLI:
+
+```bash
+npm install -g @realtimex/pp-cli@2.0.12
+realtimex-pp-cli --version
+```
+
+The version output should be:
+
+```text
+realtimex-pp-cli 2.0.12
+```
+
 ## 2.0.11 - 2026-06-10
 
 This release merges the terminal-session controls from `2.0.10` with new terminal-agent discovery and launch commands for the generated `realtimex-pp-cli`.

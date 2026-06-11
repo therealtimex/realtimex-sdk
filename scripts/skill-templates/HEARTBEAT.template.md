@@ -14,7 +14,32 @@ Use `cron` for complex schedules, for example `0 9 * * *`.
 Use `agent` to run a task with a specific terminal agent, for example `@codex-terminal`.
 Use `model` to run a task with a specific model, for example `gpt-5.5-medium`.
 Use `skills` to prefer skills for the task, for example `agent-browser, realtimex-moderator-sdk`.
-`agent`, `model`, `skills`, `interval`, and `cron` are optional. If omitted, the task inherits from the main heartbeat executor.
+Use `executor: shell` and `command` to run a shell command instead of an agent.
+`agent`, `model`, `skills`, `executor`, `command`, `interval`, and `cron` are optional. If omitted, the task inherits from the main heartbeat executor.
+When a shell command prints valid JSON, it can trigger additional tasks. Use one of these forms:
+
+```json
+["task-name-1", "task-name-2"]
+```
+
+```json
+{
+  "tasks": ["task-name-1", "task-name-2"],
+  "reason": "metrics changed"
+}
+```
+
+To trigger tasks in another workspace, include `workspace`:
+
+```json
+{
+  "workspace": "other-workspace-slug",
+  "tasks": ["task-name-1"],
+  "reason": "shared dependency changed"
+}
+```
+
+Only valid JSON triggers task dispatch. If the shell output is not valid JSON, no extra tasks are run.
 
 tasks:
 
@@ -27,6 +52,10 @@ tasks:
 - name: weekday-morning-task
   cron: 0 9 * * 1-5
   prompt: Describe what should run on a cron schedule
+- name: sync-metrics
+  interval: 30m
+  executor: shell
+  command: bash ./scripts/sync-metrics.sh
 - name: another-task
   prompt: Tasks without interval run at the main check interval
 

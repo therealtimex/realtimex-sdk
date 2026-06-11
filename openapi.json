@@ -2525,6 +2525,136 @@
         }
       }
     },
+    "/cli/trigger-workspace-heartbeat/{workspaceSlug}": {
+      "post": {
+        "tags": [
+          "Heartbeat"
+        ],
+        "description": "Trigger the main heartbeat executor for a workspace immediately. Scheduled tasks are ignored.",
+        "operationId": "triggerWorkspaceHeartbeat",
+        "parameters": [
+          {
+            "name": "workspaceSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {}
+            }
+          }
+        }
+      }
+    },
+    "/cli/trigger-workspace-heartbeat-tasks/{workspaceSlug}": {
+      "post": {
+        "tags": [
+          "Heartbeat"
+        ],
+        "description": "Trigger specified HEARTBEAT.md task names for a workspace immediately.",
+        "operationId": "triggerWorkspaceHeartbeatTasks",
+        "parameters": [
+          {
+            "name": "workspaceSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tasks": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Task names from the workspace HEARTBEAT.md tasks block."
+                  }
+                },
+                "required": [
+                  "tasks"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
     "/cli/set-heartbeat-enabled": {
       "post": {
         "tags": [
