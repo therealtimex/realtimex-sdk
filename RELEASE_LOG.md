@@ -1,5 +1,28 @@
 # RealtimeX SDK Release Log
 
+## 2.0.13 - 2026-06-26
+
+This release adds heartbeat shell executor and task-trigger support to the
+generated SDK/CLI surface.
+
+### New: Workspace Heartbeat Triggers
+
+- `trigger-workspace-heartbeat <workspaceSlug>` - Trigger the workspace's default
+  heartbeat executor immediately.
+
+Install the matching CLI:
+
+```bash
+npm install -g @realtimex/pp-cli@2.0.13
+realtimex-pp-cli --version
+```
+
+The version output should be:
+
+```text
+realtimex-pp-cli 2.0.13
+```
+
 ## 2.0.12 - 2026-06-11
 
 This release adds heartbeat shell executor and task-trigger support to the

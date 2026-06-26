@@ -2310,6 +2310,14 @@
                     "type": "number",
                     "description": "Terminal progress relay throttle in seconds. Omit to keep the current value."
                   },
+                  "terminalExternalUserContext": {
+                    "type": "boolean",
+                    "description": "Inject mapped channel user identity into terminal-agent prompts. Omit to keep the current value."
+                  },
+                  "maxFileUploadMb": {
+                    "type": "number",
+                    "description": "Maximum channel upload size in MB. Omit to keep the current value."
+                  },
                   "ttsEnabled": {
                     "type": "boolean",
                     "description": "Enable channel text-to-speech. Omit to keep the current value."
@@ -2530,7 +2538,7 @@
         "tags": [
           "Heartbeat"
         ],
-        "description": "Trigger the main heartbeat executor for a workspace immediately. Scheduled tasks are ignored.",
+        "description": "Trigger the default HEARTBEAT.md task for a workspace immediately. Falls back to the legacy heartbeat executor when no tasks are defined.",
         "operationId": "triggerWorkspaceHeartbeat",
         "parameters": [
           {
@@ -2733,7 +2741,7 @@
         "tags": [
           "Heartbeat"
         ],
-        "description": "Set workspace or global ambient-agent main executor interval. Supports simple intervals only: m, h, or d, for example 3m, 1h, or 1d.",
+        "description": "Set workspace or global ambient-agent scheduler check interval. Supports simple intervals only: m, h, or d, for example 3m, 1h, or 1d.",
         "operationId": "setHeartbeatInterval",
         "parameters": [
           {
@@ -2791,7 +2799,7 @@
                   },
                   "interval": {
                     "type": "string",
-                    "description": "Required simple interval using m, h, or d. Examples: 3m, 1h, 1d. Cron is not supported for the main executor interval.",
+                    "description": "Required simple scheduler check interval using m, h, or d. Examples: 3m, 1h, 1d. Task-level cron belongs in HEARTBEAT.md.",
                     "pattern": "^[1-9][0-9]*[mhd]$"
                   }
                 },
@@ -3031,7 +3039,7 @@
         "tags": [
           "Heartbeat"
         ],
-        "description": "Set workspace or global ambient-agent main executor default terminal agent and optional model.",
+        "description": "Set workspace or global ambient-agent default terminal agent and optional model for heartbeat defaults and legacy fallback.",
         "operationId": "setHeartbeatDefaultAgent",
         "parameters": [
           {
