@@ -1,5 +1,26 @@
 # RealtimeX SDK Release Log
 
+## 2.0.15 - 2026-07-01
+
+This release adds support for running app automation workflows with advanced options and execution control.
+
+### New: Automation Workflow Execution
+
+- `run-automation-workflow` - Run any app automation flow or scenario exposed via `flowMetadata.cli.enabled=true`. Accepts `workflowName`, optional `options`, `optionsJson`, `timeoutMs`, and `confirmDestructive` parameters for flexible workflow execution.
+
+Install the matching CLI:
+
+```bash
+npm install -g @realtimex/pp-cli@2.0.15
+realtimex-pp-cli --version
+```
+
+The version output should be:
+
+```text
+realtimex-pp-cli 2.0.15
+```
+
 ## 2.0.14 - 2026-07-01
 
 This release adds support for workspace directory setup and new terminal session controls.
