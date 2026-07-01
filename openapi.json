@@ -1919,11 +1919,6 @@
                     "description": "Required flowMetadata.cli.command value for the automation flow or scenario to run.",
                     "minLength": 1
                   },
-                  "options": {
-                    "type": "object",
-                    "description": "Workflow options keyed by flowMetadata.options name. Use this for arbitrary workflow-specific options.",
-                    "additionalProperties": true
-                  },
                   "optionsJson": {
                     "type": "string",
                     "description": "Optional JSON object string for workflow-specific options when nested object flags are inconvenient."
@@ -3750,7 +3745,19 @@
                   },
                   "tourTts": {
                     "type": "string",
-                    "description": "Tour subtitle speech mode: auto, browser, or off."
+                    "description": "Tour subtitle speech provider: auto, browser, piper, supertonic, or off. Default: browser."
+                  },
+                  "tourLang": {
+                    "type": "string",
+                    "description": "Tour subtitle and speech language. Defaults to the current app language."
+                  },
+                  "tourTtsVoice": {
+                    "type": "string",
+                    "description": "Provider-specific tour TTS voice id or browser voice name."
+                  },
+                  "tourTtsMaxWaitMs": {
+                    "type": "number",
+                    "description": "Maximum time to wait for each spoken subtitle. Use 0 to wait for completion."
                   },
                   "logProgress": {
                     "type": "boolean",
