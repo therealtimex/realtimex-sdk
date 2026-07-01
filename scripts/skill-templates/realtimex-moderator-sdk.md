@@ -115,3 +115,7 @@ For personality and heartbeat setup:
 * Use `setup-heartbeat-tasks` to get the target `HEARTBEAT.md` path.
 * Start from `templates/HEARTBEAT.template.md` when creating `HEARTBEAT.md`.
 * Keep heartbeat instructions separate from personality files.
+
+For `setup-working-dir` and `run-automation-workflow*`:
+
+* Never auto retry on error code 500 or timeout, just inform error to user
