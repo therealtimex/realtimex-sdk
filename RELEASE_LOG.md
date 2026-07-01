@@ -1,5 +1,27 @@
 # RealtimeX SDK Release Log
 
+## 2.0.14 - 2026-07-01
+
+This release adds support for workspace directory setup and new terminal session controls.
+
+### New: Workspace Setup and Terminal Controls
+
+- `setup-working-dir <workspaceSlug>` - Setup the working directory for a workspace.
+- `stop-thread-terminal-session <workspaceSlug> <threadSlug>` - Stop the active terminal session for a thread.
+
+Install the matching CLI:
+
+```bash
+npm install -g @realtimex/pp-cli@2.0.14
+realtimex-pp-cli --version
+```
+
+The version output should be:
+
+```text
+realtimex-pp-cli 2.0.14
+```
+
 ## 2.0.13 - 2026-06-26
 
 This release adds heartbeat shell executor and task-trigger support to the
