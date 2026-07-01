@@ -91,6 +91,11 @@ const STRIP_PATH_PREFIX = flags['strip-path-prefix'] === false || flags['strip-p
   ? ''
   : String(flags['strip-path-prefix'] || FILTER_PREFIX);
 const CLI_PRINTING_PRESS_BIN = flags.bin || process.env.CLI_PRINTING_PRESS_BIN;
+const DEFAULT_CLI_TIMEOUT = String(
+  flags['default-cli-timeout'] ||
+    process.env.PP_CLI_DEFAULT_TIMEOUT ||
+    '5*time.Minute'
+);
 
 function rel(filePath) {
   return path.relative(REPO_ROOT, filePath);
@@ -284,6 +289,22 @@ function patchCliVersion() {
   );
 }
 
+function patchGeneratedCliDefaults() {
+  const rootGo = path.join(PP_OUTPUT_DIR, 'internal', 'cli', 'root.go');
+  if (DRY_RUN) {
+    console.log(`[DRY-RUN] patch ${rootGo} default timeout to ${DEFAULT_CLI_TIMEOUT}`);
+    return;
+  }
+  if (!fs.existsSync(rootGo)) return;
+
+  const contents = fs.readFileSync(rootGo, 'utf-8');
+  const patched = contents.replace(
+    /DurationVar\(&flags\.timeout, "timeout", [^,]+, "Request timeout"\)/,
+    `DurationVar(&flags.timeout, "timeout", ${DEFAULT_CLI_TIMEOUT}, "Request timeout")`
+  );
+  fs.writeFileSync(rootGo, patched);
+}
+
 function rebuildSkillCliBinary() {
   if (DRY_RUN) {
     console.log(`[DRY-RUN] rebuild ${path.join(PP_OUTPUT_DIR, 'build', 'stage', 'bin', 'realtimex-pp-cli')}`);
@@ -454,6 +475,7 @@ function main() {
 
   generatePrintingPressProject();
   patchCliVersion();
+  patchGeneratedCliDefaults();
   packageSkill();
 
   console.log('[generate-skill] done');

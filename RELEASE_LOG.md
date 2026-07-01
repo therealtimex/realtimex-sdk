@@ -6,7 +6,7 @@ This release adds support for running app automation workflows with advanced opt
 
 ### New: Automation Workflow Execution
 
-- `run-automation-workflow` - Run any app automation flow or scenario exposed via `flowMetadata.cli.enabled=true`. Accepts `workflowName`, optional `options`, `optionsJson`, `timeoutMs`, and `confirmDestructive` parameters for flexible workflow execution.
+- `run-automation-workflow` - Run any app automation flow or scenario exposed via `flowMetadata.cli.enabled=true`. Accepts `workflowName`, optional `optionsJson`, `timeoutMs`, and `confirmDestructive` parameters for flexible workflow execution.
 
 Install the matching CLI:
 

@@ -1925,7 +1925,7 @@
                   },
                   "timeoutMs": {
                     "type": "number",
-                    "description": "Optional execution timeout in milliseconds. Defaults to the selected flow metadata timeout."
+                    "description": "Optional execution timeout in milliseconds. Defaults to the selected flow metadata timeout. If an automation flow times out, do not retry automatically because the previous desktop UI automation may still be running."
                   },
                   "confirmDestructive": {
                     "type": "boolean",
@@ -2002,7 +2002,7 @@
                   },
                   "timeoutMs": {
                     "type": "number",
-                    "description": "Optional execution timeout in milliseconds. Defaults to the flow metadata timeout."
+                    "description": "Optional execution timeout in milliseconds. Defaults to the flow metadata timeout. If an automation flow times out, do not retry automatically because the previous desktop UI automation may still be running."
                   },
                   "confirmDestructive": {
                     "type": "boolean",
@@ -3696,7 +3696,7 @@
           "Automation Flows"
         ],
         "summary": "Add or edit an agent working directory from the desktop settings UI.",
-        "description": "Add or edit an agent working directory from the desktop settings UI. This is a static OpenAPI alias for POST /cli/{command}; the Express route is resolved by flowMetadata.cli.command.",
+        "description": "Add or edit an agent working directory from the desktop settings UI. Automation timeout is a client/server guard, not a safe retry signal. If a guided desktop flow times out, do not retry automatically because the previous UI automation may still be running. This is a static OpenAPI alias for POST /cli/{command}; the Express route is resolved by flowMetadata.cli.command.",
         "operationId": "setupWorkingDir",
         "requestBody": {
           "required": false,
@@ -3765,7 +3765,8 @@
                   },
                   "timeoutMs": {
                     "type": "number",
-                    "description": "Optional execution timeout in milliseconds. Defaults to the flow metadata timeout."
+                    "default": 300000,
+                    "description": "Optional execution timeout in milliseconds. Defaults to 300000 ms for this flow. Automation timeout is a client/server guard, not a safe retry signal. If a guided desktop flow times out, do not retry automatically because the previous UI automation may still be running."
                   },
                   "confirmDestructive": {
                     "type": "boolean",
