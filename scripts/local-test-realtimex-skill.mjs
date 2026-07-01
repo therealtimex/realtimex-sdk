@@ -28,6 +28,9 @@ const DEFAULT_APP_REPO = path.resolve(REPO_ROOT, '..', 'realtimex-ai-app');
 const APP_REPO = path.resolve(process.env.REALTIMEX_APP_REPO || DEFAULT_APP_REPO);
 const APP_OPENAPI_PATH = path.join(APP_REPO, 'server', 'swagger', 'openapi.json');
 const SDK_OPENAPI_PATH = path.join(REPO_ROOT, 'openapi.json');
+const SDK_VERSION = JSON.parse(
+  fs.readFileSync(path.join(REPO_ROOT, 'typescript', 'package.json'), 'utf-8')
+).version;
 const SKILL_NAME = 'realtimex-moderator-sdk';
 const GOOS = process.env.PP_CLI_GOOS || 'darwin';
 const GOARCH = process.env.PP_CLI_GOARCH || 'amd64';
@@ -53,6 +56,23 @@ function run(command, args, options = {}) {
   if (result.status !== 0) {
     throw new Error(`Command failed (${result.status}): ${printable}`);
   }
+}
+
+function commandOutput(command, args, options = {}) {
+  const printable = [command, ...args].join(' ');
+  console.log(`$ ${printable}`);
+  const result = spawnSync(command, args, {
+    encoding: 'utf-8',
+    shell: false,
+    ...options,
+  });
+  if (result.stdout) process.stdout.write(result.stdout);
+  if (result.stderr) process.stderr.write(result.stderr);
+  if (result.error) throw result.error;
+  if (result.status !== 0) {
+    throw new Error(`Command failed (${result.status}): ${printable}`);
+  }
+  return result.stdout.trim();
 }
 
 function rel(filePath) {
@@ -93,7 +113,14 @@ function rebuildSkillBinary() {
     GOOS === 'windows' ? 'realtimex-pp-cli.exe' : 'realtimex-pp-cli'
   );
   fs.mkdirSync(path.dirname(binaryPath), { recursive: true });
-  run('go', ['build', '-o', binaryPath, './cmd/realtimex-pp-cli'], {
+  run('go', [
+    'build',
+    '-ldflags',
+    `-X realtimex-pp-cli/internal/cli.version=${SDK_VERSION}`,
+    '-o',
+    binaryPath,
+    './cmd/realtimex-pp-cli',
+  ], {
     cwd: PP_OUTPUT_DIR,
     env: {
       ...process.env,
@@ -124,8 +151,13 @@ function copySkill() {
 }
 
 function verify(binaryPath) {
-  run(binaryPath, ['--version']);
-  run(LINK_PATH, ['--version']);
+  for (const command of [binaryPath, LINK_PATH]) {
+    const versionOutput = commandOutput(command, ['--version']);
+    const expected = `realtimex-pp-cli ${SDK_VERSION}`;
+    if (versionOutput !== expected) {
+      throw new Error(`Expected ${command} --version to output ${expected}, received ${versionOutput}`);
+    }
+  }
 }
 
 function main() {

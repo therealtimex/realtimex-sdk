@@ -160,6 +160,19 @@ function filteredSpecPath() {
   return path.join(PP_OUTPUT_DIR, 'filtered-openapi.json');
 }
 
+function writePreparedSpec(preparedSpec, message) {
+  const outputPath = filteredSpecPath();
+  if (DRY_RUN) {
+    console.log(`[DRY-RUN] write prepared spec ${outputPath}`);
+    return outputPath;
+  }
+
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+  fs.writeFileSync(outputPath, `${JSON.stringify(preparedSpec, null, 2)}\n`);
+  console.log(message);
+  return outputPath;
+}
+
 function stripPathPrefix(pathname) {
   if (!STRIP_PATH_PREFIX || !pathname.startsWith(STRIP_PATH_PREFIX)) {
     return pathname;
@@ -183,9 +196,22 @@ function appendServerPathPrefix(serverUrl, prefix) {
 }
 
 function prepareSpecForPrintingPress() {
-  if (!FILTER_PREFIX) return SPEC_PATH;
-
   const rawSpec = JSON.parse(fs.readFileSync(SPEC_PATH, 'utf-8'));
+  const specInfo = {
+    ...(rawSpec.info || {}),
+    version: SDK_VERSION,
+  };
+
+  if (!FILTER_PREFIX) {
+    return writePreparedSpec(
+      {
+        ...rawSpec,
+        info: specInfo,
+      },
+      `[generate-skill] prepared spec version: ${SDK_VERSION}`
+    );
+  }
+
   const filteredPaths = {};
   const usedTags = new Set();
 
@@ -205,6 +231,7 @@ function prepareSpecForPrintingPress() {
 
   const filteredSpec = {
     ...rawSpec,
+    info: specInfo,
     servers: Array.isArray(rawSpec.servers)
       ? rawSpec.servers.map((server) => ({
           ...server,
@@ -235,19 +262,11 @@ function prepareSpecForPrintingPress() {
     filteredSpec.security = [{ [AUTH_PREFERENCE]: [] }];
   }
 
-  const outputPath = filteredSpecPath();
-  if (DRY_RUN) {
-    console.log(`[DRY-RUN] write filtered spec ${outputPath}`);
-    return outputPath;
-  }
-
-  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-  fs.writeFileSync(outputPath, `${JSON.stringify(filteredSpec, null, 2)}\n`);
-  console.log(
+  return writePreparedSpec(
+    filteredSpec,
     `[generate-skill] filtered spec: ${Object.keys(filteredPaths).length} paths matching ${FILTER_PREFIX}` +
       (STRIP_PATH_PREFIX ? `, stripped ${STRIP_PATH_PREFIX}` : '')
   );
-  return outputPath;
 }
 
 function generatePrintingPressProject() {
@@ -269,18 +288,39 @@ function generatePrintingPressProject() {
   run(cliPrintingPress, args);
 }
 
+function replaceInFile(filePath, pattern, replacement) {
+  if (!fs.existsSync(filePath)) return false;
+  const contents = fs.readFileSync(filePath, 'utf-8');
+  if (!pattern.test(contents)) return false;
+  pattern.lastIndex = 0;
+  const patched = contents.replace(pattern, replacement);
+  if (patched !== contents) {
+    fs.writeFileSync(filePath, patched);
+  }
+  return true;
+}
+
 function patchCliVersion() {
-  const rootGo = path.join(PP_OUTPUT_DIR, 'internal', 'cli', 'root.go');
   if (DRY_RUN) {
-    console.log(`[DRY-RUN] patch ${rootGo} version to ${SDK_VERSION}`);
+    console.log(`[DRY-RUN] patch generated CLI version to ${SDK_VERSION}`);
     return;
   }
-  if (!fs.existsSync(rootGo)) return;
 
-  const contents = fs.readFileSync(rootGo, 'utf-8');
-  fs.writeFileSync(
-    rootGo,
-    contents.replace(/var version = ".*?"/, `var version = "${SDK_VERSION}"`)
+  const versionPatched = [
+    path.join(PP_OUTPUT_DIR, 'internal', 'cli', 'version.go'),
+    path.join(PP_OUTPUT_DIR, 'internal', 'cli', 'root.go'),
+  ].some((filePath) =>
+    replaceInFile(filePath, /var version = ".*?"/, `var version = "${SDK_VERSION}"`)
+  );
+
+  if (!versionPatched) {
+    throw new Error('Generated CLI version variable not found; cannot pin realtimex-pp-cli version.');
+  }
+
+  replaceInFile(
+    path.join(PP_OUTPUT_DIR, 'internal', 'client', 'client.go'),
+    /(req\.Header\.Set\("User-Agent",\s*)"realtimex-pp-cli\/[^"]+"/,
+    `$1"realtimex-pp-cli/${SDK_VERSION}"`
   );
 }
 
