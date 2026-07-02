@@ -129,3 +129,7 @@ For personality and heartbeat setup:
 For `setup-working-dir` and `run-automation-workflow*`:
 
 * Never auto retry on error code 500 or timeout, just inform error to user
+
+For `publish-artifact`:
+
+* files or folders have to be placed in <working-dir>/artifacts/ to be able to published
