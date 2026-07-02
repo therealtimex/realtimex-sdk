@@ -1,6 +1,6 @@
 ---
 name: realtimex-moderator-sdk
-description: "Use the RealTimeX API through the generated CLI for workspace, thread, terminal-agent sessions, channel (Telegram, Zalo, Discord), skills, plugins and send messages, setup personality, heartbeat tasks operations, run tour guide to setup working dir."
+description: "Use the RealTimeX API through the generated CLI for workspace, thread, terminal-agent sessions, channel (Telegram, Zalo, Discord), skills, plugins and send messages, setup personality, heartbeat tasks operations, publish and manage artifacts, run tour guide to setup working dir."
 argument-hint: "<command> [args] | install cli"
 ---
 

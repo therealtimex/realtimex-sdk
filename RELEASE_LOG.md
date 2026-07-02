@@ -1,5 +1,31 @@
 # RealtimeX SDK Release Log
 
+## 2.0.17 - 2026-07-02
+
+This release adds support for publishing and managing public artifacts within workspace directories.
+
+### New: Artifact Management
+
+- `list-artifacts <workspaceSlug>` - List all public artifacts for a workspace. Revoked artifacts are hidden by default.
+- `publish-artifact <workspaceSlug>` - Publish a browser-viewable file or folder to the workspace artifacts directory with optional expiration.
+- `get-artifact <artifactId>` - Retrieve a published artifact by ID.
+- `pause-artifact <artifactId>` - Pause a published artifact (stops public serving while remaining listed).
+- `resume-artifact <artifactId>` - Resume a paused artifact to restore public access.
+- `revoke-artifact <artifactId>` - Revoke an artifact (stops serving and hides from list by default).
+
+Install the matching CLI:
+
+```bash
+npm install -g @realtimex/pp-cli@2.0.17
+realtimex-pp-cli --version
+```
+
+The version output should be:
+
+```text
+realtimex-pp-cli 2.0.17
+```
+
 ## 2.0.16 - 2026-07-02
 
 This release adds support for sending local CLI files back to external channels.

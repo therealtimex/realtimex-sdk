@@ -1867,6 +1867,303 @@
         }
       }
     },
+    "/cli/list-artifacts/{workspaceSlug}": {
+      "get": {
+        "tags": [
+          "Artifacts"
+        ],
+        "description": "List public artifacts for one exact workspace slug. Revoked artifacts are hidden unless includeRevoked=true is passed.",
+        "operationId": "listArtifacts",
+        "parameters": [
+          {
+            "name": "workspaceSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/cli/publish-artifact/{workspaceSlug}": {
+      "post": {
+        "tags": [
+          "Artifacts"
+        ],
+        "description": "Publish a browser-viewable file or folder under a workspace artifacts directory. artifactPath is relative to that workspace artifacts directory.",
+        "operationId": "publishArtifact",
+        "parameters": [
+          {
+            "name": "workspaceSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "409": {
+            "description": "Conflict"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "artifactPath"
+                ],
+                "properties": {
+                  "artifactPath": {
+                    "type": "string",
+                    "description": "Required path relative to the workspace artifacts folder. Browser-viewable files may be published directly; folders default to index.html.",
+                    "minLength": 1
+                  },
+                  "entryFile": {
+                    "type": "string",
+                    "description": "Optional entry file inside a folder artifact. Defaults to index.html for folders and is ignored for direct file artifacts."
+                  },
+                  "expiresAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "Optional future ISO timestamp when the public artifact should expire."
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cli/get-artifact/{artifactId}": {
+      "get": {
+        "tags": [
+          "Artifacts"
+        ],
+        "description": "Get one public artifact by artifact id.",
+        "operationId": "getArtifact",
+        "parameters": [
+          {
+            "name": "artifactId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/cli/pause-artifact/{artifactId}": {
+      "post": {
+        "tags": [
+          "Artifacts"
+        ],
+        "description": "Pause one published artifact by artifact id. Paused artifacts remain listed but stop serving publicly.",
+        "operationId": "pauseArtifact",
+        "parameters": [
+          {
+            "name": "artifactId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "409": {
+            "description": "Conflict"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/cli/resume-artifact/{artifactId}": {
+      "post": {
+        "tags": [
+          "Artifacts"
+        ],
+        "description": "Resume one paused artifact by artifact id.",
+        "operationId": "resumeArtifact",
+        "parameters": [
+          {
+            "name": "artifactId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "409": {
+            "description": "Conflict"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/cli/revoke-artifact/{artifactId}": {
+      "post": {
+        "tags": [
+          "Artifacts"
+        ],
+        "description": "Revoke one artifact by artifact id. Revoked artifacts stop serving publicly and are hidden from list-artifacts by default.",
+        "operationId": "revokeArtifact",
+        "parameters": [
+          {
+            "name": "artifactId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
     "/cli/run-automation-workflow": {
       "post": {
         "tags": [
