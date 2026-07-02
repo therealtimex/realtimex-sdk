@@ -2205,17 +2205,6 @@
         }
       }
     },
-    "{{idNumber(raw)}):null;if(byId)return{id:byId.id};constmatches=ChannelPairingCode.where({code:raw}": {
-      "get": {
-        "description": "",
-        "parameters": [],
-        "responses": {
-          "default": {
-            "description": ""
-          }
-        }
-      }
-    },
     "/cli/list-channels": {
       "get": {
         "tags": [
@@ -2251,6 +2240,93 @@
           },
           "500": {
             "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/cli/send-channel-file": {
+      "post": {
+        "tags": [
+          "Channels"
+        ],
+        "description": "Send one local CLI file back to an external channel using an explicit channel delivery context id. Channel-linked terminal agents should pass --context \"$REALTIMEX_CHANNEL_DELIVERY_CONTEXT_ID\". In desktop/local runtime the CLI should send an absolute filePath; contentBase64 remains available as fallback transport.",
+        "operationId": "sendChannelFile",
+        "parameters": [
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "context"
+                ],
+                "properties": {
+                  "context": {
+                    "type": "string",
+                    "description": "Required explicit channel delivery context id, for example chdel_xxx. Channel-linked terminal agents should pass --context \"$REALTIMEX_CHANNEL_DELIVERY_CONTEXT_ID\".",
+                    "minLength": 1
+                  },
+                  "filePath": {
+                    "type": "string",
+                    "description": "Preferred desktop/local transport: absolute local file path to send. The server accepts this only in desktop/local runtime and only under allowed storage or temporary roots.",
+                    "minLength": 1
+                  },
+                  "fileName": {
+                    "type": "string",
+                    "description": "Base filename of the local file being delivered. Required when using contentBase64; optional with filePath.",
+                    "minLength": 1
+                  },
+                  "runtimeSessionId": {
+                    "type": "string",
+                    "description": "Optional caller runtime session id. When the delivery context is already bound to a runtime session, mismatches are rejected."
+                  },
+                  "mime": {
+                    "type": "string",
+                    "description": "Optional MIME type. Images are sent as Telegram photos."
+                  },
+                  "contentBase64": {
+                    "type": "string",
+                    "description": "Fallback base64 file content for non-local transports. Prefer filePath in desktop/local runtime.",
+                    "minLength": 1
+                  },
+                  "caption": {
+                    "type": "string",
+                    "description": "Optional channel caption."
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
           }
         }
       }

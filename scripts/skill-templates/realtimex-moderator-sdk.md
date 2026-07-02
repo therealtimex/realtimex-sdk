@@ -85,6 +85,16 @@ For `send-message`:
 * If any of those values are missing or ambiguous, ask for the missing values before running the command.
 * Do not provide LLM provider/model arguments to `send-message`; the server routes the message based on the thread/workspace configuration.
 
+
+For `send-channel-file`:
+
+* Use this command only from a channel-linked terminal session that has `REALTIMEX_CHANNEL_DELIVERY_CONTEXT_ID` in its environment, or when the user explicitly provides a `chdel_*` context id.
+* Always pass the context explicitly. In channel-linked sessions use `--context "$REALTIMEX_CHANNEL_DELIVERY_CONTEXT_ID"`; use a literal `chdel_*` only when intentionally overriding for debugging.
+* Do not infer a destination from workspace, thread, recent activity, or channel metadata.
+* Send one file per command call. Repeat the command for multiple files.
+* In desktop/local runtime, the CLI should send the absolute local `filePath` to the server. The server validates the path against allowed storage/temp roots before sending through the channel. Base64 upload is fallback transport, not the preferred path.
+* The server validates the delivery context, active channel session, plugin state, runtime binding when supplied, and file size/type handling before delivery.
+
 For workspace default-agent setup:
 
 * Use `prepare.agents` only.

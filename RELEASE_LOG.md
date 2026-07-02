@@ -1,5 +1,26 @@
 # RealtimeX SDK Release Log
 
+## 2.0.16 - 2026-07-02
+
+This release adds support for sending local CLI files back to external channels.
+
+### New: Channel File Delivery
+
+- `send-channel-file` - Send one local file to an external channel using an explicit channel delivery context. Channel-linked terminal agents should pass `--context "$REALTIMEX_CHANNEL_DELIVERY_CONTEXT_ID"`. Desktop/local runtimes should prefer an absolute `filePath`; `contentBase64` remains available as a fallback transport.
+
+Install the matching CLI:
+
+```bash
+npm install -g @realtimex/pp-cli@2.0.16
+realtimex-pp-cli --version
+```
+
+The version output should be:
+
+```text
+realtimex-pp-cli 2.0.16
+```
+
 ## 2.0.15 - 2026-07-01
 
 This release adds support for running app automation workflows with advanced options and execution control.

@@ -56,14 +56,35 @@ function copyDir(source, destination) {
   fs.cpSync(source, destination, { recursive: true });
 }
 
+function replaceInFile(filePath, pattern, replacement) {
+  if (!fs.existsSync(filePath)) return false;
+  const contents = fs.readFileSync(filePath, 'utf-8');
+  if (!pattern.test(contents)) return false;
+  pattern.lastIndex = 0;
+  const patched = contents.replace(pattern, replacement);
+  if (patched !== contents) {
+    fs.writeFileSync(filePath, patched);
+  }
+  return true;
+}
+
 function patchCliVersion(sourceDir) {
-  const rootGo = path.join(sourceDir, 'internal', 'cli', 'root.go');
-  const contents = fs.readFileSync(rootGo, 'utf-8');
-  const patched = contents.replace(
-    /var version = ".*?"/,
-    `var version = "${VERSION}"`
+  const versionPatched = [
+    path.join(sourceDir, 'internal', 'cli', 'version.go'),
+    path.join(sourceDir, 'internal', 'cli', 'root.go'),
+  ].some((filePath) =>
+    replaceInFile(filePath, /var version = ".*?"/, `var version = "${VERSION}"`)
   );
-  fs.writeFileSync(rootGo, patched);
+
+  if (!versionPatched) {
+    throw new Error('Generated CLI version variable not found; cannot pin realtimex-pp-cli version.');
+  }
+
+  replaceInFile(
+    path.join(sourceDir, 'internal', 'client', 'client.go'),
+    /(req\.Header\.Set\("User-Agent",\s*)"realtimex-pp-cli\/[^"]+"/,
+    `$1"${CLI_NAME}/${VERSION}"`
+  );
 }
 
 function patchCliDefaults(sourceDir) {
@@ -104,7 +125,14 @@ function buildTarget(target) {
   fs.mkdirSync(binDir, { recursive: true });
 
   const binaryPath = path.join(binDir, binaryName(target));
-  run('go', ['build', '-o', binaryPath, './cmd/realtimex-pp-cli'], {
+  run('go', [
+    'build',
+    '-ldflags',
+    `-X realtimex-pp-cli/internal/cli.version=${VERSION}`,
+    '-o',
+    binaryPath,
+    './cmd/realtimex-pp-cli',
+  ], {
     cwd: SOURCE_DIR,
     env: {
       ...process.env,
