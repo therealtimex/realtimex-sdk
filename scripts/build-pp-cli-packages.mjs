@@ -26,6 +26,7 @@ const OUT_ROOT = path.join(REPO_ROOT, 'pp-cli');
 const SOURCE_DIR =
   process.env.PP_CLI_SOURCE_DIR ||
   path.join(os.tmpdir(), `realtimex-pp-cli-source-${process.pid}`);
+const DEFAULT_CLI_TIMEOUT = process.env.PP_CLI_DEFAULT_TIMEOUT || '5*time.Minute';
 
 const TARGETS = [
   { goos: 'darwin', goarch: 'amd64', npmOs: 'darwin', npmCpu: 'x64' },
@@ -86,6 +87,16 @@ function patchCliVersion(sourceDir) {
   );
 }
 
+function patchCliDefaults(sourceDir) {
+  const rootGo = path.join(sourceDir, 'internal', 'cli', 'root.go');
+  const contents = fs.readFileSync(rootGo, 'utf-8');
+  const patched = contents.replace(
+    /DurationVar\(&flags\.timeout, "timeout", [^,]+, "Request timeout"\)/,
+    `DurationVar(&flags.timeout, "timeout", ${DEFAULT_CLI_TIMEOUT}, "Request timeout")`
+  );
+  fs.writeFileSync(rootGo, patched);
+}
+
 function ensureSourceProject() {
   run('node', [
     path.join(REPO_ROOT, 'scripts', 'generate-skill.mjs'),
@@ -96,6 +107,7 @@ function ensureSourceProject() {
     SOURCE_DIR,
   ]);
   patchCliVersion(SOURCE_DIR);
+  patchCliDefaults(SOURCE_DIR);
 }
 
 function packageName(target) {

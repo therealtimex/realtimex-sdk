@@ -1867,6 +1867,78 @@
         }
       }
     },
+    "/cli/run-automation-workflow": {
+      "post": {
+        "tags": [
+          "Automation Flows"
+        ],
+        "description": "Run any app automation flow or scenario exposed via flowMetadata.cli.enabled=true by passing workflowName.",
+        "operationId": "runAutomationWorkflow",
+        "parameters": [
+          {
+            "name": "x-app-id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "workflowName"
+                ],
+                "properties": {
+                  "workflowName": {
+                    "type": "string",
+                    "description": "Required flowMetadata.cli.command value for the automation flow or scenario to run.",
+                    "minLength": 1
+                  },
+                  "optionsJson": {
+                    "type": "string",
+                    "description": "Optional JSON object string for workflow-specific options when nested object flags are inconvenient."
+                  },
+                  "timeoutMs": {
+                    "type": "number",
+                    "description": "Optional execution timeout in milliseconds. Defaults to the selected flow metadata timeout. If an automation flow times out, do not retry automatically because the previous desktop UI automation may still be running."
+                  },
+                  "confirmDestructive": {
+                    "type": "boolean",
+                    "description": "Required true for destructive automation flows."
+                  }
+                },
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
     "/cli/{command}": {
       "post": {
         "tags": [
@@ -1930,7 +2002,7 @@
                   },
                   "timeoutMs": {
                     "type": "number",
-                    "description": "Optional execution timeout in milliseconds. Defaults to the flow metadata timeout."
+                    "description": "Optional execution timeout in milliseconds. Defaults to the flow metadata timeout. If an automation flow times out, do not retry automatically because the previous desktop UI automation may still be running."
                   },
                   "confirmDestructive": {
                     "type": "boolean",
@@ -3624,7 +3696,7 @@
           "Automation Flows"
         ],
         "summary": "Add or edit an agent working directory from the desktop settings UI.",
-        "description": "Add or edit an agent working directory from the desktop settings UI. This is a static OpenAPI alias for POST /cli/{command}; the Express route is resolved by flowMetadata.cli.command.",
+        "description": "Add or edit an agent working directory from the desktop settings UI. Automation timeout is a client/server guard, not a safe retry signal. If a guided desktop flow times out, do not retry automatically because the previous UI automation may still be running. This is a static OpenAPI alias for POST /cli/{command}; the Express route is resolved by flowMetadata.cli.command.",
         "operationId": "setupWorkingDir",
         "requestBody": {
           "required": false,
@@ -3673,7 +3745,19 @@
                   },
                   "tourTts": {
                     "type": "string",
-                    "description": "Tour subtitle speech mode: auto, browser, or off."
+                    "description": "Tour subtitle speech provider: auto, browser, piper, supertonic, or off. Default: browser."
+                  },
+                  "tourLang": {
+                    "type": "string",
+                    "description": "Tour subtitle and speech language. Defaults to the current app language."
+                  },
+                  "tourTtsVoice": {
+                    "type": "string",
+                    "description": "Provider-specific tour TTS voice id or browser voice name."
+                  },
+                  "tourTtsMaxWaitMs": {
+                    "type": "number",
+                    "description": "Maximum time to wait for each spoken subtitle. Use 0 to wait for completion."
                   },
                   "logProgress": {
                     "type": "boolean",
@@ -3681,131 +3765,8 @@
                   },
                   "timeoutMs": {
                     "type": "number",
-                    "description": "Optional execution timeout in milliseconds. Defaults to the flow metadata timeout."
-                  },
-                  "confirmDestructive": {
-                    "type": "boolean",
-                    "description": "Required true for destructive automation flows."
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request"
-          },
-          "403": {
-            "description": "Forbidden"
-          },
-          "404": {
-            "description": "Not Found"
-          },
-          "500": {
-            "description": "Internal Server Error"
-          }
-        }
-      }
-    },
-    "/cli/workspace-message": {
-      "post": {
-        "tags": [
-          "Automation Flows"
-        ],
-        "summary": "Send a message in a workspace/thread through the desktop UI.",
-        "description": "Send a message in a workspace/thread through the desktop UI. This is a static OpenAPI alias for POST /cli/{command}; the Express route is resolved by flowMetadata.cli.command.",
-        "operationId": "workspaceMessage",
-        "requestBody": {
-          "required": false,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "description": "Flow options are top-level fields for generated CLI ergonomics. The server maps non-control fields to flow options.",
-                "additionalProperties": false,
-                "properties": {
-                  "cdpUrl": {
-                    "type": "string",
-                    "description": "Electron CDP URL."
-                  },
-                  "mainAppUrl": {
-                    "type": "string",
-                    "description": "Exact main app URL to target."
-                  },
-                  "workspaceName": {
-                    "type": "string",
-                    "description": "Workspace to verify or create."
-                  },
-                  "threadName": {
-                    "type": "string",
-                    "description": "Thread name to create."
-                  },
-                  "agentName": {
-                    "type": "string",
-                    "description": "Agent to select before sending."
-                  },
-                  "agentSearch": {
-                    "type": "string",
-                    "description": "Agent menu search query."
-                  },
-                  "modelName": {
-                    "type": "string",
-                    "description": "Model text to select after agent selection."
-                  },
-                  "skipModelSelection": {
-                    "type": "boolean",
-                    "description": "Send with the currently selected model."
-                  },
-                  "messageText": {
-                    "type": "string",
-                    "description": "Message to send."
-                  },
-                  "messageConfirmation": {
-                    "type": "string",
-                    "description": "Send confirmation mode: visible-message or send-click."
-                  },
-                  "workspaceTimeoutMs": {
-                    "type": "number",
-                    "description": "Timeout for workspace creation."
-                  },
-                  "threadTimeoutMs": {
-                    "type": "number",
-                    "description": "Timeout for thread create/rename."
-                  },
-                  "actionTimeoutMs": {
-                    "type": "number",
-                    "description": "Timeout for finding UI controls."
-                  },
-                  "actionDelayMs": {
-                    "type": "number",
-                    "description": "Delay after visible UI actions."
-                  },
-                  "recordVideo": {
-                    "type": "boolean",
-                    "description": "Record a video artifact for the run."
-                  },
-                  "videoPath": {
-                    "type": "string",
-                    "description": "Video output path or directory."
-                  },
-                  "logProgress": {
-                    "type": "boolean",
-                    "description": "Print realtime progress logs to stderr."
-                  },
-                  "timeoutMs": {
-                    "type": "number",
-                    "description": "Optional execution timeout in milliseconds. Defaults to the flow metadata timeout."
+                    "default": 300000,
+                    "description": "Optional execution timeout in milliseconds. Defaults to 300000 ms for this flow. Automation timeout is a client/server guard, not a safe retry signal. If a guided desktop flow times out, do not retry automatically because the previous UI automation may still be running."
                   },
                   "confirmDestructive": {
                     "type": "boolean",
