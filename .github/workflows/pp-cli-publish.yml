@@ -2,12 +2,33 @@ name: Publish @realtimex/pp-cli
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish. Defaults to typescript/package.json.'
+        required: false
+        default: ''
+      openapi_url:
+        description: 'Optional URL to download the OpenAPI spec used for CLI/skill generation.'
+        required: false
+        default: ''
+      openapi_sha256:
+        description: 'Optional SHA256 digest for the downloaded OpenAPI spec.'
+        required: false
+        default: ''
+      app_ref:
+        description: 'Optional realtimex-ai-app branch or commit SHA used to generate OpenAPI.'
+        required: false
+        default: ''
+      app_repo_url:
+        description: 'Git URL for realtimex-ai-app.'
+        required: false
+        default: 'https://rtgit.rta.vn/rtlab/rtwebteam/realtimex-ai-app.git'
   push:
     tags:
       - 'v*'
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: publish-pp-cli-${{ github.ref }}
@@ -28,8 +49,6 @@ jobs:
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
-          cache: 'npm'
-          cache-dependency-path: typescript/package-lock.json
 
       - name: Setup Go
         uses: actions/setup-go@v5
@@ -40,8 +59,80 @@ jobs:
         working-directory: .
         run: go install github.com/mvanhorn/cli-printing-press/v4/cmd/cli-printing-press@v4.20.1
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Apply workflow inputs
+        working-directory: .
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          OPENAPI_URL: ${{ inputs.openapi_url }}
+          OPENAPI_SHA256: ${{ inputs.openapi_sha256 }}
+          APP_REF: ${{ inputs.app_ref }}
+          APP_REPO_URL: ${{ inputs.app_repo_url }}
+          OPENAPI_DOWNLOAD_TOKEN: ${{ secrets.OPENAPI_DOWNLOAD_TOKEN }}
+          APP_REPO_READ_TOKEN: ${{ secrets.APP_REPO_READ_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if [ -n "${INPUT_VERSION}" ]; then
+            node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const version = process.env.INPUT_VERSION.trim().replace(/^v/, '');
+          if (!/^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(version)) {
+            throw new Error(`Invalid version input: ${process.env.INPUT_VERSION}`);
+          }
+          const packagePath = 'typescript/package.json';
+          const pkg = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
+          pkg.version = version;
+          fs.writeFileSync(packagePath, `${JSON.stringify(pkg, null, 4)}\n`);
+          NODE
+          fi
+
+          if [ -n "${OPENAPI_URL}" ]; then
+            CURL_ARGS=(-fsSL "${OPENAPI_URL}" -o openapi.json)
+            if [ -n "${OPENAPI_DOWNLOAD_TOKEN}" ]; then
+              CURL_ARGS=(-H "Authorization: Bearer ${OPENAPI_DOWNLOAD_TOKEN}" "${CURL_ARGS[@]}")
+            fi
+            curl "${CURL_ARGS[@]}"
+
+            if [ -n "${OPENAPI_SHA256}" ]; then
+              ACTUAL="$(sha256sum openapi.json | awk '{print $1}')"
+              EXPECTED="$(echo "${OPENAPI_SHA256}" | sed 's/^sha256://' | awk '{print tolower($1)}')"
+              if [ "${ACTUAL}" != "${EXPECTED}" ]; then
+                echo "OpenAPI SHA256 mismatch. Expected ${EXPECTED}, received ${ACTUAL}" >&2
+                exit 1
+              fi
+            fi
+          elif [ -n "${APP_REF}" ]; then
+            if [ -z "${APP_REPO_READ_TOKEN}" ]; then
+              echo "APP_REPO_READ_TOKEN is required when app_ref is provided." >&2
+              exit 1
+            fi
+
+            AUTH_REPO_URL="${APP_REPO_URL/https:\/\//https:\/\/oauth2:${APP_REPO_READ_TOKEN}@}"
+            rm -rf _app_repo
+            git clone --no-checkout "${AUTH_REPO_URL}" _app_repo
+            git -C _app_repo fetch --depth 1 origin "${APP_REF}"
+            git -C _app_repo checkout --detach FETCH_HEAD
+
+            npm install -g yarn
+            yarn --cwd _app_repo/server install --ignore-scripts --non-interactive
+            yarn --cwd _app_repo/server swagger
+            cp _app_repo/server/swagger/openapi.json openapi.json
+          fi
+
+      - name: Resolve publish version
+        id: version
+        working-directory: .
+        run: |
+          VERSION="$(node -p "require('./typescript/package.json').version")"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "release_tag=v${VERSION}" >> "$GITHUB_OUTPUT"
+
+          if [ "${GITHUB_EVENT_NAME}" = "push" ]; then
+            if [ "${GITHUB_REF_NAME}" != "v${VERSION}" ] && [ "${GITHUB_REF_NAME}" != "${VERSION}" ]; then
+              echo "Tag ${GITHUB_REF_NAME} does not match package version ${VERSION}" >&2
+              exit 1
+            fi
+          fi
 
       - name: Build @realtimex/pp-cli packages
         run: npm run pp-cli:build
@@ -49,11 +140,51 @@ jobs:
       - name: Verify wrapper version matches SDK version
         working-directory: .
         run: |
-          SDK_VERSION=$(node -p "require('./typescript/package.json').version")
+          SDK_VERSION="${{ steps.version.outputs.version }}"
           node ./pp-cli/main/bin/realtimex-pp-cli.js --version | tee /tmp/pp-cli-version.txt
           grep "realtimex-pp-cli ${SDK_VERSION}" /tmp/pp-cli-version.txt
+
+      - name: Generate moderator skill release asset
+        working-directory: .
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          npm --prefix typescript run skill:generate
+
+          SKILL_DIR="typescript/skills/realtimex-moderator-sdk"
+          test -f "${SKILL_DIR}/SKILL.md"
+          grep "npm install -g @realtimex/pp-cli@${VERSION}" "${SKILL_DIR}/SKILL.md"
+          grep "realtimex-pp-cli ${VERSION}" "${SKILL_DIR}/SKILL.md"
+
+          mkdir -p release-assets
+          ASSET="realtimex-moderator-sdk-${VERSION}.tar.gz"
+          tar -czf "release-assets/${ASSET}" -C "typescript/skills" "realtimex-moderator-sdk"
+          SHA="$(sha256sum "release-assets/${ASSET}" | awk '{print $1}')"
+          printf "%s  %s\n" "${SHA}" "${ASSET}" > "release-assets/${ASSET}.sha256"
 
       - name: Publish @realtimex/pp-cli packages
         run: npm run pp-cli:publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Upload moderator skill release asset
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.version.outputs.release_tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          ASSET="realtimex-moderator-sdk-${VERSION}.tar.gz"
+
+          if ! gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
+            gh release create "${RELEASE_TAG}" \
+              --target "${GITHUB_SHA}" \
+              --title "@realtimex/pp-cli ${VERSION}" \
+              --notes "Generated @realtimex/pp-cli and realtimex-moderator-sdk skill assets."
+          fi
+
+          gh release upload "${RELEASE_TAG}" \
+            "release-assets/${ASSET}" \
+            "release-assets/${ASSET}.sha256" \
+            --clobber
