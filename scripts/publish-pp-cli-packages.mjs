@@ -9,6 +9,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
 const PACKAGES_ROOT = path.join(REPO_ROOT, 'pp-cli', 'packages');
 const MAIN_ROOT = path.join(REPO_ROOT, 'pp-cli', 'main');
+const SDK_ROOT = path.join(REPO_ROOT, 'typescript');
 
 function run(command, args, options = {}) {
   const printable = [command, ...args].join(' ');
@@ -70,3 +71,4 @@ for (const entry of fs.readdirSync(PACKAGES_ROOT).sort()) {
 }
 
 publishPackage(MAIN_ROOT);
+publishPackage(SDK_ROOT);

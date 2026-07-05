@@ -1,21 +1,28 @@
 {
-    "name": "realtimex-pp-cli-release",
-    "version": "2.0.17",
-    "description": "Release tooling for the RealtimeX Printing Press CLI and moderator skill.",
-    "private": true,
-    "scripts": {
-        "skill:generate": "node ../scripts/generate-skill.mjs --force",
-        "pp-cli:build": "node ../scripts/build-pp-cli-packages.mjs",
-        "pp-cli:publish": "node ../scripts/publish-pp-cli-packages.mjs"
-    },
-    "keywords": [
-        "realtimex",
-        "cli",
-        "agent-skill"
-    ],
-    "author": "RealtimeX Team",
-    "license": "MIT",
-    "engines": {
-        "node": ">=18.0.0"
-    }
+  "name": "@realtimex/sdk",
+  "version": "2.0.17",
+  "description": "RealtimeX SDK package assets, including the moderator agent skill.",
+  "private": false,
+  "scripts": {
+    "skill:generate": "node ../scripts/generate-skill.mjs --force",
+    "pp-cli:build": "node ../scripts/build-pp-cli-packages.mjs",
+    "pp-cli:publish": "node ../scripts/publish-pp-cli-packages.mjs"
+  },
+  "keywords": [
+    "realtimex",
+    "cli",
+    "agent-skill"
+  ],
+  "author": "RealtimeX Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "skills",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
 }

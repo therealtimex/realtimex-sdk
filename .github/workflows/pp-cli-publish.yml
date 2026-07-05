@@ -1,4 +1,4 @@
-name: Publish @realtimex/pp-cli
+name: Publish @realtimex SDK and PP CLI
 
 on:
   workflow_dispatch:
@@ -144,7 +144,7 @@ jobs:
           node ./pp-cli/main/bin/realtimex-pp-cli.js --version | tee /tmp/pp-cli-version.txt
           grep "realtimex-pp-cli ${SDK_VERSION}" /tmp/pp-cli-version.txt
 
-      - name: Generate moderator skill release asset
+      - name: Generate @realtimex/sdk skill assets
         working-directory: .
         run: |
           set -euo pipefail
@@ -156,35 +156,8 @@ jobs:
           grep "npm install -g @realtimex/pp-cli@${VERSION}" "${SKILL_DIR}/SKILL.md"
           grep "realtimex-pp-cli ${VERSION}" "${SKILL_DIR}/SKILL.md"
 
-          mkdir -p release-assets
-          ASSET="realtimex-moderator-sdk-${VERSION}.tar.gz"
-          tar -czf "release-assets/${ASSET}" -C "typescript/skills" "realtimex-moderator-sdk"
-          SHA="$(sha256sum "release-assets/${ASSET}" | awk '{print $1}')"
-          printf "%s  %s\n" "${SHA}" "${ASSET}" > "release-assets/${ASSET}.sha256"
-
-      - name: Publish @realtimex/pp-cli packages
+      - name: Publish @realtimex/sdk and @realtimex/pp-cli packages
         run: npm run pp-cli:publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Upload moderator skill release asset
-        working-directory: .
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ steps.version.outputs.release_tag }}
-          VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          set -euo pipefail
-          ASSET="realtimex-moderator-sdk-${VERSION}.tar.gz"
-
-          if ! gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
-            gh release create "${RELEASE_TAG}" \
-              --target "${GITHUB_SHA}" \
-              --title "@realtimex/pp-cli ${VERSION}" \
-              --notes "Generated @realtimex/pp-cli and realtimex-moderator-sdk skill assets."
-          fi
-
-          gh release upload "${RELEASE_TAG}" \
-            "release-assets/${ASSET}" \
-            "release-assets/${ASSET}.sha256" \
-            --clobber
