@@ -8,25 +8,13 @@ on:
         required: false
         default: ''
       openapi_url:
-        description: 'Optional URL to download the OpenAPI spec used for CLI/skill generation.'
-        required: false
+        description: 'Required URL to download the OpenAPI spec used for CLI/skill generation.'
+        required: true
         default: ''
       openapi_sha256:
         description: 'Optional SHA256 digest for the downloaded OpenAPI spec.'
         required: false
         default: ''
-      app_ref:
-        description: 'Optional realtimex-ai-app branch or commit SHA used to generate OpenAPI.'
-        required: false
-        default: ''
-      app_repo_url:
-        description: 'Git URL for realtimex-ai-app.'
-        required: false
-        default: 'https://rtgit.rta.vn/rtlab/rtwebteam/realtimex-ai-app.git'
-  push:
-    tags:
-      - 'v*'
-
 permissions:
   contents: write
 
@@ -65,10 +53,7 @@ jobs:
           INPUT_VERSION: ${{ inputs.version }}
           OPENAPI_URL: ${{ inputs.openapi_url }}
           OPENAPI_SHA256: ${{ inputs.openapi_sha256 }}
-          APP_REF: ${{ inputs.app_ref }}
-          APP_REPO_URL: ${{ inputs.app_repo_url }}
           OPENAPI_DOWNLOAD_TOKEN: ${{ secrets.OPENAPI_DOWNLOAD_TOKEN }}
-          APP_REPO_READ_TOKEN: ${{ secrets.APP_REPO_READ_TOKEN }}
         run: |
           set -euo pipefail
 
@@ -86,39 +71,25 @@ jobs:
           NODE
           fi
 
-          if [ -n "${OPENAPI_URL}" ]; then
-            CURL_ARGS=(-fsSL "${OPENAPI_URL}" -o openapi.json)
-            if [ -n "${OPENAPI_DOWNLOAD_TOKEN}" ]; then
-              CURL_ARGS=(-H "Authorization: Bearer ${OPENAPI_DOWNLOAD_TOKEN}" "${CURL_ARGS[@]}")
-            fi
-            curl "${CURL_ARGS[@]}"
-
-            if [ -n "${OPENAPI_SHA256}" ]; then
-              ACTUAL="$(sha256sum openapi.json | awk '{print $1}')"
-              EXPECTED="$(echo "${OPENAPI_SHA256}" | sed 's/^sha256://' | awk '{print tolower($1)}')"
-              if [ "${ACTUAL}" != "${EXPECTED}" ]; then
-                echo "OpenAPI SHA256 mismatch. Expected ${EXPECTED}, received ${ACTUAL}" >&2
-                exit 1
-              fi
-            fi
-          elif [ -n "${APP_REF}" ]; then
-            if [ -z "${APP_REPO_READ_TOKEN}" ]; then
-              echo "APP_REPO_READ_TOKEN is required when app_ref is provided." >&2
-              exit 1
-            fi
-
-            AUTH_REPO_URL="${APP_REPO_URL/https:\/\//https:\/\/oauth2:${APP_REPO_READ_TOKEN}@}"
-            rm -rf _app_repo
-            git clone --no-checkout "${AUTH_REPO_URL}" _app_repo
-            git -C _app_repo fetch --depth 1 origin "${APP_REF}"
-            git -C _app_repo checkout --detach FETCH_HEAD
-
-            npm install -g yarn
-            yarn --cwd _app_repo/server install --ignore-scripts --non-interactive
-            yarn --cwd _app_repo/server swagger
-            cp _app_repo/server/swagger/openapi.json openapi.json
+          if [ -z "${OPENAPI_URL}" ]; then
+            echo "openapi_url is required. Generate OpenAPI in the app GitLab pipeline and pass the artifact URL." >&2
+            exit 1
           fi
 
+          CURL_ARGS=(-fsSL "${OPENAPI_URL}" -o openapi.json)
+          if [ -n "${OPENAPI_DOWNLOAD_TOKEN}" ]; then
+            CURL_ARGS=(-H "PRIVATE-TOKEN: ${OPENAPI_DOWNLOAD_TOKEN}" "${CURL_ARGS[@]}")
+          fi
+          curl "${CURL_ARGS[@]}"
+
+          if [ -n "${OPENAPI_SHA256}" ]; then
+            ACTUAL="$(sha256sum openapi.json | awk '{print $1}')"
+            EXPECTED="$(echo "${OPENAPI_SHA256}" | sed 's/^sha256://' | awk '{print tolower($1)}')"
+            if [ "${ACTUAL}" != "${EXPECTED}" ]; then
+              echo "OpenAPI SHA256 mismatch. Expected ${EXPECTED}, received ${ACTUAL}" >&2
+              exit 1
+            fi
+          fi
       - name: Resolve publish version
         id: version
         working-directory: .
