@@ -131,4 +131,43 @@ jobs:
         run: npm run pp-cli:publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Create GitHub release
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.version.outputs.release_tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+          OPENAPI_SHA256: ${{ inputs.openapi_sha256 }}
+        run: |
+          set -euo pipefail
+
+          NOTES_FILE="release-notes.md"
+          {
+            echo "Published RealtimeX SDK and Printing Press CLI ${VERSION}."
+            echo ""
+            echo "Packages:"
+            echo "- @realtimex/sdk@${VERSION}"
+            echo "- @realtimex/pp-cli@${VERSION}"
+            echo "- @realtimex/pp-cli-darwin-x64@${VERSION}"
+            echo "- @realtimex/pp-cli-darwin-arm64@${VERSION}"
+            echo "- @realtimex/pp-cli-linux-x64@${VERSION}"
+            echo "- @realtimex/pp-cli-linux-arm64@${VERSION}"
+            echo "- @realtimex/pp-cli-win32-x64@${VERSION}"
+            echo "- @realtimex/pp-cli-win32-arm64@${VERSION}"
+            if [ -n "${OPENAPI_SHA256}" ]; then
+              echo ""
+              echo "OpenAPI SHA256: ${OPENAPI_SHA256}"
+            fi
+          } > "${NOTES_FILE}"
+
+          if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
+            gh release edit "${RELEASE_TAG}" \
+              --title "@realtimex/sdk and @realtimex/pp-cli ${VERSION}" \
+              --notes-file "${NOTES_FILE}"
+          else
+            gh release create "${RELEASE_TAG}" \
+              --target "${GITHUB_SHA}" \
+              --title "@realtimex/sdk and @realtimex/pp-cli ${VERSION}" \
+              --notes-file "${NOTES_FILE}"
+          fi
 
