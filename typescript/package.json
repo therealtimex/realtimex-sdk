@@ -1,9 +1,19 @@
 {
   "name": "@realtimex/sdk",
   "version": "2.0.17",
-  "description": "RealtimeX SDK package assets, including the moderator agent skill.",
+  "description": "RealtimeX runtime SDK package and moderator agent skill assets.",
   "private": false,
+  "main": "./index.js",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "require": "./index.js",
+      "types": "./index.d.ts"
+    },
+    "./skills/*": "./skills/*"
+  },
   "scripts": {
+    "sdk:generate": "node ../scripts/generate-sdk.mjs",
     "skill:generate": "node ../scripts/generate-skill.mjs --force",
     "pp-cli:build": "node ../scripts/build-pp-cli-packages.mjs",
     "pp-cli:publish": "node ../scripts/publish-pp-cli-packages.mjs"
@@ -19,6 +29,8 @@
     "node": ">=18.0.0"
   },
   "files": [
+    "index.js",
+    "index.d.ts",
     "skills",
     "README.md"
   ],

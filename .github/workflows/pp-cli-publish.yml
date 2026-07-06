@@ -115,6 +115,15 @@ jobs:
           node ./pp-cli/main/bin/realtimex-pp-cli.js --version | tee /tmp/pp-cli-version.txt
           grep "realtimex-pp-cli ${SDK_VERSION}" /tmp/pp-cli-version.txt
 
+      - name: Generate @realtimex/sdk runtime client
+        working-directory: .
+        run: |
+          set -euo pipefail
+          npm --prefix typescript run sdk:generate
+          test -f typescript/index.js
+          test -f typescript/index.d.ts
+          node -e "const sdk = require('./typescript'); if (!sdk.createRealtimeXClient || !sdk.RealtimeXClient) process.exit(1)"
+
       - name: Generate @realtimex/sdk skill assets
         working-directory: .
         run: |
@@ -170,4 +179,3 @@ jobs:
               --title "@realtimex/sdk and @realtimex/pp-cli ${VERSION}" \
               --notes-file "${NOTES_FILE}"
           fi
-

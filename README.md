@@ -4,7 +4,7 @@ This branch is intentionally minimal. It contains only the release tooling neede
 to generate and publish:
 
 - `@realtimex/pp-cli`
-- `@realtimex/sdk`, currently carrying the generated
+- `@realtimex/sdk`, including a generated runtime client and the
   `skills/realtimex-moderator-sdk` package asset
 
 The broader TypeScript and Python SDKs are planned to return later as
@@ -26,7 +26,7 @@ Required GitHub secrets:
 - `NPM_TOKEN`: npm publish token
 - `OPENAPI_DOWNLOAD_TOKEN`: GitLab token that can read the app job artifact URL
 
-The app GitLab pipeline generates OpenAPI and dispatches this workflow with the artifact URL. The workflow downloads that spec, generates the moderator skill into `typescript/skills/`, builds
+The app GitLab pipeline generates OpenAPI and dispatches this workflow with the artifact URL. The workflow downloads that spec, generates the runtime SDK into `typescript/index.js` and `typescript/index.d.ts` with the `/cli` OpenAPI path prefix stripped, generates the moderator skill into `typescript/skills/`, builds
 the platform `@realtimex/pp-cli` packages, then publishes both
 `@realtimex/pp-cli` and `@realtimex/sdk` to npm.
 
