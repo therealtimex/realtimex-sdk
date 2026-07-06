@@ -66,6 +66,29 @@ function normalizeParameters(pathItem, operation) {
   ].filter((param) => param && param.name && param.in);
 }
 
+function selectJsonSchema(content = {}) {
+  if (!content || typeof content !== 'object') return null;
+  return (
+    content['application/json']?.schema ||
+    content['application/*+json']?.schema ||
+    Object.values(content).find((entry) => entry?.schema)?.schema ||
+    null
+  );
+}
+
+function selectSuccessResponseSchema(operation) {
+  const responses = operation.responses || {};
+  const preferredStatus = ['200', '201', '202', '204', 'default'].find(
+    (status) => responses[status]
+  );
+  const response = preferredStatus ? responses[preferredStatus] : null;
+  return selectJsonSchema(response?.content);
+}
+
+function selectRequestBodySchema(operation) {
+  return selectJsonSchema(operation.requestBody?.content);
+}
+
 function stripPathPrefix(pathname, prefix) {
   if (!prefix || !pathname.startsWith(prefix)) return pathname;
   const stripped = pathname.slice(prefix.length);
@@ -94,20 +117,24 @@ function collectOperations(spec, options = {}) {
       }
 
       const params = normalizeParameters(pathItem, operation);
+      const pathParams = params.filter((param) => param.in === 'path');
+      const queryParams = params.filter((param) => param.in === 'query');
+      const headerParams = params.filter((param) => param.in === 'header');
       operations.push({
         name: operationName(method, pathname, operation, usedNames),
         method: method.toUpperCase(),
         pathname: sdkPathname,
         summary: operation.summary || operation.description || '',
-        pathParams: params
-          .filter((param) => param.in === 'path')
-          .map((param) => param.name),
-        queryParams: params
-          .filter((param) => param.in === 'query')
-          .map((param) => param.name),
-        headerParams: params
-          .filter((param) => param.in === 'header')
-          .map((param) => param.name),
+        pathParams: pathParams.map((param) => param.name),
+        queryParams: queryParams.map((param) => param.name),
+        headerParams: headerParams.map((param) => param.name),
+        parameterSchemas: {
+          path: pathParams,
+          query: queryParams,
+          header: headerParams,
+        },
+        requestBodySchema: selectRequestBodySchema(operation),
+        responseBodySchema: selectSuccessResponseSchema(operation),
         hasBody: Boolean(operation.requestBody),
       });
     }
@@ -134,8 +161,11 @@ function renderIndexJs(operations, metadata) {
   const methods = operations
     .map(
       (operation) => `
-  ${operation.name}(options = {}) {
-    return this.request(${JSON.stringify(operation.name)}, options);
+  ${operation.name}(...args) {
+    return this.request(
+      ${JSON.stringify(operation.name)},
+      normalizeOperationOptions(operations[${JSON.stringify(operation.name)}], args)
+    );
   }
 `
     )
@@ -207,6 +237,66 @@ async function parseResponseBody(response) {
   } catch {
     return text;
   }
+}
+
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isLowLevelRequestOptions(value) {
+  return isPlainObject(value) && (
+    Object.prototype.hasOwnProperty.call(value, 'params') ||
+    Object.prototype.hasOwnProperty.call(value, 'query') ||
+    Object.prototype.hasOwnProperty.call(value, 'headers') ||
+    Object.prototype.hasOwnProperty.call(value, 'body') ||
+    Object.prototype.hasOwnProperty.call(value, 'signal')
+  );
+}
+
+function mergeRequestOptions(base, overrides) {
+  if (!overrides) return base;
+  return {
+    ...base,
+    ...overrides,
+    params: { ...(base.params || {}), ...(overrides.params || {}) },
+    query: { ...(base.query || {}), ...(overrides.query || {}) },
+    headers: { ...(base.headers || {}), ...(overrides.headers || {}) },
+  };
+}
+
+function normalizeOperationOptions(operation, args) {
+  if (!args || args.length === 0) return {};
+
+  const [first, second, third] = args;
+  if (isLowLevelRequestOptions(first)) {
+    return mergeRequestOptions(first, second);
+  }
+
+  const options = {};
+
+  if (operation.hasBody) {
+    if (operation.pathParams.length === 1 && args.length >= 2 && !isPlainObject(first)) {
+      options.params = { [operation.pathParams[0]]: first };
+      options.body = second;
+      return mergeRequestOptions(options, third);
+    }
+    if (operation.pathParams.length > 0 && args.length >= 2) {
+      options.params = first || {};
+      options.body = second;
+      return mergeRequestOptions(options, third);
+    }
+    options.body = first;
+  } else if (operation.pathParams.length === 1 && !isPlainObject(first)) {
+    options.params = { [operation.pathParams[0]]: first };
+  } else if (operation.pathParams.length > 0) {
+    options.params = first || {};
+  } else if (operation.queryParams.length > 0) {
+    options.query = first || {};
+  } else if (isPlainObject(first)) {
+    options.query = first;
+  }
+
+  return mergeRequestOptions(options, second);
 }
 
 class RealtimeXClient {
@@ -295,17 +385,151 @@ module.exports = {
 `;
 }
 
-function renderIndexDts(operations) {
+function toTypeName(value, fallback = 'GeneratedType') {
+  const identifier = toIdentifier(value, fallback);
+  const pascal = identifier.charAt(0).toUpperCase() + identifier.slice(1);
+  return /^[A-Za-z_$]/.test(pascal) ? pascal : fallback;
+}
+
+function quotePropertyName(name) {
+  return /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(name) ? name : JSON.stringify(name);
+}
+
+function refToType(ref = '') {
+  return toTypeName(ref.split('/').pop() || 'ReferencedSchema');
+}
+
+function schemaToTs(schema, fallback = 'unknown') {
+  if (!schema || typeof schema !== 'object') return fallback;
+  if (schema.$ref) return refToType(schema.$ref);
+  if (schema.nullable) {
+    return `${schemaToTs({ ...schema, nullable: false }, fallback)} | null`;
+  }
+  if (Array.isArray(schema.enum) && schema.enum.length > 0) {
+    return schema.enum.map((value) => JSON.stringify(value)).join(' | ');
+  }
+  if (Array.isArray(schema.oneOf) && schema.oneOf.length > 0) {
+    return schema.oneOf.map((entry) => schemaToTs(entry, fallback)).join(' | ');
+  }
+  if (Array.isArray(schema.anyOf) && schema.anyOf.length > 0) {
+    return schema.anyOf.map((entry) => schemaToTs(entry, fallback)).join(' | ');
+  }
+  if (Array.isArray(schema.allOf) && schema.allOf.length > 0) {
+    return schema.allOf.map((entry) => schemaToTs(entry, fallback)).join(' & ');
+  }
+
+  const types = Array.isArray(schema.type) ? schema.type : [schema.type].filter(Boolean);
+  if (types.includes('array')) {
+    return `Array<${schemaToTs(schema.items, 'unknown')}>`;
+  }
+  if (types.includes('object') || schema.properties || schema.additionalProperties) {
+    const required = new Set(Array.isArray(schema.required) ? schema.required : []);
+    const properties = schema.properties || {};
+    const lines = Object.entries(properties).map(([name, propSchema]) => {
+      const optional = required.has(name) ? '' : '?';
+      return `  ${quotePropertyName(name)}${optional}: ${schemaToTs(propSchema, 'unknown')};`;
+    });
+    if (schema.additionalProperties && typeof schema.additionalProperties === 'object') {
+      lines.push(`  [key: string]: ${schemaToTs(schema.additionalProperties, 'unknown')};`);
+    } else if (schema.additionalProperties !== false && lines.length === 0) {
+      return 'Record<string, unknown>';
+    }
+    return lines.length > 0 ? `{\n${lines.join('\n')}\n}` : 'Record<string, unknown>';
+  }
+  if (types.includes('integer') || types.includes('number')) return 'number';
+  if (types.includes('boolean')) return 'boolean';
+  if (types.includes('string')) return 'string';
+  return fallback;
+}
+
+function paramsToTs(parameters = []) {
+  if (!Array.isArray(parameters) || parameters.length === 0) return 'Record<string, never>';
+  const lines = parameters.map((param) => {
+    const optional = param.required === true ? '' : '?';
+    return `  ${quotePropertyName(param.name)}${optional}: ${schemaToTs(param.schema, 'unknown')};`;
+  });
+  return `{\n${lines.join('\n')}\n}`;
+}
+
+function operationTypeNames(operation) {
+  const base = toTypeName(operation.name);
+  return {
+    options: `${base}Options`,
+    params: `${base}Params`,
+    query: `${base}Query`,
+    headers: `${base}Headers`,
+    body: `${base}Body`,
+    response: `${base}Response`,
+  };
+}
+
+function renderConvenienceSignature(operation, names) {
+  const response = `Promise<${names.response}>`;
+  const options = `${names.options}`;
+  if (operation.hasBody) {
+    if (operation.pathParams.length === 1) {
+      const pathParam = operation.parameterSchemas.path[0];
+      return `${operation.name}(${toIdentifier(pathParam.name)}: ${schemaToTs(pathParam.schema, 'unknown')}, body: ${names.body}, options?: Omit<${options}, 'params' | 'body'>): ${response};`;
+    }
+    if (operation.pathParams.length > 1) {
+      return `${operation.name}(params: ${names.params}, body: ${names.body}, options?: Omit<${options}, 'params' | 'body'>): ${response};`;
+    }
+    return `${operation.name}(body: ${names.body}, options?: Omit<${options}, 'body'>): ${response};`;
+  }
+  if (operation.pathParams.length === 1) {
+    const pathParam = operation.parameterSchemas.path[0];
+    return `${operation.name}(${toIdentifier(pathParam.name)}: ${schemaToTs(pathParam.schema, 'unknown')}, options?: Omit<${options}, 'params'>): ${response};`;
+  }
+  if (operation.pathParams.length > 1) {
+    return `${operation.name}(params: ${names.params}, options?: Omit<${options}, 'params'>): ${response};`;
+  }
+  if (operation.queryParams.length > 0) {
+    return `${operation.name}(query?: ${names.query}, options?: Omit<${options}, 'query'>): ${response};`;
+  }
+  return null;
+}
+
+function renderIndexDts(spec, operations) {
+  const componentTypes = Object.entries(spec.components?.schemas || {})
+    .map(([name, schema]) => {
+      return `export type ${toTypeName(name)} = ${schemaToTs(schema, 'unknown')};`;
+    })
+    .join('\n\n');
+
+  const operationTypes = operations
+    .map((operation) => {
+      const names = operationTypeNames(operation);
+      return [
+        `export type ${names.params} = ${paramsToTs(operation.parameterSchemas.path)};`,
+        `export type ${names.query} = ${paramsToTs(operation.parameterSchemas.query)};`,
+        `export type ${names.headers} = ${paramsToTs(operation.parameterSchemas.header)};`,
+        `export type ${names.body} = ${schemaToTs(operation.requestBodySchema, 'unknown')};`,
+        `export type ${names.response} = ${schemaToTs(operation.responseBodySchema, 'unknown')};`,
+        `export interface ${names.options} extends RealtimeXRequestOptions {`,
+        `  params?: ${names.params};`,
+        `  query?: ${names.query};`,
+        `  headers?: ${names.headers} & Record<string, string>;`,
+        `  body?: ${names.body};`,
+        `}`,
+      ].join('\n');
+    })
+    .join('\n\n');
+
   const methods = operations
     .map((operation) => {
+      const names = operationTypeNames(operation);
       const summary = operation.summary
         ? `  /** ${operation.summary.replace(/\*\//g, '* /')} */\n`
         : '';
-      return `${summary}  ${operation.name}(options?: RealtimeXRequestOptions): Promise<unknown>;\n`;
+      const baseSignature = `${operation.name}(options?: ${names.options}): Promise<${names.response}>;`;
+      const convenienceSignature = renderConvenienceSignature(operation, names);
+      return `${summary}  ${baseSignature}\n${convenienceSignature ? `  ${convenienceSignature}\n` : ''}`;
     })
     .join('');
 
-  return `export interface RealtimeXClientOptions {
+  return `${componentTypes ? `${componentTypes}\n\n` : ''}${operationTypes}
+
+export interface RealtimeXClientOptions {
   baseUrl?: string;
   appId?: string;
   appIdAuth?: string;
@@ -381,7 +605,7 @@ fs.writeFileSync(
   path.join(outDir, 'index.js'),
   renderIndexJs(operations, { version: pkg.version })
 );
-fs.writeFileSync(path.join(outDir, 'index.d.ts'), renderIndexDts(operations));
+fs.writeFileSync(path.join(outDir, 'index.d.ts'), renderIndexDts(spec, operations));
 
 console.log(
   `[generate-sdk] generated ${operations.length} operations into ${path.relative(
