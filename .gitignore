@@ -15,6 +15,8 @@ Thumbs.db
 # Dependencies / build outputs
 node_modules/
 typescript/node_modules/
+typescript/index.js
+typescript/index.d.ts
 pp-cli/
 release-assets/
 typescript/skills/
