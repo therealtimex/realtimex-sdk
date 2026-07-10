@@ -210,8 +210,114 @@ const { spawnSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 
+const MAIN_PACKAGE_NAME = '@realtimex/pp-cli';
+const MODERATOR_PLUGIN_ID = 'com.realtimex.moderator-sdk';
+const SDK_PACKAGE_NAME = '@realtimex/sdk';
+const SDK_PACKAGE_PATH_PARTS = [
+  'plugin-data',
+  MODERATOR_PLUGIN_ID,
+  'node_modules',
+  '@realtimex',
+  'sdk',
+  'package.json',
+];
 const packageName = '@realtimex/pp-cli-' + process.platform + '-' + process.arch;
 const binaryName = process.platform === 'win32' ? 'realtimex-pp-cli.exe' : 'realtimex-pp-cli';
+
+function readPackageVersion(packageJsonPath) {
+  try {
+    return JSON.parse(fs.readFileSync(packageJsonPath, 'utf8')).version || null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function installedCliVersion() {
+  try {
+    const packageJsonPath = path.resolve(__dirname, '..', 'package.json');
+    return readPackageVersion(packageJsonPath);
+  } catch (_) {
+    return null;
+  }
+}
+
+function moderatorSdkPackageJsonPath() {
+  const storageDir = String(process.env.STORAGE_DIR || '').trim();
+  if (!storageDir) return null;
+  return path.join(storageDir, ...SDK_PACKAGE_PATH_PARTS);
+}
+
+function installCliVersion(version) {
+  const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+  const result = spawnSync(
+    npmCommand,
+    ['install', '-g', MAIN_PACKAGE_NAME + '@' + version],
+    { stdio: 'inherit' }
+  );
+  if (result.error) {
+    console.error('warning: failed to update ' + MAIN_PACKAGE_NAME + ': ' + result.error.message);
+    return false;
+  }
+  if (result.status !== 0) {
+    console.error(
+      'warning: failed to update ' +
+        MAIN_PACKAGE_NAME +
+        ' to ' +
+        version +
+        ' (npm exited ' +
+        (result.status == null ? 'unknown' : result.status) +
+        '); continuing with the current CLI.'
+    );
+    return false;
+  }
+  const updatedVersion = installedCliVersion();
+  if (updatedVersion !== version) {
+    console.error(
+      'warning: updated ' +
+        MAIN_PACKAGE_NAME +
+        ', but installed version is still ' +
+        (updatedVersion || 'unknown') +
+        ' instead of ' +
+        version +
+        '; continuing with the current CLI.'
+    );
+    return false;
+  }
+  return true;
+}
+
+function ensureCliVersionMatchesModeratorSdk() {
+  if (process.env.REALTIMEX_PP_CLI_PLUGIN_UPDATE_CHECK === '0') return;
+  const sdkPackageJsonPath = moderatorSdkPackageJsonPath();
+  if (!sdkPackageJsonPath || !fs.existsSync(sdkPackageJsonPath)) return;
+
+  const sdkVersion = readPackageVersion(sdkPackageJsonPath);
+  const cliVersion = installedCliVersion();
+  if (!sdkVersion || !cliVersion || sdkVersion === cliVersion) return;
+
+  console.error(
+    'Updating ' +
+      MAIN_PACKAGE_NAME +
+      ' from ' +
+      cliVersion +
+      ' to ' +
+      sdkVersion +
+      ' to match ' +
+      SDK_PACKAGE_NAME +
+      ' in plugin data.'
+  );
+  if (!installCliVersion(sdkVersion)) return;
+  const rerun = spawnSync(process.execPath, [process.argv[1], ...process.argv.slice(2)], {
+    stdio: 'inherit',
+  });
+  if (rerun.error) {
+    console.error(rerun.error.message);
+    process.exit(1);
+  }
+  process.exit(rerun.status == null ? 1 : rerun.status);
+}
+
+ensureCliVersionMatchesModeratorSdk();
 
 let binaryPath;
 try {
