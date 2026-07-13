@@ -14,7 +14,7 @@ Use `interval` for simple timing. Supported units are `m`, `h`, and `d`, for exa
 Omit `interval` and `cron` to run on every scheduler check interval.
 Use `interval: disabled` to keep a task in the file but skip it during scheduled heartbeat checks. Manual triggers can still run the task.
 Use `cron` for complex schedules, for example `0 9 * * *`.
-Agent tasks require `agent`, for example `@codex-terminal`.
+Agent tasks require `agent`, for example `@codex`.
 Use `model` to run an agent task with a specific model, for example `gpt-5.5-medium`.
 Use `skills` to prefer skills for an agent task, for example `agent-browser, realtimex-moderator-sdk`.
 Use `executor: shell` and `command` to run a shell command instead of an agent. Shell tasks do not use `prompt`.
@@ -48,13 +48,13 @@ tasks:
 - name: default-review
   default: true
   interval: 30m
-  agent: @codex-terminal
+  agent: @codex
   model: gpt-5.5-medium
   skills: agent-browser, realtimex-moderator-sdk
   prompt: Review the workspace context and respond HEARTBEAT_OK when no action is needed
 - name: weekday-morning-task
   cron: 0 9 * * 1-5
-  agent: @codex-terminal
+  agent: @codex
   prompt: Describe what should run on a cron schedule
 - name: sync-metrics
   interval: 30m
@@ -62,10 +62,10 @@ tasks:
   command: bash ./scripts/sync-metrics.sh
 - name: paused-task
   interval: disabled
-  agent: @codex-terminal
+  agent: @codex
   prompt: This task is skipped by scheduled heartbeat checks until re-enabled
 - name: another-task
-  agent: @codex-terminal
+  agent: @codex
   prompt: Tasks without interval or cron run on every scheduler check interval
 
 ## Check for
