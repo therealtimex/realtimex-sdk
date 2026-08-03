@@ -23,7 +23,7 @@ If `--version` reports "command not found" after install, the npm global bin dir
 * Always run first:
 
   ```bash
-  realtimex-pp-cli prepare --workspace-slug "$RTX_WORKSPACE_SLUG" --thread-slug "$RTX_THREAD_SLUG" --agent
+  realtimex-pp-cli prepare --agent
   ```
 
 ## Direct Use
@@ -52,19 +52,21 @@ This skill intentionally exposes a small action-first command set. Prefer these 
 * Never call the RealTimeX API directly with `curl`, `fetch`, raw HTTP clients, or custom scripts.
 * If the current CLI cannot do the requested task, say the feature is not available and will be added soon.
 * Use `--agent` on every command.
-* Treat `$RTX_WORKSPACE_SLUG` as the current workspace slug when it is set, and `$RTX_THREAD_SLUG` as the current thread slug when it is set.
-* For requests that refer to "current workspace", "this workspace", "current thread", or "this thread", use those environment values directly when they are available.
-* When you need the resolved current workspace/thread objects or related context, call:
+* In a managed RealtimeX terminal, let `prepare` resolve the current workspace and thread from authenticated terminal-session context. Do not require or forward workspace/thread environment variables to `prepare`.
+* Treat `prepare` as the resolved source of truth for requests that refer to "current workspace", "this workspace", "current thread", or "this thread".
+* `RTX_AGENT_CONTEXT_JSON` and the legacy `$RTX_WORKSPACE_SLUG` and `$RTX_THREAD_SLUG` aliases may be present for runtime compatibility, but do not block on inspecting them or manually pass them to `prepare`.
+* Call the following whenever you need the resolved current workspace/thread objects or related context:
 
   ```bash
-  realtimex-pp-cli prepare --workspace-slug "$RTX_WORKSPACE_SLUG" --thread-slug "$RTX_THREAD_SLUG" --agent
+  realtimex-pp-cli prepare --agent
   ```
 
-* If `$RTX_WORKSPACE_SLUG` or `$RTX_THREAD_SLUG` is missing for a current-context request that requires it, ask for the missing workspace or thread before running the command.
+* For callers outside a managed RealtimeX terminal, `prepare` still accepts explicit `--workspace-slug` and `--thread-slug` compatibility inputs.
+* Ask for a missing workspace or thread only when `prepare` cannot resolve the required current context or when the user intends to target a different context.
 * Always run first:
 
   ```bash
-  realtimex-pp-cli prepare --workspace-slug "$RTX_WORKSPACE_SLUG" --thread-slug "$RTX_THREAD_SLUG" --agent
+  realtimex-pp-cli prepare --agent
   ```
 
 * Use exact workspace slugs, thread slugs, provider ids, model ids, agent `canonical`, and agent `modelId` values from `prepare`.
@@ -106,7 +108,7 @@ For terminal agents and terminal sessions:
 * Use `list-terminal-agents` when you only need available terminal agents. Use `prepare` when you also need workspace/thread/provider/model context.
 * Use `open-terminal-session` to open a new desktop terminal session for a terminal agent. It auto-attaches the CLI controller through the desktop runtime launch request.
 * Use exact `agentName`, `providerId`, and `modelId` values from `list-terminal-agents` or `prepare.agents`.
-* When opening a terminal session for the current thread, pass both `--workspace-slug "$RTX_WORKSPACE_SLUG"` and `--thread-slug "$RTX_THREAD_SLUG"`.
+* When opening a terminal session for the current thread, pass the exact current workspace and thread slugs returned by `prepare`.
 * Use `list-terminal-sessions` to inspect grouped terminal sessions by `workspaceSlug` and `threadSlug`. Each session includes compact identity fields and `attached` status.
 * Use `resume-terminal-session` or `resume-latest-terminal-session` to resume + attach an existing session. Use `terminate-terminal-session` to close + detach a session.
 
@@ -114,7 +116,7 @@ For agent skills:
 
 * Use `list-workspace-agent-skills` before enabling, disabling, or reloading workspace skills.
 * For `reload-agent-skills`, always pass a workspace slug.
-* If the user asks to reload skills for the current workspace, pass `--workspace-slug "$RTX_WORKSPACE_SLUG"`.
+* If the user asks to reload skills for the current workspace, pass the exact current workspace slug returned by `prepare`.
 * After `reload-agent-skills` succeeds, reload your own skill context before relying on updated skill instructions.
 
 For personality and heartbeat setup:
