@@ -97,6 +97,68 @@ function patchCliDefaults(sourceDir) {
   fs.writeFileSync(rootGo, patched);
 }
 
+function patchCliTerminalSessionAuth(sourceDir) {
+  const configPath = path.join(sourceDir, 'internal', 'config', 'config.go');
+  const clientPath = path.join(sourceDir, 'internal', 'client', 'client.go');
+  const terminalConfigPatched = replaceInFile(
+    configPath,
+    /(\tRealtimexAppIdAuth string\s+`toml:"app_id_auth"`\n)/,
+    `$1\tRealtimexTerminalSessionToken string            \`toml:"-"\`\n`
+  );
+  const terminalEnvPatched = replaceInFile(
+    configPath,
+    /\tif v := os\.Getenv\("REALTIMEX_APP_ID_AUTH"\); v != "" \{\n\t\tcfg\.RealtimexAppIdAuth = v\n\t\tcfg\.AuthSource = "env:REALTIMEX_APP_ID_AUTH"\n\t\}/,
+    `\tif v := os.Getenv("REALTIMEX_TERMINAL_SESSION_TOKEN"); v != "" {\n\t\tcfg.RealtimexTerminalSessionToken = v\n\t\tcfg.AuthSource = "env:REALTIMEX_TERMINAL_SESSION_TOKEN"\n\t} else if v := os.Getenv("REALTIMEX_APP_ID_AUTH"); v != "" {\n\t\tcfg.RealtimexAppIdAuth = v\n\t\tcfg.AuthSource = "env:REALTIMEX_APP_ID_AUTH"\n\t}`
+  );
+  const terminalAuthMethodPatched = replaceInFile(
+    configPath,
+    /func \(c \*Config\) AuthHeader\(\) string \{\n/,
+    `func (c *Config) UsesTerminalSessionToken() bool {\n\treturn c != nil && c.RealtimexTerminalSessionToken != ""\n}\n\nfunc (c *Config) AuthHeader() string {\n\tif c.UsesTerminalSessionToken() {\n\t\treturn c.RealtimexTerminalSessionToken\n\t}\n`
+  );
+  const requestAuthPatched = replaceInFile(
+    clientPath,
+    /\t\tif authHeader != "" \{\n\t\t\treq\.Header\.Set\("x-app-id", authHeader\)\n\t\t\}/,
+    `\t\tif authHeader != "" {\n\t\t\tif c.Config.UsesTerminalSessionToken() {\n\t\t\t\treq.Header.Set("Authorization", "RealtimeX-Terminal "+authHeader)\n\t\t\t} else {\n\t\t\t\treq.Header.Set("x-app-id", authHeader)\n\t\t\t}\n\t\t}`
+  );
+  const redirectAuthPatched = replaceInFile(
+    clientPath,
+    /\t\t\tif h, err := c\.authHeader\(req\.Context\(\)\); err == nil && h != "" \{\n\t\t\t\treq\.Header\.Set\("x-app-id", h\)\n\t\t\t\}/,
+    `\t\t\tif h, err := c.authHeader(req.Context()); err == nil && h != "" {\n\t\t\t\tif c.Config.UsesTerminalSessionToken() {\n\t\t\t\t\treq.Header.Set("Authorization", "RealtimeX-Terminal "+h)\n\t\t\t\t} else {\n\t\t\t\t\treq.Header.Set("x-app-id", h)\n\t\t\t\t}\n\t\t\t}`
+  );
+  const redirectStripPatched = replaceInFile(
+    clientPath,
+    /\t\t\treq\.Header\.Del\("x-app-id"\)/,
+    `\t\t\treq.Header.Del("x-app-id")\n\t\t\treq.Header.Del("Authorization")`
+  );
+  const credentialMaskPatched = replaceInFile(
+    clientPath,
+    /\t\taddCredential\(c\.Config\.RealtimexAppIdAuth\)\n/,
+    `\t\taddCredential(c.Config.RealtimexAppIdAuth)\n\t\taddCredential(c.Config.RealtimexTerminalSessionToken)\n`
+  );
+  const dryRunAuthPatched = replaceInFile(
+    clientPath,
+    /\tif authHeader != "" \{\n\t\tfmt\.Fprintf\(os\.Stderr, "  %s: %s\\n", "x-app-id", maskToken\(authHeader\)\)\n\t\}/,
+    `\tif authHeader != "" {\n\t\theaderName := "x-app-id"\n\t\theaderValue := authHeader\n\t\tif c.Config.UsesTerminalSessionToken() {\n\t\t\theaderName = "Authorization"\n\t\t\theaderValue = "RealtimeX-Terminal " + authHeader\n\t\t}\n\t\tfmt.Fprintf(os.Stderr, "  %s: %s\\n", headerName, maskToken(headerValue))\n\t}`
+  );
+
+  if (
+    !terminalConfigPatched ||
+    !terminalEnvPatched ||
+    !terminalAuthMethodPatched ||
+    !requestAuthPatched ||
+    !redirectAuthPatched ||
+    !redirectStripPatched ||
+    !credentialMaskPatched ||
+    !dryRunAuthPatched
+  ) {
+    throw new Error(
+      'Generated CLI terminal-session authentication patch did not match the Printing Press output.'
+    );
+  }
+
+  run('gofmt', ['-w', configPath, clientPath]);
+}
+
 function ensureSourceProject() {
   run('node', [
     path.join(REPO_ROOT, 'scripts', 'generate-skill.mjs'),
@@ -108,6 +170,7 @@ function ensureSourceProject() {
   ]);
   patchCliVersion(SOURCE_DIR);
   patchCliDefaults(SOURCE_DIR);
+  patchCliTerminalSessionAuth(SOURCE_DIR);
 }
 
 function packageName(target) {
@@ -360,4 +423,11 @@ function main() {
   console.log('[pp-cli] packages ready');
 }
 
-main();
+if (
+  process.argv[1] &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
+  main();
+}
+
+export { patchCliTerminalSessionAuth };
