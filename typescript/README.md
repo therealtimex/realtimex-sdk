@@ -15,5 +15,9 @@ const client = createRealtimeXClient({
 const workspaces = await client.request("listWorkspaces");
 ```
 
+`baseUrl` is required, either as an explicit client option or through
+`REALTIMEX_BASE_URL`. Desktop and `dev:all` runtimes propagate the resolved
+dynamic `/cli` endpoint; the SDK does not guess a localhost port.
+
 The package also publishes generated skill assets under
 `skills/realtimex-moderator-sdk`.
