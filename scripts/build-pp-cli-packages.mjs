@@ -159,6 +159,30 @@ function patchCliTerminalSessionAuth(sourceDir) {
   run('gofmt', ['-w', configPath, clientPath]);
 }
 
+function patchCliBaseURLPathJoin(sourceDir) {
+  const clientPath = path.join(sourceDir, 'internal', 'client', 'client.go');
+  const baseURLPathJoinPatched = replaceInFile(
+    clientPath,
+    /\ttargetURL := c\.BaseURL \+ path\n/,
+    `\trequestPath := path
+\tif strings.HasSuffix(c.BaseURL, "/cli") &&
+\t\t(path == "/cli" || strings.HasPrefix(path, "/cli/")) {
+\t\trequestPath = strings.TrimPrefix(path, "/cli")
+\t\tif requestPath == "" {
+\t\t\trequestPath = "/"
+\t\t}
+\t}
+\ttargetURL := c.BaseURL + requestPath
+`
+  );
+  if (!baseURLPathJoinPatched) {
+    throw new Error(
+      'Generated CLI base URL path join patch did not match the Printing Press output.'
+    );
+  }
+  run('gofmt', ['-w', clientPath]);
+}
+
 function ensureSourceProject() {
   run('node', [
     path.join(REPO_ROOT, 'scripts', 'generate-skill.mjs'),
@@ -171,6 +195,7 @@ function ensureSourceProject() {
   patchCliVersion(SOURCE_DIR);
   patchCliDefaults(SOURCE_DIR);
   patchCliTerminalSessionAuth(SOURCE_DIR);
+  patchCliBaseURLPathJoin(SOURCE_DIR);
 }
 
 function packageName(target) {
@@ -430,4 +455,4 @@ if (
   main();
 }
 
-export { patchCliTerminalSessionAuth };
+export { patchCliBaseURLPathJoin, patchCliTerminalSessionAuth };

@@ -4,7 +4,10 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { patchCliTerminalSessionAuth } from './build-pp-cli-packages.mjs';
+import {
+  patchCliBaseURLPathJoin,
+  patchCliTerminalSessionAuth,
+} from './build-pp-cli-packages.mjs';
 
 function writeFixture(sourceDir) {
   const configDir = path.join(sourceDir, 'internal', 'config');
@@ -109,6 +112,42 @@ test('patches generated CLI auth to prefer the managed terminal token', () => {
     assert.match(client, /"Authorization", "RealtimeX-Terminal "\+authHeader/);
     assert.match(client, /req\.Header\.Del\("Authorization"\)/);
     assert.match(client, /addCredential\(c\.Config\.RealtimexTerminalSessionToken\)/);
+  } finally {
+    fs.rmSync(sourceDir, { recursive: true, force: true });
+  }
+});
+
+test('avoids duplicating the cli prefix at the generated client boundary', () => {
+  const sourceDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pp-cli-base-url-'));
+  const clientDir = path.join(sourceDir, 'internal', 'client');
+  try {
+    fs.mkdirSync(clientDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(clientDir, 'client.go'),
+      `package client
+
+import "strings"
+
+type Client struct {
+\tBaseURL string
+}
+
+func (c *Client) target(path string) string {
+\ttargetURL := c.BaseURL + path
+\treturn targetURL
+}
+`
+    );
+
+    patchCliBaseURLPathJoin(sourceDir);
+
+    const client = fs.readFileSync(
+      path.join(clientDir, 'client.go'),
+      'utf8'
+    );
+    assert.match(client, /strings\.HasSuffix\(c\.BaseURL, "\/cli"\)/);
+    assert.match(client, /strings\.TrimPrefix\(path, "\/cli"\)/);
+    assert.match(client, /targetURL := c\.BaseURL \+ requestPath/);
   } finally {
     fs.rmSync(sourceDir, { recursive: true, force: true });
   }
