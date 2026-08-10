@@ -302,8 +302,12 @@ function normalizeOperationOptions(operation, args) {
 class RealtimeXClient {
   constructor(options = {}) {
     const env = typeof process !== 'undefined' ? process.env || {} : {};
-    this.baseUrl =
-      options.baseUrl || env.REALTIMEX_BASE_URL || 'http://localhost:3101/cli';
+    this.baseUrl = options.baseUrl || env.REALTIMEX_BASE_URL;
+    if (!this.baseUrl) {
+      throw new Error(
+        'RealtimeX SDK base URL is unavailable; pass { baseUrl } or propagate REALTIMEX_BASE_URL.'
+      );
+    }
     this.fetch = options.fetch || globalThis.fetch;
     if (typeof this.fetch !== 'function') {
       throw new Error('A fetch implementation is required. Use Node 18+ or pass { fetch }.');
