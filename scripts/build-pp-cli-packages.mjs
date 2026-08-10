@@ -163,16 +163,15 @@ function patchCliBaseURLPathJoin(sourceDir) {
   const clientPath = path.join(sourceDir, 'internal', 'client', 'client.go');
   const baseURLPathJoinPatched = replaceInFile(
     clientPath,
-    /\ttargetURL := c\.BaseURL \+ path\n/,
-    `\trequestPath := path
-\tif strings.HasSuffix(c.BaseURL, "/cli") &&
-\t\t(path == "/cli" || strings.HasPrefix(path, "/cli/")) {
-\t\trequestPath = strings.TrimPrefix(path, "/cli")
-\t\tif requestPath == "" {
-\t\t\trequestPath = "/"
-\t\t}
+    /(\thttpClient := newHTTPClient\(timeout, nil\)\n)\tc := &Client\{\n\t\tBaseURL:\s+strings\.TrimRight\(cfg\.BaseURL, "\/"\),\n\t\tBasePath:\s+normalizeBasePath\(cfg\.BasePath\),\n/,
+    `$1\tbaseURL := strings.TrimRight(cfg.BaseURL, "/")
+\tbasePath := normalizeBasePath(cfg.BasePath)
+\tif basePath != "" && strings.HasSuffix(baseURL, basePath) {
+\t\tbasePath = ""
 \t}
-\ttargetURL := c.BaseURL + requestPath
+\tc := &Client{
+\t\tBaseURL:  baseURL,
+\t\tBasePath: basePath,
 `
   );
   if (!baseURLPathJoinPatched) {

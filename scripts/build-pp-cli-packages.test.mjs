@@ -129,12 +129,28 @@ test('avoids duplicating the cli prefix at the generated client boundary', () =>
 import "strings"
 
 type Client struct {
-\tBaseURL string
+\tBaseURL  string
+\tBasePath string
 }
 
-func (c *Client) target(path string) string {
-\ttargetURL := c.BaseURL + path
-\treturn targetURL
+type Config struct {
+\tBaseURL  string
+\tBasePath string
+}
+
+func normalizeBasePath(value string) string {
+\treturn strings.TrimRight(value, "/")
+}
+
+func newHTTPClient(int, any) any { return nil }
+
+func New(cfg *Config, timeout int) *Client {
+\thttpClient := newHTTPClient(timeout, nil)
+\tc := &Client{
+\t\tBaseURL:  strings.TrimRight(cfg.BaseURL, "/"),
+\t\tBasePath: normalizeBasePath(cfg.BasePath),
+\t}
+\treturn c
 }
 `
     );
@@ -145,9 +161,10 @@ func (c *Client) target(path string) string {
       path.join(clientDir, 'client.go'),
       'utf8'
     );
-    assert.match(client, /strings\.HasSuffix\(c\.BaseURL, "\/cli"\)/);
-    assert.match(client, /strings\.TrimPrefix\(path, "\/cli"\)/);
-    assert.match(client, /targetURL := c\.BaseURL \+ requestPath/);
+    assert.match(client, /strings\.HasSuffix\(baseURL, basePath\)/);
+    assert.match(client, /basePath = ""/);
+    assert.match(client, /BaseURL:\s+baseURL/);
+    assert.match(client, /BasePath:\s+basePath/);
   } finally {
     fs.rmSync(sourceDir, { recursive: true, force: true });
   }
