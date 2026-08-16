@@ -173,12 +173,25 @@ function renderIndexJs(operations, metadata) {
 
   return `'use strict';
 
+const crypto = require('node:crypto');
+
 const operations = ${JSON.stringify(operationMap, null, 2)};
 
 class RealtimeXApiError extends Error {
   constructor(message, response, body) {
     super(message);
     this.name = 'RealtimeXApiError';
+    this.status = response && response.status;
+    this.statusText = response && response.statusText;
+    this.body = body;
+    this.response = response;
+  }
+}
+
+class RealtimeXWebhookError extends Error {
+  constructor(message, response = null, body = null, cause = null) {
+    super(message, cause ? { cause } : undefined);
+    this.name = 'RealtimeXWebhookError';
     this.status = response && response.status;
     this.statusText = response && response.statusText;
     this.body = body;
@@ -236,6 +249,220 @@ async function parseResponseBody(response) {
     return JSON.parse(text);
   } catch {
     return text;
+  }
+}
+
+function normalizeWebhookEndpointUrl(value) {
+  const normalized = String(value || '').trim();
+  if (!normalized) {
+    throw new Error(
+      'RealtimeX webhook URL is unavailable; pass { endpointUrl } or set REALTIMEX_WEBHOOK_URL.'
+    );
+  }
+  const parsed = new URL(normalized);
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    throw new Error('RealtimeX webhook URL must use http or https.');
+  }
+  if (parsed.username || parsed.password) {
+    throw new Error('RealtimeX webhook URL must not contain embedded credentials.');
+  }
+  return parsed.toString();
+}
+
+function normalizeRetryCount(value, fallback = 2) {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0 || parsed > 10) return fallback;
+  return parsed;
+}
+
+function normalizeTimeout(value, fallback = 15000) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return Math.min(Math.floor(parsed), 120000);
+}
+
+function waitForRetry(delayMs, signal) {
+  const delay = Math.max(0, Number(delayMs) || 0);
+  if (delay === 0) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const finish = () => {
+      if (signal) signal.removeEventListener('abort', abort);
+      resolve();
+    };
+    const timeout = setTimeout(finish, delay);
+    const abort = () => {
+      clearTimeout(timeout);
+      signal.removeEventListener('abort', abort);
+      reject(signal.reason || new Error('Webhook request aborted.'));
+    };
+    if (signal) {
+      if (signal.aborted) return abort();
+      signal.addEventListener('abort', abort, { once: true });
+    }
+  });
+}
+
+function createAttemptSignal(externalSignal, timeoutMs) {
+  const controller = new AbortController();
+  const abortFromExternal = () => {
+    controller.abort(externalSignal.reason || new Error('Webhook request aborted.'));
+  };
+  if (externalSignal) {
+    if (externalSignal.aborted) abortFromExternal();
+    else externalSignal.addEventListener('abort', abortFromExternal, { once: true });
+  }
+  const timeout = setTimeout(
+    () => controller.abort(new Error('Webhook request timed out.')),
+    timeoutMs
+  );
+  return {
+    signal: controller.signal,
+    cleanup() {
+      clearTimeout(timeout);
+      if (externalSignal) {
+        externalSignal.removeEventListener('abort', abortFromExternal);
+      }
+    },
+  };
+}
+
+class RealtimeXWebhookClient {
+  constructor(options = {}) {
+    const env = typeof process !== 'undefined' ? process.env || {} : {};
+    this.endpointUrl = normalizeWebhookEndpointUrl(
+      options.endpointUrl || options.url || env.REALTIMEX_WEBHOOK_URL
+    );
+    this.secret = String(options.secret || env.REALTIMEX_WEBHOOK_SECRET || '');
+    if (!this.secret) {
+      throw new Error(
+        'RealtimeX webhook secret is unavailable; pass { secret } or set REALTIMEX_WEBHOOK_SECRET.'
+      );
+    }
+    this.fetch = options.fetch || globalThis.fetch;
+    if (typeof this.fetch !== 'function') {
+      throw new Error('A fetch implementation is required. Use Node 18+ or pass { fetch }.');
+    }
+    this.signatureHeader =
+      options.signatureHeader ||
+      env.REALTIMEX_WEBHOOK_SIGNATURE_HEADER ||
+      'X-Webhook-Signature-256';
+    this.signaturePrefix =
+      options.signaturePrefix ?? env.REALTIMEX_WEBHOOK_SIGNATURE_PREFIX ?? 'sha256=';
+    this.timestampHeader =
+      options.timestampHeader ||
+      env.REALTIMEX_WEBHOOK_TIMESTAMP_HEADER ||
+      'X-Webhook-Timestamp';
+    this.deliveryIdHeader =
+      options.deliveryIdHeader ||
+      env.REALTIMEX_WEBHOOK_DELIVERY_ID_HEADER ||
+      'X-Webhook-Id';
+    this.eventTypeHeader =
+      options.eventTypeHeader ||
+      env.REALTIMEX_WEBHOOK_EVENT_TYPE_HEADER ||
+      'X-Webhook-Event';
+    this.sourceHeader =
+      options.sourceHeader ||
+      env.REALTIMEX_WEBHOOK_SOURCE_HEADER ||
+      'X-Webhook-Source';
+    this.defaultEventType =
+      options.eventType || env.REALTIMEX_WEBHOOK_EVENT_TYPE || 'realtimex.task';
+    this.defaultSource =
+      options.source || env.REALTIMEX_WEBHOOK_SOURCE || 'local-app';
+    this.defaultHeaders = { ...(options.headers || {}) };
+    this.maxRetries = normalizeRetryCount(options.maxRetries, 2);
+    const configuredRetryDelay = Number(options.retryDelayMs);
+    this.retryDelayMs = Number.isFinite(configuredRetryDelay) && configuredRetryDelay >= 0
+      ? configuredRetryDelay
+      : 250;
+    this.timeoutMs = normalizeTimeout(options.timeoutMs, 15000);
+  }
+
+  async trigger(payload, options = {}) {
+    if (payload === undefined) {
+      throw new Error('RealtimeX webhook payload is required.');
+    }
+    const serialized = typeof payload === 'string' ? payload : JSON.stringify(payload);
+    if (serialized === undefined) {
+      throw new Error('RealtimeX webhook payload is not JSON serializable.');
+    }
+    const body = Buffer.from(serialized, 'utf8');
+    const deliveryId = String(options.deliveryId || crypto.randomUUID());
+    const timestamp = String(
+      options.timestamp || Math.floor(Date.now() / 1000)
+    );
+    const signature = crypto
+      .createHmac('sha256', this.secret)
+      .update(body)
+      .digest('hex');
+    const headers = {
+      ...this.defaultHeaders,
+      ...(options.headers || {}),
+      'content-type': 'application/json',
+      [this.signatureHeader]: String(this.signaturePrefix || '') + signature,
+      [this.timestampHeader]: timestamp,
+      [this.deliveryIdHeader]: deliveryId,
+      [this.eventTypeHeader]: String(options.eventType || this.defaultEventType),
+      [this.sourceHeader]: String(options.source || this.defaultSource),
+    };
+    const maxRetries = normalizeRetryCount(options.maxRetries, this.maxRetries);
+    const retryDelayMs =
+      options.retryDelayMs === undefined
+        ? this.retryDelayMs
+        : Math.max(0, Number(options.retryDelayMs) || 0);
+    const timeoutMs = normalizeTimeout(options.timeoutMs, this.timeoutMs);
+
+    for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+      const attemptSignal = createAttemptSignal(options.signal, timeoutMs);
+      try {
+        const response = await this.fetch(this.endpointUrl, {
+          method: 'POST',
+          headers,
+          body,
+          signal: attemptSignal.signal,
+        });
+        const responseBody = await parseResponseBody(response);
+        if (response.status >= 500 && attempt < maxRetries) {
+          await waitForRetry(retryDelayMs * (attempt + 1), options.signal);
+          continue;
+        }
+        if (!response.ok) {
+          throw new RealtimeXWebhookError(
+            'RealtimeX webhook request failed: ' +
+              response.status +
+              ' ' +
+              response.statusText,
+            response,
+            responseBody
+          );
+        }
+        return responseBody;
+      } catch (error) {
+        if (error instanceof RealtimeXWebhookError) throw error;
+        if (options.signal && options.signal.aborted) {
+          throw new RealtimeXWebhookError(
+            'RealtimeX webhook request aborted.',
+            null,
+            null,
+            error
+          );
+        }
+        if (attempt >= maxRetries) {
+          const timedOut = attemptSignal.signal.aborted;
+          throw new RealtimeXWebhookError(
+            timedOut
+              ? 'RealtimeX webhook request timed out.'
+              : 'RealtimeX webhook request failed: ' + (error.message || String(error)),
+            null,
+            null,
+            error
+          );
+        }
+        await waitForRetry(retryDelayMs * (attempt + 1), options.signal);
+      } finally {
+        attemptSignal.cleanup();
+      }
+    }
+    throw new RealtimeXWebhookError('RealtimeX webhook request failed.');
   }
 }
 
@@ -378,11 +605,18 @@ function createRealtimeXClient(options = {}) {
   return new RealtimeXClient(options);
 }
 
+function createRealtimeXWebhookClient(options = {}) {
+  return new RealtimeXWebhookClient(options);
+}
+
 module.exports = {
   RealtimeXApiError,
   RealtimeXClient,
+  RealtimeXWebhookClient,
+  RealtimeXWebhookError,
   createClient: createRealtimeXClient,
   createRealtimeXClient,
+  createRealtimeXWebhookClient,
   operations,
   version: ${JSON.stringify(metadata.version)},
 };
@@ -551,11 +785,67 @@ export interface RealtimeXRequestOptions {
   signal?: AbortSignal;
 }
 
+export interface RealtimeXWebhookClientOptions {
+  endpointUrl?: string;
+  url?: string;
+  secret?: string;
+  signatureHeader?: string;
+  signaturePrefix?: string;
+  timestampHeader?: string;
+  deliveryIdHeader?: string;
+  eventTypeHeader?: string;
+  sourceHeader?: string;
+  eventType?: string;
+  source?: string;
+  headers?: Record<string, string>;
+  maxRetries?: number;
+  retryDelayMs?: number;
+  timeoutMs?: number;
+  fetch?: typeof fetch;
+}
+
+export interface RealtimeXWebhookTriggerOptions {
+  deliveryId?: string;
+  timestamp?: string | number;
+  eventType?: string;
+  source?: string;
+  headers?: Record<string, string>;
+  maxRetries?: number;
+  retryDelayMs?: number;
+  timeoutMs?: number;
+  signal?: AbortSignal;
+}
+
+export interface RealtimeXWebhookReceipt {
+  success: boolean;
+  accepted: boolean;
+  duplicate: boolean;
+  deliveryId: string;
+  threadId: string | number | null;
+  taskId: string | number | null;
+  [key: string]: unknown;
+}
+
 export declare class RealtimeXApiError extends Error {
   status?: number;
   statusText?: string;
   body: unknown;
   response: Response;
+}
+
+export declare class RealtimeXWebhookError extends Error {
+  status?: number;
+  statusText?: string;
+  body: unknown;
+  response: Response | null;
+}
+
+export declare class RealtimeXWebhookClient {
+  constructor(options?: RealtimeXWebhookClientOptions);
+  trigger(
+    payload: unknown,
+    options?: RealtimeXWebhookTriggerOptions
+  ): Promise<RealtimeXWebhookReceipt>;
 }
 
 export declare class RealtimeXClient {
@@ -566,6 +856,9 @@ ${methods}}
 export declare function createRealtimeXClient(
   options?: RealtimeXClientOptions
 ): RealtimeXClient;
+export declare function createRealtimeXWebhookClient(
+  options?: RealtimeXWebhookClientOptions
+): RealtimeXWebhookClient;
 export declare const createClient: typeof createRealtimeXClient;
 export declare const operations: Record<
   string,
