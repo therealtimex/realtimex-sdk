@@ -2,10 +2,12 @@
 /**
  * generate-skill.mjs
  *
- * Generates the RealTimeX Printing Press skill from the SDK repo OpenAPI spec, then
- * packages the CLI-only agent skill instructions into the TypeScript package:
+ * Generates the RealTimeX Printing Press project from the SDK repo OpenAPI spec,
+ * then packages a concise router and focused CLI agent skills into the TypeScript
+ * package:
  *
- *   - SKILL.md
+ *   - skills/realtimex-moderator-sdk (router)
+ *   - skills/realtimex-* (focused capability skills)
  *
  * The realtimex-pp-cli binary is distributed separately through
  * @realtimex/pp-cli. The skill installs that pinned package at runtime.
@@ -13,6 +15,7 @@
  * Usage:
  *   node scripts/generate-skill.mjs --force
  *   node scripts/generate-skill.mjs --spec ./openapi.json --force
+ *   node scripts/generate-skill.mjs --out /tmp/generated-skills --force
  *
  * By default this reads ./openapi.json from the SDK repo root.
  */
@@ -22,6 +25,14 @@ import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { spawnSync } from 'child_process';
+import {
+  DOMAIN_SKILLS,
+  ROUTER_SKILL,
+  assignOperationsToDomains,
+  parseCommandReference,
+  renderDomainSkill,
+  renderRouterSkill,
+} from './skill-domains.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -30,23 +41,9 @@ const SDK_VERSION = JSON.parse(
 ).version;
 
 const DEFAULT_SPEC = path.resolve(REPO_ROOT, 'openapi.json');
-const DEFAULT_OUT = path.join(
-  REPO_ROOT,
-  'typescript',
-  'skills',
-  'realtimex-moderator-sdk'
-);
-const DEFAULT_TEMPLATE = path.join(
-  REPO_ROOT,
-  'scripts',
-  'skill-templates',
-  'realtimex-moderator-sdk.md'
-);
+const DEFAULT_OUT_ROOT = path.join(REPO_ROOT, 'typescript', 'skills');
 const TEMPLATE_ASSETS_DIR = path.join(REPO_ROOT, 'scripts', 'skill-templates');
 
-const SKILL_FILES = [
-  'SKILL.md',
-];
 const TEMPLATE_ASSETS = [
   {
     source: 'AGENTS.template.md',
@@ -74,10 +71,8 @@ const flags = parseFlags(process.argv.slice(2));
 const DRY_RUN = flags['dry-run'] === true || flags['dry-run'] === 'true';
 const FORCE = flags.force === true || flags.force === 'true';
 const SPEC_PATH = path.resolve(flags.spec || DEFAULT_SPEC);
-const OUT_DIR = path.resolve(flags.out || DEFAULT_OUT);
-const TEMPLATE_PATH = flags.template === false || flags.template === 'false'
-  ? ''
-  : path.resolve(flags.template || DEFAULT_TEMPLATE);
+const OUT_ROOT = path.resolve(flags.out || DEFAULT_OUT_ROOT);
+const OUT_DIR = path.join(OUT_ROOT, ROUTER_SKILL.name);
 const CLI_NAME = String(flags.name || 'realtimex');
 const AUTH_PREFERENCE = String(flags['auth-preference'] || 'AppIdAuth');
 const PP_OUTPUT_DIR = path.resolve(
@@ -345,55 +340,9 @@ function patchGeneratedCliDefaults() {
   fs.writeFileSync(rootGo, patched);
 }
 
-function rebuildSkillCliBinary() {
-  if (DRY_RUN) {
-    console.log(`[DRY-RUN] rebuild ${path.join(PP_OUTPUT_DIR, 'build', 'stage', 'bin', 'realtimex-pp-cli')}`);
-    return;
-  }
-
-  const binPath = path.join(PP_OUTPUT_DIR, 'build', 'stage', 'bin', 'realtimex-pp-cli');
-  fs.mkdirSync(path.dirname(binPath), { recursive: true });
-  run('go', ['build', '-o', binPath, './cmd/realtimex-pp-cli'], {
-    cwd: PP_OUTPUT_DIR,
-  });
-}
-
-function prepareOutputDir() {
-  if (!FORCE && fs.existsSync(OUT_DIR)) {
-    throw new Error(`${OUT_DIR} already exists. Re-run with --force to replace it.`);
-  }
-
-  if (DRY_RUN) {
-    console.log(`[DRY-RUN] remove ${OUT_DIR}`);
-    return;
-  }
-
-  fs.rmSync(OUT_DIR, { recursive: true, force: true });
-  fs.mkdirSync(OUT_DIR, { recursive: true });
-}
-
-function copySkillFile(relativePath) {
-  const sourcePath = path.join(PP_OUTPUT_DIR, relativePath);
-  const outPath = path.join(OUT_DIR, relativePath);
-
-  if (DRY_RUN) {
-    console.log(`[DRY-RUN] copy ${sourcePath} -> ${outPath}`);
-    return;
-  }
-
-  if (!fs.existsSync(sourcePath)) {
-    throw new Error(`Expected Printing Press artifact missing: ${sourcePath}`);
-  }
-
-  fs.mkdirSync(path.dirname(outPath), { recursive: true });
-  fs.copyFileSync(sourcePath, outPath);
-  fs.chmodSync(outPath, fs.statSync(sourcePath).mode);
-  console.log(`  copied ${rel(outPath)}`);
-}
-
-function copyTemplateAsset(asset) {
+function copyTemplateAsset(asset, outDir) {
   const sourcePath = path.join(TEMPLATE_ASSETS_DIR, asset.source);
-  const outPath = path.join(OUT_DIR, asset.output);
+  const outPath = path.join(outDir, asset.output);
 
   if (DRY_RUN) {
     console.log(`[DRY-RUN] copy ${sourcePath} -> ${outPath}`);
@@ -409,101 +358,64 @@ function copyTemplateAsset(asset) {
   console.log(`  copied ${rel(outPath)}`);
 }
 
-function packageSkill() {
-  prepareOutputDir();
-  for (const relativePath of SKILL_FILES) {
-    copySkillFile(relativePath);
+function packageSkills() {
+  const skillNames = [ROUTER_SKILL.name, ...DOMAIN_SKILLS.map((domain) => domain.name)];
+  const outputDirs = skillNames.map((name) => path.join(OUT_ROOT, name));
+  const existing = outputDirs.filter((dir) => fs.existsSync(dir));
+  if (!FORCE && existing.length) {
+    throw new Error(`${existing[0]} already exists. Re-run with --force to replace generated skills.`);
   }
-  applySkillTemplate();
-  for (const asset of TEMPLATE_ASSETS) {
-    copyTemplateAsset(asset);
-  }
-}
-
-function parseFrontmatter(markdown) {
-  if (!markdown.startsWith('---\n')) {
-    return { frontmatter: '', body: markdown };
-  }
-
-  const endIndex = markdown.indexOf('\n---\n', 4);
-  if (endIndex === -1) {
-    return { frontmatter: '', body: markdown };
-  }
-
-  return {
-    frontmatter: markdown.slice(4, endIndex),
-    body: markdown.slice(endIndex + 5).replace(/^\n/, ''),
-  };
-}
-
-function parseFrontmatterLines(frontmatter) {
-  const values = new Map();
-  for (const line of frontmatter.split('\n')) {
-    const match = line.match(/^([A-Za-z0-9_-]+):\s*(.*)$/);
-    if (!match) continue;
-    values.set(match[1], match[2]);
-  }
-  return values;
-}
-
-function mergeFrontmatter(baseFrontmatter, templateFrontmatter) {
-  const overrides = parseFrontmatterLines(templateFrontmatter);
-  if (!overrides.size) return baseFrontmatter;
-
-  const seen = new Set();
-  const lines = baseFrontmatter.split('\n').map((line) => {
-    const match = line.match(/^([A-Za-z0-9_-]+):\s*(.*)$/);
-    if (!match || !overrides.has(match[1])) return line;
-    seen.add(match[1]);
-    return `${match[1]}: ${overrides.get(match[1])}`;
-  });
-
-  for (const [key, value] of overrides.entries()) {
-    if (!seen.has(key)) lines.push(`${key}: ${value}`);
-  }
-
-  return lines.join('\n');
-}
-
-function sectionTitle(sectionMarkdown) {
-  const match = sectionMarkdown.match(/^##\s+(.+?)\s*$/m);
-  return match?.[1]?.trim();
-}
-
-function replaceSection(markdown, title, replacement) {
-  const heading = `## ${title}`;
-  const start = markdown.indexOf(heading);
-  if (start === -1) {
-    return `${markdown.trimEnd()}\n\n${replacement.trim()}\n`;
-  }
-
-  const next = markdown.indexOf('\n## ', start + heading.length);
-  const end = next === -1 ? markdown.length : next + 1;
-  return `${markdown.slice(0, start)}${replacement.trim()}\n\n${markdown.slice(end).replace(/^\n/, '')}`;
-}
-
-function applySkillTemplate() {
-  const skillPath = path.join(OUT_DIR, 'SKILL.md');
   if (DRY_RUN) {
-    console.log(`[DRY-RUN] apply skill template ${TEMPLATE_PATH} to ${skillPath}`);
+    for (const dir of outputDirs) console.log(`[DRY-RUN] replace ${dir}`);
     return;
   }
-  if (!fs.existsSync(skillPath) || !TEMPLATE_PATH || !fs.existsSync(TEMPLATE_PATH)) return;
 
-  const base = parseFrontmatter(fs.readFileSync(skillPath, 'utf-8'));
-  const template = parseFrontmatter(
-    fs.readFileSync(TEMPLATE_PATH, 'utf-8').replaceAll('${SDK_VERSION}', SDK_VERSION)
+  const generatedSkillPath = path.join(PP_OUTPUT_DIR, 'SKILL.md');
+  if (!fs.existsSync(generatedSkillPath)) {
+    throw new Error(`Expected Printing Press artifact missing: ${generatedSkillPath}`);
+  }
+  const commandBlocks = parseCommandReference(
+    fs.readFileSync(generatedSkillPath, 'utf-8')
   );
-  let body = base.body;
-
-  for (const section of template.body.split(/\n(?=##\s+)/).map((part) => part.trim()).filter(Boolean)) {
-    const title = sectionTitle(section);
-    if (!title) continue;
-    body = replaceSection(body, title, section);
+  const spec = JSON.parse(fs.readFileSync(SPEC_PATH, 'utf-8'));
+  const assignments = assignOperationsToDomains(spec, FILTER_PREFIX);
+  const assignedCommands = new Set(
+    [...assignments.values()].flat().map((operation) => operation.commandName)
+  );
+  const unassignedCommands = [...commandBlocks.keys()].filter(
+    (commandName) => !assignedCommands.has(commandName)
+  );
+  if (unassignedCommands.length) {
+    throw new Error(`Generated commands have no skill owner: ${unassignedCommands.join(', ')}`);
   }
 
-  const frontmatter = mergeFrontmatter(base.frontmatter, template.frontmatter);
-  fs.writeFileSync(skillPath, `---\n${frontmatter.trim()}\n---\n\n${body.trim()}\n`);
+  for (const dir of outputDirs) {
+    fs.rmSync(dir, { recursive: true, force: true });
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  fs.writeFileSync(
+    path.join(OUT_DIR, 'SKILL.md'),
+    renderRouterSkill(SDK_VERSION)
+  );
+  console.log(`  generated ${rel(path.join(OUT_DIR, 'SKILL.md'))}`);
+
+  for (const domain of DOMAIN_SKILLS) {
+    const domainDir = path.join(OUT_ROOT, domain.name);
+    fs.writeFileSync(
+      path.join(domainDir, 'SKILL.md'),
+      renderDomainSkill(
+        domain,
+        assignments.get(domain.name),
+        commandBlocks,
+        SDK_VERSION
+      )
+    );
+    console.log(`  generated ${rel(path.join(domainDir, 'SKILL.md'))}`);
+  }
+
+  for (const asset of TEMPLATE_ASSETS) copyTemplateAsset(asset, OUT_DIR);
+  copyTemplateAsset(TEMPLATE_ASSETS[0], path.join(OUT_ROOT, 'realtimex-workspaces'));
+  copyTemplateAsset(TEMPLATE_ASSETS[1], path.join(OUT_ROOT, 'realtimex-heartbeat'));
 }
 
 function main() {
@@ -511,12 +423,12 @@ function main() {
 
   console.log(`[generate-skill] spec: ${SPEC_PATH}`);
   console.log(`[generate-skill] printing-press output: ${PP_OUTPUT_DIR}`);
-  console.log(`[generate-skill] skill output: ${OUT_DIR}`);
+  console.log(`[generate-skill] skills output: ${OUT_ROOT}`);
 
   generatePrintingPressProject();
   patchCliVersion();
   patchGeneratedCliDefaults();
-  packageSkill();
+  packageSkills();
 
   console.log('[generate-skill] done');
 }

@@ -4,8 +4,8 @@ This branch is intentionally minimal. It contains only the release tooling neede
 to generate and publish:
 
 - `@realtimex/pp-cli`
-- `@realtimex/sdk`, including a generated runtime client and the
-  `skills/realtimex-moderator-sdk` package asset
+- `@realtimex/sdk`, including a generated runtime client, a concise
+  `skills/realtimex-moderator-sdk` router, and focused capability skills
 
 The broader TypeScript and Python SDKs are planned to return later as
 source-owned packages. Generated OpenAPI specs, generated SDK modules, and
@@ -30,7 +30,7 @@ The app GitLab pipeline generates OpenAPI and dispatches this workflow with the 
 the platform `@realtimex/pp-cli` packages, then publishes both
 `@realtimex/pp-cli` and `@realtimex/sdk` to npm.
 
-The app builtin moderator plugin points at
-`@realtimex/sdk@<plugin-version>/skills/realtimex-moderator-sdk`; when that
-plugin is enabled, the app installs the npm package into plugin-data and seeds
-the skill from there.
+The app builtin moderator plugin declares the router and each focused skill by
+its `@realtimex/sdk@<plugin-version>/skills/<skill-name>` subpath. When the
+plugin is enabled, the app installs one npm package into plugin-data and seeds
+all declared skills from it.

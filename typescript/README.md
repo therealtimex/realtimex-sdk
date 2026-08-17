@@ -74,5 +74,8 @@ server-error retries reuse the serialized body, timestamp, and delivery ID so
 the receiving endpoint can deduplicate delivery safely. A successful receipt
 confirms acceptance and routing, not agent-task completion.
 
-The package also publishes generated skill assets under
-`skills/realtimex-moderator-sdk`.
+The package publishes a concise router at `skills/realtimex-moderator-sdk` and
+focused generated skills for workspaces, terminal agents, browser sessions,
+Local Apps, heartbeat, automation flows, artifacts, channels, webhooks, and
+plugin/skill administration. All skills use the same pinned
+`realtimex-pp-cli` binary.
