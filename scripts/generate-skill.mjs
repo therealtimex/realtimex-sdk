@@ -366,7 +366,7 @@ function packageSkills() {
     throw new Error(`${existing[0]} already exists. Re-run with --force to replace generated skills.`);
   }
   if (DRY_RUN) {
-    for (const dir of outputDirs) console.log(`[DRY-RUN] replace ${dir}`);
+    console.log(`[DRY-RUN] replace generated skills root ${OUT_ROOT}`);
     return;
   }
 
@@ -389,10 +389,8 @@ function packageSkills() {
     throw new Error(`Generated commands have no skill owner: ${unassignedCommands.join(', ')}`);
   }
 
-  for (const dir of outputDirs) {
-    fs.rmSync(dir, { recursive: true, force: true });
-    fs.mkdirSync(dir, { recursive: true });
-  }
+  fs.rmSync(OUT_ROOT, { recursive: true, force: true });
+  for (const dir of outputDirs) fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(
     path.join(OUT_DIR, 'SKILL.md'),
     renderRouterSkill(SDK_VERSION)
