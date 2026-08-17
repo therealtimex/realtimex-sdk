@@ -63,6 +63,179 @@ test('generated client requires or consumes the propagated runtime endpoint', ()
   }
 });
 
+test('generated client serializes authenticated webhook management operations', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'realtimex-sdk-webhook-admin-'));
+  const outDir = path.join(root, 'out');
+  const specPath = path.join(root, 'openapi.json');
+  fs.mkdirSync(outDir);
+  fs.writeFileSync(
+    path.join(outDir, 'package.json'),
+    JSON.stringify({ name: '@realtimex/sdk-test', version: '0.0.0' })
+  );
+  fs.writeFileSync(
+    specPath,
+    JSON.stringify({
+      openapi: '3.0.0',
+      info: { title: 'fixture', version: '1' },
+      paths: {
+        '/cli/create-webhook-endpoint': {
+          post: {
+            operationId: 'createWebhookEndpoint',
+            requestBody: {
+              required: true,
+              content: {
+                'application/json': {
+                  schema: { type: 'object', additionalProperties: true },
+                },
+              },
+            },
+            responses: { 201: { description: 'created' } },
+          },
+        },
+        '/cli/update-webhook-endpoint/{endpointId}': {
+          post: {
+            operationId: 'updateWebhookEndpoint',
+            parameters: [
+              {
+                name: 'endpointId',
+                in: 'path',
+                required: true,
+                schema: { type: 'string' },
+              },
+            ],
+            requestBody: {
+              required: true,
+              content: {
+                'application/json': {
+                  schema: { type: 'object', additionalProperties: true },
+                },
+              },
+            },
+            responses: { 200: { description: 'updated' } },
+          },
+        },
+        '/cli/list-webhook-deliveries': {
+          get: {
+            operationId: 'listWebhookDeliveries',
+            parameters: [
+              { name: 'endpointId', in: 'query', schema: { type: 'string' } },
+              { name: 'limit', in: 'query', schema: { type: 'integer' } },
+              { name: 'offset', in: 'query', schema: { type: 'integer' } },
+            ],
+            responses: { 200: { description: 'listed' } },
+          },
+        },
+        '/cli/delete-webhook-endpoint/{endpointId}': {
+          delete: {
+            operationId: 'deleteWebhookEndpoint',
+            parameters: [
+              {
+                name: 'endpointId',
+                in: 'path',
+                required: true,
+                schema: { type: 'string' },
+              },
+            ],
+            requestBody: {
+              required: true,
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    required: ['confirmDestructive'],
+                    properties: { confirmDestructive: { type: 'boolean' } },
+                  },
+                },
+              },
+            },
+            responses: { 200: { description: 'deleted' } },
+          },
+        },
+      },
+    })
+  );
+
+  try {
+    execFileSync(process.execPath, [
+      path.resolve('scripts/generate-sdk.mjs'),
+      '--spec',
+      specPath,
+      '--out',
+      outDir,
+    ]);
+    const generated = require(path.join(outDir, 'index.js'));
+    const requests = [];
+    const client = generated.createRealtimeXClient({
+      baseUrl: 'https://desktop.example.test/cli',
+      token: 'terminal-user-token',
+      fetch: async (url, init) => {
+        requests.push({ url, init });
+        return {
+          ok: true,
+          status: 200,
+          statusText: 'OK',
+          headers: { get: () => 'application/json' },
+          text: async () => JSON.stringify({ success: true }),
+        };
+      },
+    });
+
+    await client.createWebhookEndpoint({
+      name: 'Build tasks',
+      workspaceId: 7,
+      secret: 'write-only-secret',
+    });
+    await client.updateWebhookEndpoint('endpoint/1', { enabled: false });
+    await client.listWebhookDeliveries({
+      endpointId: 'endpoint/1',
+      limit: 25,
+      offset: 5,
+    });
+    await client.deleteWebhookEndpoint('endpoint/1', {
+      confirmDestructive: true,
+    });
+
+    assert.deepEqual(
+      requests.map(({ init }) => init.method),
+      ['POST', 'POST', 'GET', 'DELETE']
+    );
+    assert.equal(
+      requests[1].url,
+      'https://desktop.example.test/cli/update-webhook-endpoint/endpoint%2F1'
+    );
+    assert.equal(
+      requests[2].url,
+      'https://desktop.example.test/cli/list-webhook-deliveries?endpointId=endpoint%2F1&limit=25&offset=5'
+    );
+    assert.equal(
+      requests[3].url,
+      'https://desktop.example.test/cli/delete-webhook-endpoint/endpoint%2F1'
+    );
+    assert.equal(
+      requests[0].init.headers.Authorization,
+      'Bearer terminal-user-token'
+    );
+    assert.deepEqual(JSON.parse(requests[3].init.body), {
+      confirmDestructive: true,
+    });
+    assert.deepEqual(
+      Object.keys(generated.operations).sort(),
+      [
+        'createWebhookEndpoint',
+        'deleteWebhookEndpoint',
+        'listWebhookDeliveries',
+        'updateWebhookEndpoint',
+      ]
+    );
+    assert.match(
+      fs.readFileSync(path.join(outDir, 'index.d.ts'), 'utf8'),
+      /deleteWebhookEndpoint\(endpointId: string, body: DeleteWebhookEndpointBody/
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('generated webhook client signs exact bytes and preserves retry identity', async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'realtimex-sdk-webhook-'));
   const outDir = path.join(root, 'out');

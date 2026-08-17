@@ -1,6 +1,6 @@
 ---
 name: realtimex-moderator-sdk
-description: "Use the RealTimeX API through the generated CLI for workspace, thread, terminal-agent sessions, channel (Telegram, Zalo, Discord), skills, plugins and send messages, setup personality, heartbeat tasks operations, publish and manage artifacts, run tour guide to setup working dir."
+description: "Use the RealTimeX API through the generated CLI for workspace, thread, terminal-agent sessions, channel (Telegram, Zalo, Discord), skills, plugins, webhook endpoint management and delivery inspection, send messages, setup personality, heartbeat tasks operations, publish and manage artifacts, run tour guide to setup working dir."
 argument-hint: "<command> [args] | install cli"
 ---
 
@@ -96,6 +96,13 @@ For `send-channel-file`:
 * Send one file per command call. Repeat the command for multiple files.
 * In desktop/local runtime, the CLI should send the absolute local `filePath` to the server. The server validates the path against allowed storage/temp roots before sending through the channel. Base64 upload is fallback transport, not the preferred path.
 * The server validates the delivery context, active channel session, plugin state, runtime binding when supplied, and file size/type handling before delivery.
+
+For webhook endpoint management:
+
+* These operations require an authenticated, user-bound session credential.
+* Treat `secret` as write-only input for creation or rotation. Never expect, request, print, or persist a plaintext secret from endpoint responses.
+* Use `list-webhook-deliveries` for bounded metadata inspection. Raw request headers, signatures, bodies, and normalized payload fields are intentionally unavailable.
+* Pass `confirmDestructive=true` only after the user has explicitly requested permanent endpoint deletion.
 
 For workspace default-agent setup:
 
