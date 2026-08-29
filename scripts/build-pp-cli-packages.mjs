@@ -27,6 +27,7 @@ const SOURCE_DIR =
   process.env.PP_CLI_SOURCE_DIR ||
   path.join(os.tmpdir(), `realtimex-pp-cli-source-${process.pid}`);
 const DEFAULT_CLI_TIMEOUT = process.env.PP_CLI_DEFAULT_TIMEOUT || '5*time.Minute';
+const GO_KEYRING_PACKAGE = 'github.com/zalando/go-keyring@v0.2.8';
 
 const TARGETS = [
   { goos: 'darwin', goarch: 'amd64', npmOs: 'darwin', npmCpu: 'x64' },
@@ -159,6 +160,201 @@ function patchCliTerminalSessionAuth(sourceDir) {
   run('gofmt', ['-w', configPath, clientPath]);
 }
 
+function patchCliCredentialReference(sourceDir) {
+  const configPath = path.join(sourceDir, 'internal', 'config', 'config.go');
+  const clientPath = path.join(sourceDir, 'internal', 'client', 'client.go');
+  const rootPath = path.join(sourceDir, 'internal', 'cli', 'root.go');
+  const keyringImportPatched = replaceInFile(
+    configPath,
+    /(import \(\n)/,
+    `$1\twincred "github.com/danieljoos/wincred"\n\tkeyring "github.com/zalando/go-keyring"\n\tsecretservice "github.com/zalando/go-keyring/secret_service"\n\t"runtime"\n`
+  );
+  const configPatched = replaceInFile(
+    configPath,
+    /(\tRealtimexTerminalSessionToken string\s+`toml:"-"`\n)/,
+    `$1\tCliCredentialReference string            \`toml:"-"\`\n\tCliCredentialSecret    string            \`toml:"-"\`\n`
+  );
+  const methodsPatched = replaceInFile(
+    configPath,
+    /func \(c \*Config\) UsesTerminalSessionToken\(\) bool \{/,
+    `func readCliCredential(service, reference string) (string, error) {
+\tswitch runtime.GOOS {
+\tcase "windows":
+\t\tcredential, err := wincred.GetGenericCredential(service + "/" + reference)
+\t\tif err != nil {
+\t\t\treturn "", err
+\t\t}
+\t\treturn string(credential.CredentialBlob), nil
+\tcase "linux":
+\t\tsecretService, err := secretservice.NewSecretService()
+\t\tif err != nil {
+\t\t\treturn "", err
+\t\t}
+\t\tcollection := secretService.GetLoginCollection()
+\t\tif err := secretService.Unlock(collection.Path()); err != nil {
+\t\t\treturn "", err
+\t\t}
+\t\titems, err := secretService.SearchItems(collection, map[string]string{
+\t\t\t"service": service,
+\t\t\t"account": reference,
+\t\t})
+\t\tif err != nil {
+\t\t\treturn "", err
+\t\t}
+\t\tif len(items) == 0 {
+\t\t\treturn "", keyring.ErrNotFound
+\t\t}
+\t\tsession, err := secretService.OpenSession()
+\t\tif err != nil {
+\t\t\treturn "", err
+\t\t}
+\t\tdefer secretService.Close(session)
+\t\tif err := secretService.Unlock(items[0]); err != nil {
+\t\t\treturn "", err
+\t\t}
+\t\tsecret, err := secretService.GetSecret(items[0], session.Path())
+\t\tif err != nil {
+\t\t\treturn "", err
+\t\t}
+\t\treturn string(secret.Value), nil
+\tdefault:
+\t\treturn keyring.Get(service, reference)
+\t}
+}
+
+func (c *Config) UseCredentialReference(reference string) error {
+\treference = strings.TrimSpace(reference)
+\tif !strings.HasPrefix(reference, "rtxcli_") {
+\t\treturn fmt.Errorf("invalid CLI credential reference")
+\t}
+\tsecret, err := readCliCredential("ai.realtimex.cli.credentials", reference)
+\tif err != nil {
+\t\treturn fmt.Errorf("resolving CLI credential reference %s from the operating-system keychain: %w", reference, err)
+\t}
+\tif secret == "" {
+\t\treturn fmt.Errorf("CLI credential reference %s resolved to an empty secret", reference)
+\t}
+\tc.CliCredentialReference = reference
+\tc.CliCredentialSecret = secret
+\tc.RealtimexTerminalSessionToken = ""
+\tc.RealtimexAppIdAuth = ""
+\tc.AuthHeaderVal = ""
+\tc.AccessToken = ""
+\tc.AuthSource = "keychain"
+\treturn nil
+}
+
+func (c *Config) UsesCredentialReference() bool {
+\treturn c != nil && c.CliCredentialReference != "" && c.CliCredentialSecret != ""
+}
+
+func (c *Config) UsesTerminalSessionToken() bool {`
+  );
+  const authMethodPatched = replaceInFile(
+    configPath,
+    /func \(c \*Config\) AuthHeader\(\) string \{\n/,
+    `func (c *Config) AuthHeader() string {
+\tif c.UsesCredentialReference() {
+\t\treturn c.CliCredentialSecret
+\t}
+`
+  );
+  const flagFieldPatched = replaceInFile(
+    rootPath,
+    /(\tconfigPath\s+string\n)/,
+    `$1\tcredentialRef       string\n`
+  );
+  const flagPatched = replaceInFile(
+    rootPath,
+    /(\trootCmd\.PersistentFlags\(\)\.StringVar\(&flags\.configPath, "config", "", "Config file path"\)\n)/,
+    `$1\trootCmd.PersistentFlags().StringVar(&flags.credentialRef, "credential-ref", "", "Resolve a scoped CLI credential from the operating-system keychain")\n`
+  );
+  const loadPatched = replaceInFile(
+    rootPath,
+    /(\tcfg, err := config\.Load\(f\.configPath\)\n\tif err != nil \{\n\t\treturn nil, configErr\(err\)\n\t\}\n)/,
+    `$1\tif f.credentialRef != "" {
+\t\tif err := cfg.UseCredentialReference(f.credentialRef); err != nil {
+\t\t\treturn nil, configErr(err)
+\t\t}
+\t}
+`
+  );
+  const requestAuthPatched = replaceInFile(
+    clientPath,
+    /\t+if c\.Config\.UsesTerminalSessionToken\(\) \{\n\t+req\.Header\.Set\("Authorization", "RealtimeX-Terminal "\+authHeader\)\n\t+\} else \{\n\t+req\.Header\.Set\("x-app-id", authHeader\)\n\t+\}/,
+    `\t\t\tif c.Config.UsesCredentialReference() {
+\t\t\t\treq.Header.Set("Authorization", "Bearer "+authHeader)
+\t\t\t} else if c.Config.UsesTerminalSessionToken() {
+\t\t\t\treq.Header.Set("Authorization", "RealtimeX-Terminal "+authHeader)
+\t\t\t} else {
+\t\t\t\treq.Header.Set("x-app-id", authHeader)
+\t\t\t}`
+  );
+  const redirectAuthPatched = replaceInFile(
+    clientPath,
+    /\t+if c\.Config\.UsesTerminalSessionToken\(\) \{\n\t+req\.Header\.Set\("Authorization", "RealtimeX-Terminal "\+h\)\n\t+\} else \{\n\t+req\.Header\.Set\("x-app-id", h\)\n\t+\}/,
+    `\t\t\t\tif c.Config.UsesCredentialReference() {
+\t\t\t\t\treq.Header.Set("Authorization", "Bearer "+h)
+\t\t\t\t} else if c.Config.UsesTerminalSessionToken() {
+\t\t\t\t\treq.Header.Set("Authorization", "RealtimeX-Terminal "+h)
+\t\t\t\t} else {
+\t\t\t\t\treq.Header.Set("x-app-id", h)
+\t\t\t\t}`
+  );
+  const maskSecretPatched = replaceInFile(
+    clientPath,
+    /(\t+addCredential\(c\.Config\.RealtimexTerminalSessionToken\)\n)/,
+    `$1\t\taddCredential(c.Config.CliCredentialSecret)\n`
+  );
+  const dryRunPatched = replaceInFile(
+    clientPath,
+    /\t\tif c\.Config\.UsesTerminalSessionToken\(\) \{\n\t\t\theaderName = "Authorization"\n\t\t\theaderValue = "RealtimeX-Terminal " \+ authHeader\n\t\t\}/,
+    `\t\tif c.Config.UsesCredentialReference() {
+\t\t\theaderName = "Authorization"
+\t\t\theaderValue = "Bearer " + authHeader
+\t\t} else if c.Config.UsesTerminalSessionToken() {
+\t\t\theaderName = "Authorization"
+\t\t\theaderValue = "RealtimeX-Terminal " + authHeader
+\t\t}`
+  );
+
+  if (
+    !keyringImportPatched ||
+    !configPatched ||
+    !methodsPatched ||
+    !authMethodPatched ||
+    !flagFieldPatched ||
+    !flagPatched ||
+    !loadPatched ||
+    !requestAuthPatched ||
+    !redirectAuthPatched ||
+    !maskSecretPatched ||
+    !dryRunPatched
+  ) {
+    const missed = [
+      [keyringImportPatched, 'keyring import'],
+      [configPatched, 'config fields'],
+      [methodsPatched, 'config methods'],
+      [authMethodPatched, 'auth method'],
+      [flagFieldPatched, 'flag field'],
+      [flagPatched, 'flag registration'],
+      [loadPatched, 'config load'],
+      [requestAuthPatched, 'request auth'],
+      [redirectAuthPatched, 'redirect auth'],
+      [maskSecretPatched, 'credential masking'],
+      [dryRunPatched, 'dry-run masking'],
+    ]
+      .filter(([matched]) => !matched)
+      .map(([, label]) => label)
+      .join(', ');
+    throw new Error(
+      `Generated CLI credential-reference patch did not match the Printing Press output: ${missed}.`
+    );
+  }
+
+  run('gofmt', ['-w', configPath, clientPath, rootPath]);
+}
+
 function patchCliBaseURLPathJoin(sourceDir) {
   const clientPath = path.join(sourceDir, 'internal', 'client', 'client.go');
   const baseURLPathJoinPatched = replaceInFile(
@@ -194,7 +390,10 @@ function ensureSourceProject() {
   patchCliVersion(SOURCE_DIR);
   patchCliDefaults(SOURCE_DIR);
   patchCliTerminalSessionAuth(SOURCE_DIR);
+  patchCliCredentialReference(SOURCE_DIR);
   patchCliBaseURLPathJoin(SOURCE_DIR);
+  run('go', ['get', GO_KEYRING_PACKAGE], { cwd: SOURCE_DIR });
+  run('go', ['mod', 'tidy'], { cwd: SOURCE_DIR });
 }
 
 function packageName(target) {
@@ -454,4 +653,8 @@ if (
   main();
 }
 
-export { patchCliBaseURLPathJoin, patchCliTerminalSessionAuth };
+export {
+  patchCliBaseURLPathJoin,
+  patchCliCredentialReference,
+  patchCliTerminalSessionAuth,
+};
