@@ -167,7 +167,7 @@ function patchCliCredentialReference(sourceDir) {
   const keyringImportPatched = replaceInFile(
     configPath,
     /(import \(\n)/,
-    `$1\tkeyring "github.com/zalando/go-keyring"\n`
+    `$1\twincred "github.com/danieljoos/wincred"\n\tkeyring "github.com/zalando/go-keyring"\n\tsecretservice "github.com/zalando/go-keyring/secret_service"\n\t"runtime"\n`
   );
   const configPatched = replaceInFile(
     configPath,
@@ -177,12 +177,57 @@ function patchCliCredentialReference(sourceDir) {
   const methodsPatched = replaceInFile(
     configPath,
     /func \(c \*Config\) UsesTerminalSessionToken\(\) bool \{/,
-    `func (c *Config) UseCredentialReference(reference string) error {
+    `func readCliCredential(service, reference string) (string, error) {
+\tswitch runtime.GOOS {
+\tcase "windows":
+\t\tcredential, err := wincred.GetGenericCredential(service + "/" + reference)
+\t\tif err != nil {
+\t\t\treturn "", err
+\t\t}
+\t\treturn string(credential.CredentialBlob), nil
+\tcase "linux":
+\t\tsecretService, err := secretservice.NewSecretService()
+\t\tif err != nil {
+\t\t\treturn "", err
+\t\t}
+\t\tcollection := secretService.GetLoginCollection()
+\t\tif err := secretService.Unlock(collection.Path()); err != nil {
+\t\t\treturn "", err
+\t\t}
+\t\titems, err := secretService.SearchItems(collection, map[string]string{
+\t\t\t"service": service,
+\t\t\t"account": reference,
+\t\t})
+\t\tif err != nil {
+\t\t\treturn "", err
+\t\t}
+\t\tif len(items) == 0 {
+\t\t\treturn "", keyring.ErrNotFound
+\t\t}
+\t\tsession, err := secretService.OpenSession()
+\t\tif err != nil {
+\t\t\treturn "", err
+\t\t}
+\t\tdefer secretService.Close(session)
+\t\tif err := secretService.Unlock(items[0]); err != nil {
+\t\t\treturn "", err
+\t\t}
+\t\tsecret, err := secretService.GetSecret(items[0], session.Path())
+\t\tif err != nil {
+\t\t\treturn "", err
+\t\t}
+\t\treturn string(secret.Value), nil
+\tdefault:
+\t\treturn keyring.Get(service, reference)
+\t}
+}
+
+func (c *Config) UseCredentialReference(reference string) error {
 \treference = strings.TrimSpace(reference)
 \tif !strings.HasPrefix(reference, "rtxcli_") {
 \t\treturn fmt.Errorf("invalid CLI credential reference")
 \t}
-\tsecret, err := keyring.Get("ai.realtimex.cli.credentials", reference)
+\tsecret, err := readCliCredential("ai.realtimex.cli.credentials", reference)
 \tif err != nil {
 \t\treturn fmt.Errorf("resolving CLI credential reference %s from the operating-system keychain: %w", reference, err)
 \t}

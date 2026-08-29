@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -179,13 +180,48 @@ test('patches generated CLI auth to resolve a scoped credential by keychain refe
       'utf8'
     );
 
-    assert.match(config, /keyring\.Get\("ai\.realtimex\.cli\.credentials", reference\)/);
+    assert.match(config, /readCliCredential\("ai\.realtimex\.cli\.credentials", reference\)/);
+    assert.match(config, /wincred\.GetGenericCredential\(service \+ "\/" \+ reference\)/);
+    assert.match(config, /"account":\s+reference/);
+    assert.match(config, /secretService\.SearchItems\(collection/);
+    assert.match(config, /return keyring\.Get\(service, reference\)/);
     assert.match(config, /func \(c \*Config\) UsesCredentialReference\(\) bool/);
     assert.match(client, /"Authorization", "Bearer "\+authHeader/);
     assert.match(client, /addCredential\(c\.Config\.CliCredentialSecret\)/);
     assert.match(client, /headerValue = "Bearer " \+ authHeader/);
     assert.match(root, /"credential-ref"/);
     assert.match(root, /cfg\.UseCredentialReference\(f\.credentialRef\)/);
+  } finally {
+    fs.rmSync(sourceDir, { recursive: true, force: true });
+  }
+});
+
+test('generated Keytar readers compile for Linux and Windows', () => {
+  const sourceDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pp-cli-keytar-readers-'));
+  try {
+    writeFixture(sourceDir);
+    patchCliTerminalSessionAuth(sourceDir);
+    patchCliCredentialReference(sourceDir);
+    execFileSync('go', ['mod', 'init', 'keytar-reader-contract'], {
+      cwd: sourceDir,
+      stdio: 'ignore',
+    });
+    execFileSync('go', ['get', 'github.com/zalando/go-keyring@v0.2.8'], {
+      cwd: sourceDir,
+      stdio: 'ignore',
+    });
+    execFileSync('go', ['mod', 'tidy'], {
+      cwd: sourceDir,
+      stdio: 'ignore',
+    });
+
+    for (const goos of ['linux', 'windows']) {
+      execFileSync('go', ['build', './internal/config'], {
+        cwd: sourceDir,
+        env: { ...process.env, GOOS: goos, GOARCH: 'amd64', CGO_ENABLED: '0' },
+        stdio: 'ignore',
+      });
+    }
   } finally {
     fs.rmSync(sourceDir, { recursive: true, force: true });
   }
