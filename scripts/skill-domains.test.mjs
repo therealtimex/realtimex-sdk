@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   DOMAIN_SKILLS,
   assignOperationsToDomains,
+  commandNameForOperation,
   parseCommandReference,
   renderDomainSkill,
   renderRouterSkill,
@@ -102,4 +103,57 @@ test('renders Delegate authority guidance separately from topology deployment', 
   assert.match(rendered, /Never automatically retry Delegate mutations/);
   assert.match(rendered, /expected-revision 0/);
   assert.match(rendered, /expected-policy-version none/);
+});
+
+test('renders the complete Delegate command catalog into one focused skill', () => {
+  const operationIds = [
+    'resolveDelegate',
+    'provisionDelegate',
+    'getDelegate',
+    'getDelegatePolicyDraft',
+    'saveDelegatePolicyDraft',
+    'compileDelegatePolicy',
+    'listDelegateCompilerJobs',
+    'getDelegateCompilerJob',
+    'cancelDelegateCompilerJob',
+    'retryDelegateCompilerJob',
+    'getDelegatePolicyCandidate',
+    'simulateDelegatePolicy',
+    'activateDelegatePolicy',
+    'listDelegatePolicyVersions',
+    'getDelegatePolicyVersion',
+    'suspendDelegate',
+    'resumeDelegate',
+    'revokeDelegateOutstanding',
+    'getDelegateDecision',
+    'listDelegateExecutions',
+    'getDelegateExecution',
+  ];
+  const commandNames = operationIds.map(commandNameForOperation);
+  const markdown = `# Generated\n\n## Command Reference\n\n${commandNames
+    .map(
+      (commandName) =>
+        `**${commandName}** — Generated Delegate command\n\n- \`realtimex-pp-cli ${commandName}\``
+    )
+    .join('\n\n')}\n\n## Agent Mode\n`;
+  const delegate = DOMAIN_SKILLS.find(
+    ({ name }) => name === 'realtimex-delegates'
+  );
+  const rendered = renderDomainSkill(
+    delegate,
+    operationIds.map((operationId, index) => ({
+      operationId,
+      commandName: commandNames[index],
+    })),
+    parseCommandReference(markdown),
+    '9.8.7'
+  );
+
+  for (const commandName of commandNames) {
+    assert.match(rendered, new RegExp(`\\*\\*${commandName}\\*\\*`));
+  }
+  assert.equal(
+    [...rendered.matchAll(/^\*\*[^*]+\*\*/gm)].length,
+    operationIds.length
+  );
 });
