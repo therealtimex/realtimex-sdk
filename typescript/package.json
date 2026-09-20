@@ -16,6 +16,7 @@
     "sdk:generate": "node ../scripts/generate-sdk.mjs",
     "skill:generate": "node ../scripts/generate-skill.mjs --force",
     "pp-cli:build": "node ../scripts/build-pp-cli-packages.mjs",
+    "pp-cli:delegate-contract": "node ../scripts/delegate-cli-contract.mjs",
     "pp-cli:publish": "node ../scripts/publish-pp-cli-packages.mjs"
   },
   "keywords": [

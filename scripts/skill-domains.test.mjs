@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   DOMAIN_SKILLS,
   assignOperationsToDomains,
+  commandNameForOperation,
   parseCommandReference,
   renderDomainSkill,
   renderRouterSkill,
@@ -81,5 +82,78 @@ test('renders a concise router and only the selected domain command blocks', () 
   assert.match(router, /`realtimex-artifacts`/);
   assert.match(router, /`realtimex-channels`/);
   assert.match(router, /`realtimex-plugin-and-skill`/);
+  assert.match(router, /`realtimex-delegates`/);
   assert.doesNotMatch(router, /## Command reference/);
+});
+
+test('renders Delegate authority guidance separately from topology deployment', () => {
+  const delegate = DOMAIN_SKILLS.find(
+    ({ name }) => name === 'realtimex-delegates'
+  );
+  const markdown = `# Generated\n\n## Command Reference\n\n**resolve-delegate** — Resolve Delegate\n\n- \`realtimex-pp-cli resolve-delegate\`\n\n## Agent Mode\n`;
+  const rendered = renderDomainSkill(
+    delegate,
+    [{ operationId: 'resolveDelegate', commandName: 'resolve-delegate' }],
+    parseCommandReference(markdown),
+    '9.8.7'
+  );
+
+  assert.match(rendered, /configure-plugin.*topology deployment only/);
+  assert.match(rendered, /project topology assignment id/);
+  assert.match(rendered, /Never automatically retry Delegate mutations/);
+  assert.match(rendered, /expected-revision 0/);
+  assert.match(rendered, /expected-policy-version none/);
+});
+
+test('renders the complete Delegate command catalog into one focused skill', () => {
+  const operationIds = [
+    'resolveDelegate',
+    'provisionDelegate',
+    'getDelegate',
+    'getDelegatePolicyDraft',
+    'saveDelegatePolicyDraft',
+    'compileDelegatePolicy',
+    'listDelegateCompilerJobs',
+    'getDelegateCompilerJob',
+    'cancelDelegateCompilerJob',
+    'retryDelegateCompilerJob',
+    'getDelegatePolicyCandidate',
+    'simulateDelegatePolicy',
+    'activateDelegatePolicy',
+    'listDelegatePolicyVersions',
+    'getDelegatePolicyVersion',
+    'suspendDelegate',
+    'resumeDelegate',
+    'revokeDelegateOutstanding',
+    'getDelegateDecision',
+    'listDelegateExecutions',
+    'getDelegateExecution',
+  ];
+  const commandNames = operationIds.map(commandNameForOperation);
+  const markdown = `# Generated\n\n## Command Reference\n\n${commandNames
+    .map(
+      (commandName) =>
+        `**${commandName}** — Generated Delegate command\n\n- \`realtimex-pp-cli ${commandName}\``
+    )
+    .join('\n\n')}\n\n## Agent Mode\n`;
+  const delegate = DOMAIN_SKILLS.find(
+    ({ name }) => name === 'realtimex-delegates'
+  );
+  const rendered = renderDomainSkill(
+    delegate,
+    operationIds.map((operationId, index) => ({
+      operationId,
+      commandName: commandNames[index],
+    })),
+    parseCommandReference(markdown),
+    '9.8.7'
+  );
+
+  for (const commandName of commandNames) {
+    assert.match(rendered, new RegExp(`\\*\\*${commandName}\\*\\*`));
+  }
+  assert.equal(
+    [...rendered.matchAll(/^\*\*[^*]+\*\*/gm)].length,
+    operationIds.length
+  );
 });

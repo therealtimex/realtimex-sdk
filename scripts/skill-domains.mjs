@@ -4,7 +4,7 @@ export const ROUTER_SKILL = {
   name: 'realtimex-moderator-sdk',
   title: 'RealTimeX Moderator SDK Router',
   description:
-    'Route RealTimeX API work to the focused workspace, terminal-agent, browser-session, local-app, heartbeat, automation-flow, artifact, channel, webhook, or plugin-and-skill capability. Use when a request spans capabilities or the correct RealTimeX skill is unclear.',
+    'Route RealTimeX API work to the focused workspace, terminal-agent, browser-session, local-app, heartbeat, automation-flow, artifact, channel, webhook, Delegate-authority, or plugin-and-skill capability. Use when a request spans capabilities or the correct RealTimeX skill is unclear.',
 };
 
 export const DOMAIN_SKILLS = [
@@ -126,6 +126,22 @@ export const DOMAIN_SKILLS = [
       'List plugins or skills before changing them and use the exact returned identifier.',
       'Inspect a plugin schema before configuration and never invent configuration keys.',
       'After reloading agent skills, reload the caller skill context before relying on changed instructions.',
+    ],
+  },
+  {
+    name: 'realtimex-delegates',
+    title: 'RealTimeX Delegates',
+    description:
+      'Manage RealTimeX Delegate scope bindings, policy drafts and compiler jobs, activation, lifecycle, decisions, and executions. Use for explicit Human-representing Delegate authority administration.',
+    tags: ['Delegates'],
+    guidance: [
+      'Treat `configure-plugin` as topology deployment only; it does not grant, activate, suspend, resume, or revoke Delegate authority.',
+      'Always supply the explicit native scope identifier: global topology registry id, project topology assignment id, or numeric Workspace Team database id.',
+      'Inspect the Delegate, draft, compiler job, or execution before dependent mutations, and preserve every server-returned id and revision exactly.',
+      'Never automatically retry Delegate mutations after a timeout, network error, 429, or 5xx response. Read authoritative state before deciding whether a manual repeat is safe.',
+      'Use `expected-revision 0` for the first draft save and `expected-policy-version none` only when no policy is active.',
+      'Supply exact instance confirmation where required. Do not invent confirmation or refresh stale activation revisions automatically.',
+      'Poll compiler jobs and pending decisions with the generated GET commands; polling must not create work or authority.',
     ],
   },
 ];

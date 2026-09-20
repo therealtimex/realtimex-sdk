@@ -357,6 +357,10 @@ func (c *Config) UsesTerminalSessionToken() bool {`
 
 function patchCliBaseURLPathJoin(sourceDir) {
   const clientPath = path.join(sourceDir, 'internal', 'client', 'client.go');
+  const clientContents = fs.readFileSync(clientPath, 'utf-8');
+  if (!clientContents.includes('BasePath')) {
+    return;
+  }
   const baseURLPathJoinPatched = replaceInFile(
     clientPath,
     /(\thttpClient := newHTTPClient\(timeout, nil\)\n)\tc := &Client\{\n\t\tBaseURL:\s+strings\.TrimRight\(cfg\.BaseURL, "\/"\),\n\t\tBasePath:\s+normalizeBasePath\(cfg\.BasePath\),\n/,
@@ -378,6 +382,293 @@ function patchCliBaseURLPathJoin(sourceDir) {
   run('gofmt', ['-w', clientPath]);
 }
 
+function patchCliDelegateContracts(sourceDir) {
+  const clientPath = path.join(sourceDir, 'internal', 'client', 'client.go');
+  const helpersPath = path.join(sourceDir, 'internal', 'cli', 'helpers.go');
+  const saveDraftPath = path.join(
+    sourceDir,
+    'internal',
+    'cli',
+    'promoted_save-delegate-policy-draft.go'
+  );
+  const activatePath = path.join(
+    sourceDir,
+    'internal',
+    'cli',
+    'promoted_activate-delegate-policy.go'
+  );
+
+  const predicatePatched = replaceInFile(
+    clientPath,
+    /(func \(c \*Client\) doInternal\(ctx context\.Context, method, path string, params map\[string\]string, body any, headerOverrides map\[string\]string, readOnlyIntent bool\))(\s*(?:\(json\.RawMessage, int, error\))?\s*\{)/,
+    `func isDelegateMutationPath(method, path string) bool {
+\tif !isMutatingVerb(method) {
+\t\treturn false
+\t}
+\tfor _, prefix := range []string{
+\t\t"/provision-delegate",
+\t\t"/save-delegate-policy-draft/",
+\t\t"/compile-delegate-policy/",
+\t\t"/cancel-delegate-compiler-job/",
+\t\t"/retry-delegate-compiler-job/",
+\t\t"/activate-delegate-policy/",
+\t\t"/suspend-delegate/",
+\t\t"/resume-delegate/",
+\t\t"/revoke-delegate-outstanding/",
+\t} {
+\t\tif strings.HasPrefix(path, prefix) {
+\t\t\treturn true
+\t\t}
+\t}
+\treturn false
+}
+
+$1$2`
+  );
+  const retryPatched = replaceInFile(
+    clientPath,
+    /\tconst maxRetries = 3\n/,
+    `\tmaxRetries := 3
+\tif !readOnlyIntent && isDelegateMutationPath(method, path) {
+\t\tmaxRetries = 0
+\t}
+`
+  );
+
+  function patchRequiredNumber(filePath, variable, flagName, bodyName) {
+    return replaceInFile(
+      filePath,
+      new RegExp(
+        `\\t\\t\\tif ${variable} != 0 \\{\\n\\t\\t\\t\\tbody\\["${bodyName}"\\] = ${variable}\\n\\t\\t\\t\\}`
+      ),
+      `\t\t\tif cmd.Flags().Changed("${flagName}") {
+\t\t\t\tbody["${bodyName}"] = ${variable}
+\t\t\t}`
+    );
+  }
+
+  const requiredNumbersPatched = [
+    patchRequiredNumber(
+      saveDraftPath,
+      'bodyExpectedRevision',
+      'expected-revision',
+      'expectedRevision'
+    ),
+    patchRequiredNumber(
+      activatePath,
+      'bodyExpectedAgentConfigRevision',
+      'expected-agent-config-revision',
+      'expectedAgentConfigRevision'
+    ),
+    patchRequiredNumber(
+      activatePath,
+      'bodyExpectedAuthorityEpoch',
+      'expected-authority-epoch',
+      'expectedAuthorityEpoch'
+    ),
+    patchRequiredNumber(
+      activatePath,
+      'bodyExpectedDraftRevision',
+      'expected-draft-revision',
+      'expectedDraftRevision'
+    ),
+  ].every(Boolean);
+
+  function patchCandidatePathPosition(filePath, commandName) {
+    if (!fs.existsSync(filePath)) return true;
+    let contents = fs.readFileSync(filePath, 'utf-8');
+    if (!contents.includes('flagCandidateId')) return true;
+    const replacements = [
+      [
+        '\tvar flagCandidateId string\n',
+        '',
+      ],
+      [
+        `\t\tUse:         "${commandName} <instanceId>",`,
+        `\t\tUse:         "${commandName} <instanceId> <candidateId>",`,
+      ],
+      [
+        /\t\t\tif !cmd\.Flags\(\)\.Changed\("candidate-id"\) && !flags\.dryRun \{\n\t\t\t\treturn fmt\.Errorf\("required flag \\"%s\\" not set", "candidate-id"\)\n\t\t\t\}\n/,
+        '',
+      ],
+      [
+        '\t\t\tpath = replacePathParam(path, "candidateId", fmt.Sprintf("%v", flagCandidateId))',
+        `\t\t\tif len(args) < 2 {
+\t\t\t\tif flags.asJSON {
+\t\t\t\t\tif printErr := printJSONFiltered(cmd.OutOrStdout(), map[string]any{
+\t\t\t\t\t\t"error": "candidateId is required",
+\t\t\t\t\t\t"usage": fmt.Sprintf("%s <%s> <%s>", cmd.CommandPath(), "instanceId", "candidateId"),
+\t\t\t\t\t}, flags); printErr != nil {
+\t\t\t\t\t\treturn printErr
+\t\t\t\t\t}
+\t\t\t\t}
+\t\t\t\treturn usageErr(fmt.Errorf("candidateId is required\\nUsage: %s <%s> <%s>", cmd.CommandPath(), "instanceId", "candidateId"))
+\t\t\t}
+\t\t\tpath = replacePathParam(path, "candidateId", args[1])`,
+      ],
+      [
+        '\tcmd.Flags().StringVar(&flagCandidateId, "candidate-id", "", "Candidate id")\n',
+        '',
+      ],
+    ];
+    for (const [pattern, replacement] of replacements) {
+      if (
+        typeof pattern === 'string'
+          ? !contents.includes(pattern)
+          : !pattern.test(contents)
+      ) {
+        return false;
+      }
+      if (pattern instanceof RegExp) pattern.lastIndex = 0;
+      contents = contents.replace(pattern, replacement);
+    }
+    contents = contents.replace(
+      / --candidate-id [^\s"]+/,
+      ' candidate-id'
+    );
+    fs.writeFileSync(filePath, contents);
+    return true;
+  }
+
+  const candidateCommands = [
+    ['get-delegate-policy-candidate', 'get-delegate-policy-candidate'],
+    ['simulate-delegate-policy', 'simulate-delegate-policy'],
+    ['activate-delegate-policy', 'activate-delegate-policy'],
+  ];
+  const candidatePositionsPatched = candidateCommands.every(
+    ([fileName, commandName]) =>
+      patchCandidatePathPosition(
+        path.join(sourceDir, 'internal', 'cli', `promoted_${fileName}.go`),
+        commandName
+      )
+  );
+
+  const errorEnvelopePatched = replaceInFile(
+    helpersPath,
+    /func writeAPIErrorEnvelope\(flags \*rootFlags, err error, code int\) \{[\s\S]*?\n\}\n\n\/\/ classifyAPIError/,
+    `func writeAPIErrorEnvelope(flags *rootFlags, err error, exitCode int) {
+\tif flags == nil || !flags.asJSON {
+\t\treturn
+\t}
+\tpayload := map[string]any{
+\t\t"error":     err.Error(),
+\t\t"exit_code": exitCode,
+\t}
+\tvar apiErr *client.APIError
+\tif errors.As(err, &apiErr) {
+\t\tpayload["status"] = apiErr.StatusCode
+\t\tpayload["method"] = apiErr.Method
+\t\tpayload["path"] = apiErr.Path
+\t\tvar body any
+\t\tif json.Unmarshal([]byte(apiErr.Body), &body) == nil {
+\t\t\tpayload["body"] = body
+\t\t\tif object, ok := body.(map[string]any); ok {
+\t\t\t\tfor _, key := range []string{"code", "details"} {
+\t\t\t\t\tif value, exists := object[key]; exists {
+\t\t\t\t\t\tpayload[key] = value
+\t\t\t\t\t}
+\t\t\t\t}
+\t\t\t\tif value, exists := object["message"]; exists {
+\t\t\t\t\tpayload["message"] = value
+\t\t\t\t} else if value, exists := object["error"]; exists {
+\t\t\t\t\tpayload["message"] = value
+\t\t\t\t}
+\t\t\t}
+\t\t} else {
+\t\t\tpayload["body"] = apiErr.Body
+\t\t}
+\t}
+\tif _, exists := payload["code"]; !exists {
+\t\tpayload["code"] = exitCode
+\t}
+\t_ = json.NewEncoder(os.Stdout).Encode(payload)
+}
+
+// classifyAPIError`
+  );
+
+  const classifierPatched = replaceInFile(
+    helpersPath,
+    /func classifyAPIError\(err error, flags \*rootFlags\) error \{[\s\S]*?\n\}\n\n\/\/ classifyDeleteError/,
+    `func classifyAPIError(err error, flags *rootFlags) error {
+\tvar typed *cliError
+\tif errors.As(err, &typed) {
+\t\treturn err
+\t}
+
+\tmsg := err.Error()
+\tvar classified error
+\tswitch {
+\tcase strings.Contains(msg, "HTTP 409"):
+\t\tif flags != nil && flags.idempotent {
+\t\t\treturn writeNoop(flags, "already_exists", "already exists (no-op)")
+\t\t}
+\t\tclassified = apiErr(err)
+\tcase errors.Is(err, client.ErrPlaceholderCredential):
+\t\tclassified = authErr(err)
+\tcase strings.Contains(msg, "HTTP 400") && cliutil.LooksLikeAuthError(msg):
+\t\tclassified = authErr(fmt.Errorf("%w\\nhint: the API rejected the request — this usually means auth is missing or invalid."+
+\t\t\t"\\n      Set your API key: export REALTIMEX_APP_ID_AUTH=<your-key>"+
+\t\t\t"\\n      Run 'realtimex-pp-cli doctor' to check auth status."+
+\t\t\t"\\n      Response: "+cliutil.SanitizeErrorBody(msg), err))
+\tcase strings.Contains(msg, "HTTP 401"):
+\t\tclassified = authErr(fmt.Errorf("%w\\nhint: check your API key."+
+\t\t\t" Set it with: export REALTIMEX_APP_ID_AUTH=<your-key>"+
+\t\t\t"\\n      Run 'realtimex-pp-cli doctor' to check auth status.", err))
+\tcase strings.Contains(msg, "HTTP 403"):
+\t\tclassified = authErr(fmt.Errorf("%w\\nhint: permission denied. Your credentials are valid but lack access to this resource."+
+\t\t\t"\\n      Check that your API key has the required permissions."+
+\t\t\t"\\n      Set it with: export REALTIMEX_APP_ID_AUTH=<your-key>"+
+\t\t\t"\\n      Run 'realtimex-pp-cli doctor' to check auth status.", err))
+\tcase strings.Contains(msg, "HTTP 404"):
+\t\tclassified = notFoundErr(fmt.Errorf("%w\\nhint: resource not found. Run the 'list' command to see available items", err))
+\tcase strings.Contains(msg, "HTTP 429"):
+\t\tclassified = rateLimitErr(err)
+\tdefault:
+\t\tclassified = apiErr(err)
+\t}
+\twriteAPIErrorEnvelope(flags, classified, ExitCode(classified))
+\treturn classified
+}
+
+// classifyDeleteError`
+  );
+
+  if (
+    !predicatePatched ||
+    !retryPatched ||
+    !requiredNumbersPatched ||
+    !candidatePositionsPatched ||
+    !errorEnvelopePatched ||
+    !classifierPatched
+  ) {
+    const missed = [
+      [predicatePatched, 'Delegate mutation predicate'],
+      [retryPatched, 'Delegate mutation retry limit'],
+      [requiredNumbersPatched, 'required numeric body presence'],
+      [candidatePositionsPatched, 'candidate path positional arguments'],
+      [errorEnvelopePatched, 'machine error envelope'],
+      [classifierPatched, 'machine error classification'],
+    ]
+      .filter(([matched]) => !matched)
+      .map(([, label]) => label)
+      .join(', ');
+    throw new Error(
+      `Generated CLI Delegate contract patch did not match the Printing Press output: ${missed}.`
+    );
+  }
+
+  const gofmtPaths = [
+    clientPath,
+    helpersPath,
+    saveDraftPath,
+    ...candidateCommands.map(([fileName]) =>
+      path.join(sourceDir, 'internal', 'cli', `promoted_${fileName}.go`)
+    ),
+  ].filter((filePath) => fs.existsSync(filePath));
+  run('gofmt', ['-w', ...gofmtPaths]);
+}
+
 function ensureSourceProject() {
   run('node', [
     path.join(REPO_ROOT, 'scripts', 'generate-skill.mjs'),
@@ -392,6 +683,7 @@ function ensureSourceProject() {
   patchCliTerminalSessionAuth(SOURCE_DIR);
   patchCliCredentialReference(SOURCE_DIR);
   patchCliBaseURLPathJoin(SOURCE_DIR);
+  patchCliDelegateContracts(SOURCE_DIR);
   run('go', ['get', GO_KEYRING_PACKAGE], { cwd: SOURCE_DIR });
   run('go', ['mod', 'tidy'], { cwd: SOURCE_DIR });
 }
@@ -656,5 +948,6 @@ if (
 export {
   patchCliBaseURLPathJoin,
   patchCliCredentialReference,
+  patchCliDelegateContracts,
   patchCliTerminalSessionAuth,
 };
