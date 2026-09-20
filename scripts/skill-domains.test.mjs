@@ -81,5 +81,25 @@ test('renders a concise router and only the selected domain command blocks', () 
   assert.match(router, /`realtimex-artifacts`/);
   assert.match(router, /`realtimex-channels`/);
   assert.match(router, /`realtimex-plugin-and-skill`/);
+  assert.match(router, /`realtimex-delegates`/);
   assert.doesNotMatch(router, /## Command reference/);
+});
+
+test('renders Delegate authority guidance separately from topology deployment', () => {
+  const delegate = DOMAIN_SKILLS.find(
+    ({ name }) => name === 'realtimex-delegates'
+  );
+  const markdown = `# Generated\n\n## Command Reference\n\n**resolve-delegate** — Resolve Delegate\n\n- \`realtimex-pp-cli resolve-delegate\`\n\n## Agent Mode\n`;
+  const rendered = renderDomainSkill(
+    delegate,
+    [{ operationId: 'resolveDelegate', commandName: 'resolve-delegate' }],
+    parseCommandReference(markdown),
+    '9.8.7'
+  );
+
+  assert.match(rendered, /configure-plugin.*topology deployment only/);
+  assert.match(rendered, /project topology assignment id/);
+  assert.match(rendered, /Never automatically retry Delegate mutations/);
+  assert.match(rendered, /expected-revision 0/);
+  assert.match(rendered, /expected-policy-version none/);
 });

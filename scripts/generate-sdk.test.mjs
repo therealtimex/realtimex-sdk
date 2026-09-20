@@ -440,3 +440,162 @@ test('generated webhook client surfaces timeout as a structured error', async ()
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('generated Delegate client preserves path identifiers, object arrays, zero, and explicit none', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'realtimex-sdk-delegates-'));
+  const outDir = path.join(root, 'out');
+  const specPath = path.join(root, 'openapi.json');
+  fs.mkdirSync(outDir);
+  fs.writeFileSync(
+    path.join(outDir, 'package.json'),
+    JSON.stringify({ name: '@realtimex/sdk-test', version: '0.0.0' })
+  );
+  fs.writeFileSync(
+    specPath,
+    JSON.stringify({
+      openapi: '3.0.0',
+      info: { title: 'fixture', version: '1' },
+      paths: {
+        '/cli/save-delegate-policy-draft/{instanceId}': {
+          post: {
+            operationId: 'saveDelegatePolicyDraft',
+            parameters: [
+              {
+                name: 'instanceId',
+                in: 'path',
+                required: true,
+                schema: { type: 'string' },
+              },
+            ],
+            requestBody: {
+              required: true,
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    required: ['sources', 'expectedRevision'],
+                    properties: {
+                      expectedRevision: { type: 'integer', minimum: 0 },
+                      sources: {
+                        type: 'array',
+                        items: {
+                          type: 'object',
+                          required: ['id', 'text', 'enabled'],
+                          properties: {
+                            id: { type: 'string' },
+                            text: { type: 'string' },
+                            enabled: { type: 'boolean' },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            responses: { 200: { description: 'saved' } },
+          },
+        },
+        '/cli/activate-delegate-policy/{instanceId}/{candidateId}': {
+          post: {
+            operationId: 'activateDelegatePolicy',
+            parameters: [
+              {
+                name: 'instanceId',
+                in: 'path',
+                required: true,
+                schema: { type: 'string' },
+              },
+              {
+                name: 'candidateId',
+                in: 'path',
+                required: true,
+                schema: { type: 'string' },
+              },
+            ],
+            requestBody: {
+              required: true,
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    required: ['expectedPolicyVersion', 'confirmInstanceId'],
+                    properties: {
+                      expectedPolicyVersion: {
+                        type: 'string',
+                        pattern: '^(none|[1-9][0-9]*)$',
+                      },
+                      confirmInstanceId: { type: 'string' },
+                    },
+                  },
+                },
+              },
+            },
+            responses: { 200: { description: 'activated' } },
+          },
+        },
+      },
+    })
+  );
+
+  try {
+    execFileSync(process.execPath, [
+      path.resolve('scripts/generate-sdk.mjs'),
+      '--spec',
+      specPath,
+      '--out',
+      outDir,
+    ]);
+    const generated = require(path.join(outDir, 'index.js'));
+    const requests = [];
+    const client = generated.createRealtimeXClient({
+      baseUrl: 'https://desktop.example.test/cli',
+      token: 'terminal-user-token',
+      fetch: async (url, init) => {
+        requests.push({ url, init });
+        return {
+          ok: true,
+          status: 200,
+          statusText: 'OK',
+          headers: { get: () => 'application/json' },
+          text: async () => JSON.stringify({ success: true }),
+        };
+      },
+    });
+
+    await client.saveDelegatePolicyDraft('instance/one', {
+      expectedRevision: 0,
+      sources: [{ id: 'policy', text: 'Allow bounded work', enabled: true }],
+    });
+    await client.activateDelegatePolicy(
+      { instanceId: 'instance/one', candidateId: 'candidate/two' },
+      {
+        expectedPolicyVersion: 'none',
+        confirmInstanceId: 'instance/one',
+      }
+    );
+
+    assert.equal(
+      requests[0].url,
+      'https://desktop.example.test/cli/save-delegate-policy-draft/instance%2Fone'
+    );
+    assert.deepEqual(JSON.parse(requests[0].init.body), {
+      expectedRevision: 0,
+      sources: [{ id: 'policy', text: 'Allow bounded work', enabled: true }],
+    });
+    assert.equal(
+      requests[1].url,
+      'https://desktop.example.test/cli/activate-delegate-policy/instance%2Fone/candidate%2Ftwo'
+    );
+    assert.equal(
+      JSON.parse(requests[1].init.body).expectedPolicyVersion,
+      'none'
+    );
+    const declarations = fs.readFileSync(path.join(outDir, 'index.d.ts'), 'utf8');
+    assert.match(declarations, /expectedRevision: number/);
+    assert.match(declarations, /sources: Array/);
+    assert.match(declarations, /expectedPolicyVersion: string/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
