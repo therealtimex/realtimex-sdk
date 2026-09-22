@@ -132,16 +132,18 @@ export const DOMAIN_SKILLS = [
     name: 'realtimex-delegates',
     title: 'RealTimeX Delegates',
     description:
-      'Manage RealTimeX Delegate scope bindings, policy drafts and compiler jobs, activation, lifecycle, decisions, and executions. Use for explicit Human-representing Delegate authority administration.',
+      'Inspect Delegate bindings and canonical DELEGATE.md boundary state, propose exact boundary drafts for Human review, and manage lifecycle, decisions, and executions. Human activation remains UI-only.',
     tags: ['Delegates'],
     guidance: [
       'Treat `configure-plugin` as topology deployment only; it does not grant, activate, suspend, resume, or revoke Delegate authority.',
       'Always supply the explicit native scope identifier: global topology registry id, project topology assignment id, or numeric Workspace Team database id.',
-      'Inspect the Delegate, draft, compiler job, or execution before dependent mutations, and preserve every server-returned id and revision exactly.',
+      'Read `get-delegate-boundary` before proposing changes, and preserve its draft revision, active revision, digests, activation state, and authority epoch exactly.',
+      'Use `propose-delegate-boundary` only to save the exact proposed DELEGATE.md draft. A saved draft grants no authority; hand off to the represented Human for review and activation in Loop settings.',
+      'Never attempt activation from a terminal, SDK, Local App, device, or raw HTTP call. Only an interactive Human session may activate DELEGATE.md.',
+      'Use only the commands listed by this skill. Historical authority records are read-only audit data outside this generated administration surface.',
       'Never automatically retry Delegate mutations after a timeout, network error, 429, or 5xx response. Read authoritative state before deciding whether a manual repeat is safe.',
-      'Use `expected-revision 0` for the first draft save and `expected-policy-version none` only when no policy is active.',
-      'Supply exact instance confirmation where required. Do not invent confirmation or refresh stale activation revisions automatically.',
-      'Poll compiler jobs and pending decisions with the generated GET commands; polling must not create work or authority.',
+      'Use `expected-revision 0` only when `get-delegate-boundary` reports no draft, and supply exact instance confirmation for lifecycle mutations.',
+      'Poll pending decisions and executions with the generated GET commands; polling must not create work or authority.',
     ],
   },
 ];
