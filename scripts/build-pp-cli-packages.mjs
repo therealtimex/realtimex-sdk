@@ -385,17 +385,11 @@ function patchCliBaseURLPathJoin(sourceDir) {
 function patchCliDelegateContracts(sourceDir) {
   const clientPath = path.join(sourceDir, 'internal', 'client', 'client.go');
   const helpersPath = path.join(sourceDir, 'internal', 'cli', 'helpers.go');
-  const saveDraftPath = path.join(
+  const boundaryProposalPath = path.join(
     sourceDir,
     'internal',
     'cli',
-    'promoted_save-delegate-policy-draft.go'
-  );
-  const activatePath = path.join(
-    sourceDir,
-    'internal',
-    'cli',
-    'promoted_activate-delegate-policy.go'
+    'promoted_propose-delegate-boundary.go'
   );
 
   const predicatePatched = replaceInFile(
@@ -407,11 +401,7 @@ function patchCliDelegateContracts(sourceDir) {
 \t}
 \tfor _, prefix := range []string{
 \t\t"/provision-delegate",
-\t\t"/save-delegate-policy-draft/",
-\t\t"/compile-delegate-policy/",
-\t\t"/cancel-delegate-compiler-job/",
-\t\t"/retry-delegate-compiler-job/",
-\t\t"/activate-delegate-policy/",
+\t\t"/propose-delegate-boundary",
 \t\t"/suspend-delegate/",
 \t\t"/resume-delegate/",
 \t\t"/revoke-delegate-outstanding/",
@@ -449,99 +439,12 @@ $1$2`
 
   const requiredNumbersPatched = [
     patchRequiredNumber(
-      saveDraftPath,
+      boundaryProposalPath,
       'bodyExpectedRevision',
       'expected-revision',
       'expectedRevision'
     ),
-    patchRequiredNumber(
-      activatePath,
-      'bodyExpectedAgentConfigRevision',
-      'expected-agent-config-revision',
-      'expectedAgentConfigRevision'
-    ),
-    patchRequiredNumber(
-      activatePath,
-      'bodyExpectedAuthorityEpoch',
-      'expected-authority-epoch',
-      'expectedAuthorityEpoch'
-    ),
-    patchRequiredNumber(
-      activatePath,
-      'bodyExpectedDraftRevision',
-      'expected-draft-revision',
-      'expectedDraftRevision'
-    ),
   ].every(Boolean);
-
-  function patchCandidatePathPosition(filePath, commandName) {
-    if (!fs.existsSync(filePath)) return true;
-    let contents = fs.readFileSync(filePath, 'utf-8');
-    if (!contents.includes('flagCandidateId')) return true;
-    const replacements = [
-      [
-        '\tvar flagCandidateId string\n',
-        '',
-      ],
-      [
-        `\t\tUse:         "${commandName} <instanceId>",`,
-        `\t\tUse:         "${commandName} <instanceId> <candidateId>",`,
-      ],
-      [
-        /\t\t\tif !cmd\.Flags\(\)\.Changed\("candidate-id"\) && !flags\.dryRun \{\n\t\t\t\treturn fmt\.Errorf\("required flag \\"%s\\" not set", "candidate-id"\)\n\t\t\t\}\n/,
-        '',
-      ],
-      [
-        '\t\t\tpath = replacePathParam(path, "candidateId", fmt.Sprintf("%v", flagCandidateId))',
-        `\t\t\tif len(args) < 2 {
-\t\t\t\tif flags.asJSON {
-\t\t\t\t\tif printErr := printJSONFiltered(cmd.OutOrStdout(), map[string]any{
-\t\t\t\t\t\t"error": "candidateId is required",
-\t\t\t\t\t\t"usage": fmt.Sprintf("%s <%s> <%s>", cmd.CommandPath(), "instanceId", "candidateId"),
-\t\t\t\t\t}, flags); printErr != nil {
-\t\t\t\t\t\treturn printErr
-\t\t\t\t\t}
-\t\t\t\t}
-\t\t\t\treturn usageErr(fmt.Errorf("candidateId is required\\nUsage: %s <%s> <%s>", cmd.CommandPath(), "instanceId", "candidateId"))
-\t\t\t}
-\t\t\tpath = replacePathParam(path, "candidateId", args[1])`,
-      ],
-      [
-        '\tcmd.Flags().StringVar(&flagCandidateId, "candidate-id", "", "Candidate id")\n',
-        '',
-      ],
-    ];
-    for (const [pattern, replacement] of replacements) {
-      if (
-        typeof pattern === 'string'
-          ? !contents.includes(pattern)
-          : !pattern.test(contents)
-      ) {
-        return false;
-      }
-      if (pattern instanceof RegExp) pattern.lastIndex = 0;
-      contents = contents.replace(pattern, replacement);
-    }
-    contents = contents.replace(
-      / --candidate-id [^\s"]+/,
-      ' candidate-id'
-    );
-    fs.writeFileSync(filePath, contents);
-    return true;
-  }
-
-  const candidateCommands = [
-    ['get-delegate-policy-candidate', 'get-delegate-policy-candidate'],
-    ['simulate-delegate-policy', 'simulate-delegate-policy'],
-    ['activate-delegate-policy', 'activate-delegate-policy'],
-  ];
-  const candidatePositionsPatched = candidateCommands.every(
-    ([fileName, commandName]) =>
-      patchCandidatePathPosition(
-        path.join(sourceDir, 'internal', 'cli', `promoted_${fileName}.go`),
-        commandName
-      )
-  );
 
   const errorEnvelopePatched = replaceInFile(
     helpersPath,
@@ -638,7 +541,6 @@ $1$2`
     !predicatePatched ||
     !retryPatched ||
     !requiredNumbersPatched ||
-    !candidatePositionsPatched ||
     !errorEnvelopePatched ||
     !classifierPatched
   ) {
@@ -646,7 +548,6 @@ $1$2`
       [predicatePatched, 'Delegate mutation predicate'],
       [retryPatched, 'Delegate mutation retry limit'],
       [requiredNumbersPatched, 'required numeric body presence'],
-      [candidatePositionsPatched, 'candidate path positional arguments'],
       [errorEnvelopePatched, 'machine error envelope'],
       [classifierPatched, 'machine error classification'],
     ]
@@ -661,10 +562,7 @@ $1$2`
   const gofmtPaths = [
     clientPath,
     helpersPath,
-    saveDraftPath,
-    ...candidateCommands.map(([fileName]) =>
-      path.join(sourceDir, 'internal', 'cli', `promoted_${fileName}.go`)
-    ),
+    boundaryProposalPath,
   ].filter((filePath) => fs.existsSync(filePath));
   run('gofmt', ['-w', ...gofmtPaths]);
 }

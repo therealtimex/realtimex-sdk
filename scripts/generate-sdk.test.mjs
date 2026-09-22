@@ -599,3 +599,131 @@ test('generated Delegate client preserves path identifiers, object arrays, zero,
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('generated Delegate v3 client reads status and preserves the first boundary revision', async () => {
+  const root = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'realtimex-sdk-delegate-v3-')
+  );
+  const outDir = path.join(root, 'out');
+  const specPath = path.join(root, 'openapi.json');
+  fs.mkdirSync(outDir);
+  fs.writeFileSync(
+    path.join(outDir, 'package.json'),
+    JSON.stringify({ name: '@realtimex/sdk-test', version: '0.0.0' })
+  );
+  const scopeParameters = [
+    {
+      name: 'scopeKind',
+      in: 'query',
+      required: true,
+      schema: { type: 'string' },
+    },
+    {
+      name: 'scopeId',
+      in: 'query',
+      required: true,
+      schema: { type: 'string' },
+    },
+  ];
+  fs.writeFileSync(
+    specPath,
+    JSON.stringify({
+      openapi: '3.0.0',
+      info: { title: 'fixture', version: '1' },
+      paths: {
+        '/cli/get-delegate-boundary': {
+          get: {
+            operationId: 'getDelegateBoundary',
+            parameters: scopeParameters,
+            responses: { 200: { description: 'status' } },
+          },
+        },
+        '/cli/propose-delegate-boundary': {
+          post: {
+            operationId: 'proposeDelegateBoundary',
+            requestBody: {
+              required: true,
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    required: [
+                      'scopeKind',
+                      'scopeId',
+                      'markdown',
+                      'expectedRevision',
+                    ],
+                    properties: {
+                      scopeKind: { type: 'string' },
+                      scopeId: { type: 'string' },
+                      markdown: { type: 'string' },
+                      expectedRevision: { type: 'integer', minimum: 0 },
+                    },
+                  },
+                },
+              },
+            },
+            responses: { 200: { description: 'draft saved' } },
+          },
+        },
+      },
+    })
+  );
+
+  try {
+    execFileSync(process.execPath, [
+      path.resolve('scripts/generate-sdk.mjs'),
+      '--spec',
+      specPath,
+      '--out',
+      outDir,
+    ]);
+    const generated = require(path.join(outDir, 'index.js'));
+    const requests = [];
+    const client = generated.createRealtimeXClient({
+      baseUrl: 'https://desktop.example.test/cli',
+      token: 'terminal-user-token',
+      fetch: async (url, init) => {
+        requests.push({ url, init });
+        return {
+          ok: true,
+          status: 200,
+          statusText: 'OK',
+          headers: { get: () => 'application/json' },
+          text: async () => JSON.stringify({ success: true }),
+        };
+      },
+    });
+
+    await client.getDelegateBoundary({
+      scopeKind: 'workspace-team',
+      scopeId: '7',
+    });
+    await client.proposeDelegateBoundary({
+      scopeKind: 'workspace-team',
+      scopeId: '7',
+      markdown: '# Delegate boundary',
+      expectedRevision: 0,
+    });
+
+    assert.equal(
+      requests[0].url,
+      'https://desktop.example.test/cli/get-delegate-boundary?scopeKind=workspace-team&scopeId=7'
+    );
+    assert.deepEqual(JSON.parse(requests[1].init.body), {
+      scopeKind: 'workspace-team',
+      scopeId: '7',
+      markdown: '# Delegate boundary',
+      expectedRevision: 0,
+    });
+    const declarations = fs.readFileSync(
+      path.join(outDir, 'index.d.ts'),
+      'utf8'
+    );
+    assert.match(declarations, /getDelegateBoundary/);
+    assert.match(declarations, /proposeDelegateBoundary/);
+    assert.match(declarations, /expectedRevision: number/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});

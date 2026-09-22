@@ -375,10 +375,12 @@ func classifyAPIError(err error, flags *rootFlags) error {
 `
   );
   fs.writeFileSync(
-    path.join(cliDir, 'promoted_save-delegate-policy-draft.go'),
+    path.join(cliDir, 'promoted_propose-delegate-boundary.go'),
     `package cli
 
-func save(cmd command) {
+type command struct{}
+
+func propose(cmd command) {
 \tbody := map[string]any{}
 \tbodyExpectedRevision := 0
 \t\t\tif bodyExpectedRevision != 0 {
@@ -389,55 +391,9 @@ func save(cmd command) {
 }
 `
   );
-  fs.writeFileSync(
-    path.join(cliDir, 'promoted_activate-delegate-policy.go'),
-    `package cli
-
-import "fmt"
-
-type command struct{}
-type flags struct{}
-func (command) Flags() flags { return flags{} }
-func (flags) Changed(string) bool { return false }
-func (flags) StringVar(*string, string, string, string) {}
-type descriptor struct { Use string; Example string }
-func replacePathParam(path, name, value string) string { return path }
-
-func activate(cmd command) error {
-\tvar flagCandidateId string
-\tbody := map[string]any{}
-\tbodyExpectedAgentConfigRevision := 0
-\tbodyExpectedAuthorityEpoch := 0
-\tbodyExpectedDraftRevision := 0
-\tmeta := descriptor{
-\t\tUse:         "activate-delegate-policy <instanceId>",
-\t\tExample:     "realtimex-pp-cli activate-delegate-policy instance --candidate-id candidate",
-\t}
-\t_ = meta
-\t\t\tif !cmd.Flags().Changed("candidate-id") && !flags.dryRun {
-\t\t\t\treturn fmt.Errorf("required flag \\"%s\\" not set", "candidate-id")
-\t\t\t}
-\tpath := "/activate-delegate-policy/{instanceId}/{candidateId}"
-\t\t\tpath = replacePathParam(path, "candidateId", fmt.Sprintf("%v", flagCandidateId))
-\t\t\tif bodyExpectedAgentConfigRevision != 0 {
-\t\t\t\tbody["expectedAgentConfigRevision"] = bodyExpectedAgentConfigRevision
-\t\t\t}
-\t\t\tif bodyExpectedAuthorityEpoch != 0 {
-\t\t\t\tbody["expectedAuthorityEpoch"] = bodyExpectedAuthorityEpoch
-\t\t\t}
-\t\t\tif bodyExpectedDraftRevision != 0 {
-\t\t\t\tbody["expectedDraftRevision"] = bodyExpectedDraftRevision
-\t\t\t}
-\tcmd.Flags().StringVar(&flagCandidateId, "candidate-id", "", "Candidate id")
-\t_ = body
-\t_ = path
-\treturn nil
-}
-`
-  );
 }
 
-test('patches generated Delegate mutation retry, numeric presence, and machine errors', () => {
+test('patches generated v3 Delegate mutation retry, revision presence, and machine errors', () => {
   const sourceDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pp-cli-delegates-'));
   try {
     writeDelegateFixture(sourceDir);
@@ -451,26 +407,16 @@ test('patches generated Delegate mutation retry, numeric presence, and machine e
       path.join(sourceDir, 'internal', 'cli', 'helpers.go'),
       'utf8'
     );
-    const saveDraft = fs.readFileSync(
-      path.join(sourceDir, 'internal', 'cli', 'promoted_save-delegate-policy-draft.go'),
-      'utf8'
-    );
-    const activate = fs.readFileSync(
-      path.join(sourceDir, 'internal', 'cli', 'promoted_activate-delegate-policy.go'),
+    const boundaryProposal = fs.readFileSync(
+      path.join(sourceDir, 'internal', 'cli', 'promoted_propose-delegate-boundary.go'),
       'utf8'
     );
 
     assert.match(client, /func isDelegateMutationPath/);
-    assert.match(client, /"\/activate-delegate-policy\/"/);
+    assert.match(client, /"\/propose-delegate-boundary"/);
     assert.match(client, /maxRetries = 0/);
-    assert.match(saveDraft, /Changed\("expected-revision"\)/);
-    assert.match(saveDraft, /body\["expectedRevision"\] = bodyExpectedRevision/);
-    assert.match(activate, /Changed\("expected-agent-config-revision"\)/);
-    assert.match(activate, /Changed\("expected-authority-epoch"\)/);
-    assert.match(activate, /Changed\("expected-draft-revision"\)/);
-    assert.match(activate, /Use:\s+"activate-delegate-policy <instanceId> <candidateId>"/);
-    assert.match(activate, /replacePathParam\(path, "candidateId", args\[1\]\)/);
-    assert.doesNotMatch(activate, /flagCandidateId/);
+    assert.match(boundaryProposal, /Changed\("expected-revision"\)/);
+    assert.match(boundaryProposal, /body\["expectedRevision"\] = bodyExpectedRevision/);
     assert.match(helpers, /payload\["status"\] = apiErr\.StatusCode/);
     assert.match(helpers, /\[\]string\{"code", "details"\}/);
     assert.match(helpers, /writeAPIErrorEnvelope\(flags, classified, ExitCode\(classified\)\)/);

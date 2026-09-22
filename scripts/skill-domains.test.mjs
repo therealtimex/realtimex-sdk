@@ -86,7 +86,7 @@ test('renders a concise router and only the selected domain command blocks', () 
   assert.doesNotMatch(router, /## Command reference/);
 });
 
-test('renders Delegate authority guidance separately from topology deployment', () => {
+test('renders canonical v3 Delegate administration guidance', () => {
   const delegate = DOMAIN_SKILLS.find(
     ({ name }) => name === 'realtimex-delegates'
   );
@@ -100,28 +100,25 @@ test('renders Delegate authority guidance separately from topology deployment', 
 
   assert.match(rendered, /configure-plugin.*topology deployment only/);
   assert.match(rendered, /project topology assignment id/);
+  assert.match(rendered, /get-delegate-boundary/);
+  assert.match(rendered, /propose-delegate-boundary/);
+  assert.match(rendered, /saved draft grants no authority/);
+  assert.match(rendered, /Only an interactive Human session may activate/);
+  assert.match(rendered, /Historical authority records are read-only audit data/);
+  assert.match(rendered, /audit-only legacy ledger reads/);
+  assert.match(rendered, /report no v3 authority/);
   assert.match(rendered, /Never automatically retry Delegate mutations/);
   assert.match(rendered, /expected-revision 0/);
-  assert.match(rendered, /expected-policy-version none/);
+  assert.doesNotMatch(rendered, /expected-policy-version/);
 });
 
 test('renders the complete Delegate command catalog into one focused skill', () => {
   const operationIds = [
     'resolveDelegate',
+    'getDelegateBoundary',
+    'proposeDelegateBoundary',
     'provisionDelegate',
     'getDelegate',
-    'getDelegatePolicyDraft',
-    'saveDelegatePolicyDraft',
-    'compileDelegatePolicy',
-    'listDelegateCompilerJobs',
-    'getDelegateCompilerJob',
-    'cancelDelegateCompilerJob',
-    'retryDelegateCompilerJob',
-    'getDelegatePolicyCandidate',
-    'simulateDelegatePolicy',
-    'activateDelegatePolicy',
-    'listDelegatePolicyVersions',
-    'getDelegatePolicyVersion',
     'suspendDelegate',
     'resumeDelegate',
     'revokeDelegateOutstanding',

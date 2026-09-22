@@ -21,8 +21,18 @@ if (!fs.existsSync(binary)) {
 
 const commandNames = [
   'resolve-delegate',
+  'get-delegate-boundary',
+  'propose-delegate-boundary',
   'provision-delegate',
   'get-delegate',
+  'suspend-delegate',
+  'resume-delegate',
+  'revoke-delegate-outstanding',
+  'get-delegate-decision',
+  'list-delegate-executions',
+  'get-delegate-execution',
+];
+const retiredCommandNames = [
   'get-delegate-policy-draft',
   'save-delegate-policy-draft',
   'compile-delegate-policy',
@@ -35,12 +45,6 @@ const commandNames = [
   'activate-delegate-policy',
   'list-delegate-policy-versions',
   'get-delegate-policy-version',
-  'suspend-delegate',
-  'resume-delegate',
-  'revoke-delegate-outstanding',
-  'get-delegate-decision',
-  'list-delegate-executions',
-  'get-delegate-execution',
 ];
 const requests = [];
 const requestCounts = new Map();
@@ -85,13 +89,6 @@ const server = http.createServer(async (request, response) => {
     return writeJson(response, 200, {
       success: true,
       instance: { id: 'read-retry', status: 'active' },
-    });
-  }
-  if (request.url.startsWith('/cli/compile-delegate-policy/')) {
-    return writeJson(response, 202, {
-      success: true,
-      created: true,
-      job: { id: 'job-pending', state: 'queued' },
     });
   }
   return writeJson(response, 200, {
@@ -141,92 +138,54 @@ try {
       new RegExp(commandName)
     );
   }
+  for (const commandName of retiredCommandNames) {
+    assert.doesNotMatch(rootHelp.stdout, new RegExp(commandName));
+  }
 
-  const save = await run(
+  const readBoundary = await run(
     [
-      'save-delegate-policy-draft',
-      'instance/one',
+      'get-delegate-boundary',
+      '--scope-kind',
+      'workspace-team',
+      '--scope-id',
+      '7',
+      '--agent',
+    ],
+    baseUrl
+  );
+  assert.equal(readBoundary.code, 0, readBoundary.stderr);
+  const boundaryRequest = requests.at(-1);
+  const boundaryUrl = new URL(boundaryRequest.url, baseUrl);
+  assert.equal(boundaryUrl.pathname, '/cli/get-delegate-boundary');
+  assert.equal(boundaryUrl.searchParams.get('scopeKind'), 'workspace-team');
+  assert.equal(boundaryUrl.searchParams.get('scopeId'), '7');
+
+  const proposal = await run(
+    [
+      'propose-delegate-boundary',
+      '--scope-kind',
+      'workspace-team',
+      '--scope-id',
+      '7',
+      '--markdown',
+      '# Delegate boundary\n\n## Must escalate\n\n- Ambiguity.',
       '--expected-revision',
       '0',
-      '--sources',
-      '[{"id":"policy","text":"Allow bounded work","enabled":true}]',
-      '--clarification-answers',
-      '[{"candidateId":"candidate-1","answer":"yes"}]',
       '--agent',
     ],
     baseUrl
   );
-  assert.equal(save.code, 0, save.stderr);
-  const saveRequest = requests.at(-1);
-  assert.equal(saveRequest.url, '/cli/save-delegate-policy-draft/instance%2Fone');
-  assert.equal(saveRequest.body.expectedRevision, 0);
-  assert.deepEqual(saveRequest.body.sources, [
-    { id: 'policy', text: 'Allow bounded work', enabled: true },
-  ]);
-  assert.ok(Array.isArray(saveRequest.body.clarificationAnswers));
+  assert.equal(proposal.code, 0, proposal.stderr);
+  const proposalRequest = requests.at(-1);
+  assert.equal(proposalRequest.url, '/cli/propose-delegate-boundary');
+  assert.equal(proposalRequest.body.scopeKind, 'workspace-team');
+  assert.equal(proposalRequest.body.scopeId, '7');
+  assert.equal(proposalRequest.body.expectedRevision, 0);
+  assert.match(proposalRequest.body.markdown, /^# Delegate boundary/);
   assert.equal(
-    saveRequest.authorization,
+    proposalRequest.authorization,
     'RealtimeX-Terminal terminal-token'
   );
-
-  const simulation = await run(
-    [
-      'simulate-delegate-policy',
-      'instance/one',
-      'candidate/two',
-      '--scenario-id',
-      'scenario-1',
-      '--fact-overrides',
-      '[{"path":"effects.money.amountMinor","value":100}]',
-      '--agent',
-    ],
-    baseUrl
-  );
-  assert.equal(simulation.code, 0, simulation.stderr);
-  const simulationRequest = requests.at(-1);
-  assert.equal(
-    simulationRequest.url,
-    '/cli/simulate-delegate-policy/instance%2Fone/candidate%2Ftwo'
-  );
-  assert.deepEqual(simulationRequest.body.factOverrides, [
-    { path: 'effects.money.amountMinor', value: 100 },
-  ]);
-
-  const activation = await run(
-    [
-      'activate-delegate-policy',
-      'instance/one',
-      'candidate/two',
-      '--confirm-instance-id',
-      'instance/one',
-      '--expected-draft-revision',
-      '1',
-      '--expected-policy-version',
-      'none',
-      '--expected-authority-epoch',
-      '1',
-      '--expected-agent-config-revision',
-      '1',
-      '--agent',
-    ],
-    baseUrl
-  );
-  assert.equal(activation.code, 0, activation.stderr);
-  const activationRequest = requests.at(-1);
-  assert.equal(
-    activationRequest.url,
-    '/cli/activate-delegate-policy/instance%2Fone/candidate%2Ftwo'
-  );
-  assert.equal(activationRequest.body.expectedPolicyVersion, 'none');
-  assert.equal(activationRequest.body.confirmInstanceId, 'instance/one');
-
-  const compile = await run(
-    ['compile-delegate-policy', 'instance/one', '1', '--agent'],
-    baseUrl
-  );
-  assert.equal(compile.code, 0, compile.stderr);
-  assert.match(compile.stdout, /job-pending/);
-  assert.match(compile.stdout, /queued/);
 
   const failedMutation = await run(
     [
