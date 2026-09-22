@@ -105,6 +105,8 @@ test('renders canonical v3 Delegate administration guidance', () => {
   assert.match(rendered, /saved draft grants no authority/);
   assert.match(rendered, /Only an interactive Human session may activate/);
   assert.match(rendered, /Historical authority records are read-only audit data/);
+  assert.match(rendered, /audit-only legacy ledger reads/);
+  assert.match(rendered, /report no v3 authority/);
   assert.match(rendered, /Never automatically retry Delegate mutations/);
   assert.match(rendered, /expected-revision 0/);
   assert.doesNotMatch(rendered, /expected-policy-version/);

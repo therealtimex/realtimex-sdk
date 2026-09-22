@@ -132,7 +132,7 @@ export const DOMAIN_SKILLS = [
     name: 'realtimex-delegates',
     title: 'RealTimeX Delegates',
     description:
-      'Inspect Delegate bindings and canonical DELEGATE.md boundary state, propose exact boundary drafts for Human review, and manage lifecycle, decisions, and executions. Human activation remains UI-only.',
+      'Inspect Delegate bindings and canonical DELEGATE.md boundary state, propose exact boundary drafts for Human review, manage lifecycle, and read legacy decisions and executions as audit history only. Human activation remains UI-only.',
     tags: ['Delegates'],
     guidance: [
       'Treat `configure-plugin` as topology deployment only; it does not grant, activate, suspend, resume, or revoke Delegate authority.',
@@ -143,7 +143,7 @@ export const DOMAIN_SKILLS = [
       'Use only the commands listed by this skill. Historical authority records are read-only audit data outside this generated administration surface.',
       'Never automatically retry Delegate mutations after a timeout, network error, 429, or 5xx response. Read authoritative state before deciding whether a manual repeat is safe.',
       'Use `expected-revision 0` only when `get-delegate-boundary` reports no draft, and supply exact instance confirmation for lifecycle mutations.',
-      'Poll pending decisions and executions with the generated GET commands; polling must not create work or authority.',
+      'Treat get-delegate-decision and list/get-delegate-execution as audit-only legacy ledger reads. They report no v3 authority and must never be interpreted as permission to act.',
     ],
   },
 ];
