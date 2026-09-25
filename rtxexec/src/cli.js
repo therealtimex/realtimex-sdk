@@ -9,7 +9,7 @@ import { SecretMask } from './mask.js';
 
 const help = `rtxexec — run commands using RealTimeX secrets
 
-Usage: rtxexec run [bindings] -- executable [arguments]
+Usage: rtxexec [bindings] -- executable [arguments]
   --env NAME=secret://name       Inject a child environment variable
   --secret alias=secret://name   Substitute {{alias}} inside argument values
   --stdin secret://name          Write the exact value to child stdin, then close it

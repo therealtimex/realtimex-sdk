@@ -7,9 +7,9 @@ Create/manage secrets in Settings > Secrets or with the moderator
 `realtimex-pp-cli`. This package deliberately has no vault-management commands.
 
 ```sh
-rtxexec run --env GH_TOKEN=secret://github-token -- gh issue list
-rtxexec run --stdin secret://registry-token -- docker login registry.example.com --username alice --password-stdin
-rtxexec run --secret token=secret://github-token -- curl -H 'Authorization: Bearer {{token}}' https://api.github.com/user
+rtxexec --env GH_TOKEN=secret://github-token -- gh issue list
+rtxexec --stdin secret://registry-token -- docker login registry.example.com --username alice --password-stdin
+rtxexec --secret token=secret://github-token -- curl -H 'Authorization: Bearer {{token}}' https://api.github.com/user
 ```
 
 Run inside a RealTimeX terminal session. The app supplies
@@ -19,7 +19,7 @@ Workspace authorization comes from the server's authenticated session, not a
 caller-provided `RTX_WORKSPACE_SLUG`. Missing/disabled/out-of-scope values fail
 before the child starts. Secrets are retrieved anew; there is no local cache.
 
-Bindings precede `--`; everything after it is the executable and literal argument
+The optional `run` subcommand is also accepted. Bindings precede `--`; everything after it is the executable and literal argument
 array. Placeholder expansion happens once, inside arguments, with no shell eval.
 Quote placeholders for your shell (single quotes in Bash, zsh, and PowerShell).
 Percent-encode legacy names containing spaces in secret references. Environment

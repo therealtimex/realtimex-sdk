@@ -15,6 +15,7 @@ const reference = 'secret://fixture';
 function output() { let text = ''; const stream = new Writable({ write(chunk, encoding, done) { text += chunk.toString(); done(); } }); return { stream, text: () => text }; }
 
 test('only execution commands are supported and bad bindings fail early', () => {
+  assert.deepEqual(parseArguments(['--env', 'TOKEN=secret://fixture', '--', 'node']), parseArguments(['run', '--env', 'TOKEN=secret://fixture', '--', 'node']));
   assert.throws(() => parseArguments(['secrets', 'list']), /management/);
   assert.throws(() => parseArguments(['run', '--env', 'TOKEN=x', '--', 'node']), /Invalid/);
   assert.throws(() => parseArguments(['run', '--env', `TOKEN=${reference}`, '--', 'node', '{{undeclared}}']), /undeclared/);

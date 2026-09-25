@@ -5,11 +5,12 @@ const referencePattern = /^secret:\/\/.+$/;
 export function parseArguments(argv) {
   if (argv.length === 1 && ['--help', '-h'].includes(argv[0])) return { help: true };
   if (argv.length === 1 && argv[0] === '--version') return { version: true };
-  if (argv[0] !== 'run') throw new UsageError('Use rtxexec run [bindings] -- command [arguments]. Secret management belongs to realtimex-pp-cli.');
+  const start = argv[0] === 'run' ? 1 : 0;
+  if (!['--env', '--secret', '--stdin'].includes(argv[start])) throw new UsageError('Use rtxexec [bindings] -- command [arguments]. Secret management belongs to realtimex-pp-cli.');
   const separator = argv.indexOf('--');
   if (separator < 0 || !argv[separator + 1]) throw new UsageError('Specify -- followed by an executable.');
   const env = new Map(); const aliases = new Map(); let stdin;
-  for (let i = 1; i < separator; i += 2) {
+  for (let i = start; i < separator; i += 2) {
     const option = argv[i]; const binding = argv[i + 1];
     if (!['--env', '--secret', '--stdin'].includes(option) || i + 1 >= separator) throw new UsageError('Expected --env NAME=secret://name, --secret alias=secret://name, or --stdin secret://name.');
     if (option === '--stdin') {
