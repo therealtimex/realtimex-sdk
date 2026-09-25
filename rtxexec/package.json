@@ -6,7 +6,7 @@
   "bin": { "rtxexec": "bin/rtxexec.js" },
   "files": ["bin", "src", "README.md"],
   "engines": { "node": ">=20" },
-  "scripts": { "test": "node --test test/*.test.js" },
+  "scripts": { "test": "node --test" },
   "license": "MIT",
   "publishConfig": { "access": "public" },
   "repository": { "type": "git", "url": "git+https://github.com/therealtimex/realtimex-sdk.git", "directory": "rtxexec" }
