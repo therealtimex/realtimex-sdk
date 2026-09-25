@@ -7,9 +7,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
-const PACKAGES_ROOT = path.join(REPO_ROOT, 'pp-cli', 'packages');
-const MAIN_ROOT = path.join(REPO_ROOT, 'pp-cli', 'main');
-const SDK_ROOT = path.join(REPO_ROOT, 'typescript');
+const REGISTRY = 'https://registry.npmjs.org';
 
 function run(command, args, options = {}) {
   const printable = [command, ...args].join(' ');
@@ -44,31 +42,42 @@ function npmPreflight() {
     throw new Error('NODE_AUTH_TOKEN or NPM_TOKEN is required to publish npm packages.');
   }
 
-  run('npm', ['whoami']);
+  run('npm', ['whoami', '--registry', REGISTRY]);
 }
 
-npmPreflight();
-
-function publishPackage(packageDir) {
+export function publishPackage(packageDir, { execute = run, query = runResult } = {}) {
   const packageJson = readPackageJson(packageDir);
   const packageSpec = `${packageJson.name}@${packageJson.version}`;
-  const existing = runResult('npm', ['view', packageSpec, 'version'], {
-    cwd: packageDir,
-  });
-
-  if (existing.status === 0 && existing.stdout.trim() === packageJson.version) {
+  const existing = query('npm', ['view', packageSpec, 'version', '--json', '--registry', REGISTRY], { cwd: packageDir });
+  if (existing.error) throw existing.error;
+  let response;
+  try { response = JSON.parse(existing.stdout || existing.stderr || 'null'); } catch { /* Fail closed below. */ }
+  if (existing.status === 0) {
+    if (response !== packageJson.version) throw new Error(`Unexpected registry version for ${packageSpec}`);
     console.log(`[publish] ${packageSpec} already exists; skipping`);
-    return;
+    return 'skipped';
   }
-
-  run('npm', ['publish', '--access', 'public'], { cwd: packageDir });
+  const code = response?.error?.code;
+  if (!['E404', 'ETARGET'].includes(code)) {
+    throw new Error(`Registry lookup failed for ${packageSpec} (${code || existing.status}); not attempting publication`);
+  }
+  execute('npm', ['publish', '--access', 'public', '--registry', REGISTRY], { cwd: packageDir });
+  return 'published';
 }
 
-for (const entry of fs.readdirSync(PACKAGES_ROOT).sort()) {
-  const packageDir = path.join(PACKAGES_ROOT, entry);
-  if (!fs.existsSync(path.join(packageDir, 'package.json'))) continue;
-  publishPackage(packageDir);
+export function publishRelease(root = REPO_ROOT, publish = publishPackage) {
+  // Publish the independently versioned execution CLI before skills reference it.
+  publish(path.join(root, 'rtxexec'));
+  const packagesRoot = path.join(root, 'pp-cli', 'packages');
+  for (const entry of fs.readdirSync(packagesRoot).sort()) {
+    const packageDir = path.join(packagesRoot, entry);
+    if (fs.existsSync(path.join(packageDir, 'package.json'))) publish(packageDir);
+  }
+  publish(path.join(root, 'pp-cli', 'main'));
+  publish(path.join(root, 'typescript'));
 }
 
-publishPackage(MAIN_ROOT);
-publishPackage(SDK_ROOT);
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  npmPreflight();
+  publishRelease();
+}

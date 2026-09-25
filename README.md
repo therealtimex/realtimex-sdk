@@ -3,6 +3,7 @@
 This branch is intentionally minimal. It contains only the release tooling needed
 to generate and publish:
 
+- `@realtimex/rtxexec` (independent version from `rtxexec/package.json`)
 - `@realtimex/pp-cli`
 - `@realtimex/sdk`, including a generated runtime client, a concise
   `skills/realtimex-moderator-sdk` router, and focused capability skills
@@ -23,12 +24,19 @@ Manual inputs:
 
 Required GitHub secrets:
 
-- `NPM_TOKEN`: npm publish token
+- `NPM_TOKEN`: npm publish token covering `@realtimex/rtxexec`, SDK, PP CLI and its platform packages
 - `OPENAPI_DOWNLOAD_TOKEN`: GitLab token that can read the app job artifact URL
 
 The app GitLab pipeline generates OpenAPI and dispatches this workflow with the artifact URL. The workflow downloads that spec, generates the runtime SDK into `typescript/index.js` and `typescript/index.d.ts` with the `/cli` OpenAPI path prefix stripped, generates the moderator skill into `typescript/skills/`, builds
-the platform `@realtimex/pp-cli` packages, then publishes both
-`@realtimex/pp-cli` and `@realtimex/sdk` to npm.
+the platform `@realtimex/pp-cli` packages, then publishes `@realtimex/rtxexec` first, followed by the platform packages,
+`@realtimex/pp-cli` and `@realtimex/sdk` to npm. Each package uses its own
+package.json version. Existing versions are skipped, so a failed release can be
+retried after fixing token permissions without republishing immutable versions.
+Registry authentication/network errors fail the release instead of being treated
+as missing packages.
+
+Merging this repository does not publish. Merge SDK changes first, then merge
+the app moderator plugin version bump into `realtimex-dev` to trigger dispatch.
 
 The app builtin moderator plugin declares the router and each focused skill by
 its `@realtimex/sdk@<plugin-version>/skills/<skill-name>` subpath. When the
