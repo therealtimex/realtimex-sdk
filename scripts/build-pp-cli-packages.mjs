@@ -436,6 +436,9 @@ $1$2`
   );
 
   function patchRequiredNumber(filePath, variable, flagName, bodyName) {
+    // App specs can omit retired Delegate commands. Present commands must
+    // still match the expected contract so generator drift fails the build.
+    if (!fs.existsSync(filePath)) return true;
     return replaceInFile(
       filePath,
       new RegExp(
