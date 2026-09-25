@@ -1,4 +1,4 @@
-name: Publish @realtimex SDK and PP CLI
+name: Publish @realtimex SDK, PP CLI and rtxexec
 
 on:
   workflow_dispatch:
@@ -98,6 +98,7 @@ jobs:
           VERSION="$(node -p "require('./typescript/package.json').version")"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "release_tag=v${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "rtxexec_version=$(node -p "require('./rtxexec/package.json').version")" >> "$GITHUB_OUTPUT"
 
           if [ "${GITHUB_EVENT_NAME}" = "push" ]; then
             if [ "${GITHUB_REF_NAME}" != "v${VERSION}" ] && [ "${GITHUB_REF_NAME}" != "${VERSION}" ]; then
@@ -105,6 +106,14 @@ jobs:
               exit 1
             fi
           fi
+
+      - name: Verify rtxexec and publication behavior
+        working-directory: .
+        run: |
+          node --test scripts/publish-pp-cli-packages.test.mjs
+          npm --prefix rtxexec test
+          cd rtxexec
+          npm pack --dry-run
 
       - name: Build @realtimex/pp-cli packages
         run: npm run pp-cli:build
@@ -137,7 +146,7 @@ jobs:
           grep "npm install -g @realtimex/pp-cli@${VERSION}" "${SKILL_DIR}/SKILL.md"
           grep "realtimex-pp-cli ${VERSION}" "${SKILL_DIR}/SKILL.md"
 
-      - name: Publish @realtimex/sdk and @realtimex/pp-cli packages
+      - name: Publish rtxexec, SDK and PP CLI packages
         run: npm run pp-cli:publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -147,6 +156,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ steps.version.outputs.release_tag }}
           VERSION: ${{ steps.version.outputs.version }}
+          RTXEXEC_VERSION: ${{ steps.version.outputs.rtxexec_version }}
           OPENAPI_SHA256: ${{ inputs.openapi_sha256 }}
         run: |
           set -euo pipefail
@@ -156,6 +166,7 @@ jobs:
             echo "Published RealtimeX SDK and Printing Press CLI ${VERSION}."
             echo ""
             echo "Packages:"
+            echo "- @realtimex/rtxexec@${RTXEXEC_VERSION}"
             echo "- @realtimex/sdk@${VERSION}"
             echo "- @realtimex/pp-cli@${VERSION}"
             echo "- @realtimex/pp-cli-darwin-x64@${VERSION}"

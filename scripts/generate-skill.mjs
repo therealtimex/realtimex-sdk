@@ -21,6 +21,7 @@
  */
 
 import fs from 'fs';
+import { patchSecretCommands } from './secret-cli-contract.mjs';
 import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -217,7 +218,9 @@ function prepareSpecForPrintingPress() {
 
   for (const [pathname, pathItem] of Object.entries(rawSpec.paths || {})) {
     if (!pathname.startsWith(FILTER_PREFIX)) continue;
-    filteredPaths[stripPathPrefix(pathname)] = pathItem;
+    const documented = Object.fromEntries(Object.entries(pathItem).filter(([method, operation]) => method === 'parameters' || operation?.operationId));
+    if (!Object.values(documented).some((operation) => operation?.operationId)) continue;
+    filteredPaths[stripPathPrefix(pathname)] = documented;
 
     for (const operation of Object.values(pathItem || {})) {
       if (!operation || typeof operation !== 'object') continue;
@@ -377,6 +380,9 @@ function packageSkills() {
   const commandBlocks = parseCommandReference(
     fs.readFileSync(generatedSkillPath, 'utf-8')
   );
+  for (const name of ['create-secret', 'update-secret']) {
+    if (commandBlocks.has(name)) commandBlocks.set(name, commandBlocks.get(name) + '\n\nRead a value with `--value-stdin` (raw stdin, not a shell literal). Use `--all-workspaces` to restore unrestricted scope, or `--workspace-slugs` for a comma-separated list. Omit `--value-stdin` on update to keep the saved value.');
+  }
   const spec = JSON.parse(fs.readFileSync(SPEC_PATH, 'utf-8'));
   const assignments = assignOperationsToDomains(spec, FILTER_PREFIX);
   const assignedCommands = new Set(
@@ -424,6 +430,7 @@ function main() {
   console.log(`[generate-skill] skills output: ${OUT_ROOT}`);
 
   generatePrintingPressProject();
+  patchSecretCommands(PP_OUTPUT_DIR);
   patchCliVersion();
   patchGeneratedCliDefaults();
   packageSkills();

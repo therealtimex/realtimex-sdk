@@ -4,10 +4,28 @@ export const ROUTER_SKILL = {
   name: 'realtimex-moderator-sdk',
   title: 'RealTimeX Moderator SDK Router',
   description:
-    'Route RealTimeX API work to the focused workspace, terminal-agent, browser-session, local-app, heartbeat, automation-flow, artifact, channel, webhook, Delegate-authority, or plugin-and-skill capability. Use when a request spans capabilities or the correct RealTimeX skill is unclear.',
+    'Route RealTimeX API work to the focused workspace, terminal-agent, browser-session, local-app, heartbeat, automation-flow, artifact, channel, webhook, secret-management, Delegate-authority, or plugin-and-skill capability. Use when a request spans capabilities or the correct RealTimeX skill is unclear.',
 };
 
 export const DOMAIN_SKILLS = [
+  {
+    name: 'realtimex-secrets',
+    title: 'RealTimeX Secrets',
+    description: 'Manage encrypted named secrets and workspace scope with the moderator CLI. Use saved secrets in terminal commands through rtxexec without handling raw values.',
+    tags: ['Secrets'],
+    guidance: [
+      'Use realtimex-pp-cli for secret management only. List/get responses contain metadata and references, never values.',
+      'Prefer the Secrets settings screen for entering or rotating values. Never put a raw secret in a command argument, shell history, chat, or a temporary file.',
+      'Secrets default to all workspaces. Set workspaceSlugs to an explicit list to restrict execution; an empty list permits no workspace. Management remains app-wide in this single-user app.',
+      'Use rtxexec only for execution. Install @realtimex/rtxexec@0.1.0 if unavailable. It uses REALTIMEX_TERMINAL_SESSION_TOKEN and the app-provided local server URL; workspace scope comes from the authenticated session.',
+      'Prefer environment or stdin injection: rtxexec --env API_TOKEN=secret://my-token -- program; rtxexec --stdin secret://my-password -- program.',
+      'For tools requiring arguments: rtxexec --secret token=secret://my-token -- curl -H "Authorization: Bearer {{token}}" https://api.example.com. Expanded arguments may be visible to local processes.',
+      'Do not request raw values, inspect the vault database or encryption keys, call the resolution endpoint directly, or run printenv/echo to inspect injected values. Use references and non-secret success checks.',
+      'rtxexec launches the command directly without a shell. Do not use secret placeholders inside sh -c, bash -c, cmd /c, PowerShell command strings, or other evaluated code.',
+      'Output masking is best effort for known values, not protection against arbitrary encoding, child-created files, or an agent deliberately reading secrets. Programs requiring an interactive TTY or Windows batch scripts need another supported invocation.',
+      'Usage records mean values were resolved for an executable, not that the command completed successfully. Disabled, deleted, or out-of-scope secrets fail before execution.',
+    ],
+  },
   {
     name: 'realtimex-workspaces',
     title: 'RealTimeX Workspaces',
