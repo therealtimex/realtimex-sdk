@@ -1,6 +1,6 @@
 {
   "name": "@realtimex/sdk",
-  "version": "2.0.17",
+  "version": "2.0.36",
   "description": "RealtimeX runtime SDK package and moderator agent skill assets.",
   "private": false,
   "main": "./index.js",

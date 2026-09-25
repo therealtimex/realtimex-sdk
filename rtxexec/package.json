@@ -1,0 +1,13 @@
+{
+  "name": "@realtimex/rtxexec",
+  "version": "0.1.0",
+  "description": "Run commands with secrets from the RealTimeX app vault",
+  "type": "module",
+  "bin": { "rtxexec": "bin/rtxexec.js" },
+  "files": ["bin", "src", "README.md"],
+  "engines": { "node": ">=20" },
+  "scripts": { "test": "node --test test/*.test.js" },
+  "license": "MIT",
+  "publishConfig": { "access": "public" },
+  "repository": { "type": "git", "url": "git+https://github.com/therealtimex/realtimex-sdk.git", "directory": "rtxexec" }
+}
