@@ -437,6 +437,31 @@ func activate(cmd command) error {
   );
 }
 
+test('accepts app specs without retired Delegate policy commands', () => {
+  const sourceDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pp-cli-retired-delegates-'));
+  try {
+    writeDelegateFixture(sourceDir);
+    for (const name of ['save-delegate-policy-draft', 'activate-delegate-policy']) {
+      fs.unlinkSync(path.join(sourceDir, 'internal', 'cli', `promoted_${name}.go`));
+    }
+    assert.doesNotThrow(() => patchCliDelegateContracts(sourceDir));
+  } finally {
+    fs.rmSync(sourceDir, { recursive: true, force: true });
+  }
+});
+
+test('rejects changed numeric contracts in present Delegate commands', () => {
+  const sourceDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pp-cli-drift-delegates-'));
+  try {
+    writeDelegateFixture(sourceDir);
+    const filePath = path.join(sourceDir, 'internal', 'cli', 'promoted_save-delegate-policy-draft.go');
+    fs.writeFileSync(filePath, fs.readFileSync(filePath, 'utf8').replace('bodyExpectedRevision != 0', 'bodyExpectedRevision > 0'));
+    assert.throws(() => patchCliDelegateContracts(sourceDir), /required numeric body presence/);
+  } finally {
+    fs.rmSync(sourceDir, { recursive: true, force: true });
+  }
+});
+
 test('patches generated Delegate mutation retry, numeric presence, and machine errors', () => {
   const sourceDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pp-cli-delegates-'));
   try {
