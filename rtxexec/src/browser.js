@@ -21,12 +21,13 @@ export function parseBrowserArguments(argv) {
 export async function browserTargets(port, fetchImpl = fetch) {
   const response = await fetchImpl(`http://127.0.0.1:${port}/json/list`, { redirect: 'error', signal: AbortSignal.timeout(5000) });
   if (!response.ok) throw new UsageError('Could not list browser tabs.');
-  const targets = await response.json();
+  let targets;
+  try { targets = await response.json(); } catch { throw new UsageError('Invalid CDP target response.'); }
   if (!Array.isArray(targets)) throw new UsageError('Invalid CDP target response.');
   return targets.filter((target) => {
     try {
       const url = new URL(target.url);
-      return target.type === 'page' && ['http:', 'https:'].includes(url.protocol) && !url.pathname.includes('/cli-browser/index.html');
+      return target.type === 'page' && ['http:', 'https:'].includes(url.protocol) && url.pathname !== '/cli-browser/index.html';
     } catch { return false; }
   });
 }
@@ -73,7 +74,15 @@ export function fillLogin(username, password, selectors, expectedOrigin) {
   const user = find(selectors.username); const pass = find(selectors.password); const submit = find(selectors.submit);
   const fields = [[user, username, selectors.username], [pass, password, selectors.password]];
   const safeForm = (element) => !element?.form || new URL(element.form.action || location.href).origin === expectedOrigin;
-  const usable = (element) => element && !element.disabled && element.getClientRects().length > 0;
+  const usable = (element) => {
+    if (!element || element.disabled || element.matches(':disabled') || element.getClientRects().length === 0) return false;
+    const style = getComputedStyle(element);
+    if (style.visibility !== 'visible') return false;
+    for (let node = element; node; node = node.parentElement) {
+      if (Number(getComputedStyle(node).opacity) === 0) return false;
+    }
+    return true;
+  };
   if (!sameOrigin()) return { error: 'origin' };
   for (const [element, , selector] of fields) {
     if (!selector) continue;
@@ -90,7 +99,7 @@ export function fillLogin(username, password, selectors, expectedOrigin) {
     element.dispatchEvent(new Event('change', { bubbles: true }));
   }
   if (submit) {
-    if (!sameOrigin() || !submit.isConnected || !safeForm(submit) || (submit.formAction && new URL(submit.formAction).origin !== expectedOrigin)) return { error: 'changed' };
+    if (!sameOrigin() || !submit.isConnected || !usable(submit) || !safeForm(submit) || (submit.formAction && new URL(submit.formAction).origin !== expectedOrigin)) return { error: 'changed' };
     submit.click();
   }
   return { status: submit ? 'submitted' : 'filled' };
@@ -104,7 +113,12 @@ export async function runBrowser(plan, env, { targets = browserTargets, connect 
   const cdp = await connect(target.webSocketDebuggerUrl, plan.cdp);
   try {
     const { frameTree } = await cdp.send('Page.getFrameTree');
-    const origin = new URL(frameTree.frame.url).origin;
+    let origin;
+    try {
+      const url = new URL(frameTree?.frame?.url);
+      if (!['http:', 'https:'].includes(url.protocol)) throw new Error();
+      origin = url.origin;
+    } catch { throw new UsageError('Selected page is not ready. Wait for navigation and run browser-tabs again.'); }
     const { executionContextId } = await cdp.send('Page.createIsolatedWorld', { frameId: frameTree.frame.id, worldName: 'rtxexec-login' });
     const values = await resolver({ references: [plan.reference], command: 'rtxexec', browser: { origin, targetId: target.id } }, env);
     const credential = values[0];

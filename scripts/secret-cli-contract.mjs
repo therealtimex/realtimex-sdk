@@ -19,7 +19,7 @@ export function patchSecretCommands(sourceDir) {
     replace(/cmd.Flags\(\).StringVar\(&bodyValue, "value", "", "[^"]*"\)/,
       'cmd.Flags().BoolVar(&valueStdin, "value-stdin", false, "Read the exact secret value from stdin (max 64 KiB); never pass a value as an argument")\n cmd.Flags().BoolVar(&allWorkspaces, "all-workspaces", false, "Allow all workspaces; mutually exclusive with --workspace-slugs")');
     if (command === 'create-secret' && source.includes('!cmd.Flags().Changed("value")')) {
-      replace('!cmd.Flags().Changed("value")', '!valueStdin');
+      replace('!cmd.Flags().Changed("value")', source.includes('var bodyUsername string') ? '!valueStdin && !loginStdin' : '!valueStdin');
       replace('not set", "value")', 'not set", "value-stdin")');
     }
     replace('c, err := flags.newClient()', `if valueStdin {
