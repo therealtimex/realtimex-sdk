@@ -1,3 +1,4 @@
+import { parseBrowserArguments, runBrowser } from "./browser.js";
 import { UsageError } from "./error.js";
 import { spawn } from 'node:child_process';
 import { constants } from 'node:os';
@@ -13,6 +14,14 @@ Usage: rtxexec [bindings] -- executable [arguments]
   --env NAME=secret://name       Inject a child environment variable
   --secret alias=secret://name   Substitute {{alias}} inside argument values
   --stdin secret://name          Write the exact value to child stdin, then close it
+
+Browser use (Node.js 22+, existing local CDP browser):
+  rtxexec browser-tabs --cdp <port>
+  rtxexec browser-login secret://name --cdp <port> --tab <CDP-target-id>
+    --username-selector <css> --password-selector <css> [--submit-selector <css>]
+  Omit either field selector for a multi-step login. No navigation or screenshots.
+  Supports top-level forms; use agent-browser to prepare the page first.
+  Filled/submitted does not mean authenticated: verify a non-secret success state.
 
 Manage secrets with realtimex-pp-cli or Settings > Secrets.
 Requires the running app and its terminal-session environment. No secret cache.
@@ -58,6 +67,11 @@ export async function execute(plan, injected, { stdout = process.stdout, stderr 
 
 export async function main(argv, { env = process.env, stdout = process.stdout, stderr = process.stderr, resolver = resolveSecrets } = {}) {
   try {
+    if (['browser-tabs', 'browser-login'].includes(argv[0])) {
+      const result = await runBrowser(parseBrowserArguments(argv), env, { resolver });
+      stdout.write(`${JSON.stringify(result)}\n`);
+      return 0;
+    }
     const plan = parseArguments(argv);
     if (plan.help) { stdout.write(help); return 0; }
     if (plan.version) { stdout.write(`${JSON.parse(readFileSync(new URL('../package.json', import.meta.url))).version}\n`); return 0; }
