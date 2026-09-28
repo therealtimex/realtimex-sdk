@@ -381,7 +381,14 @@ function packageSkills() {
     fs.readFileSync(generatedSkillPath, 'utf-8')
   );
   for (const name of ['create-secret', 'update-secret']) {
-    if (commandBlocks.has(name)) commandBlocks.set(name, commandBlocks.get(name) + '\n\nRead a value with `--value-stdin` (raw stdin, not a shell literal). Use `--all-workspaces` to restore unrestricted scope, or `--workspace-slugs` for a comma-separated list. Omit `--value-stdin` on update to keep the saved value.');
+    if (!commandBlocks.has(name)) continue;
+    const block = commandBlocks.get(name);
+    const login = block.includes('--login-stdin');
+    let guidance = '\n\nRead a scalar value with `--value-stdin` (trusted raw stdin, never a shell literal).';
+    if (login) guidance += ' Read Login fields with `--login-stdin` (trusted JSON object with username/password). Do not combine `--login-stdin` with `--value-stdin`.';
+    guidance += ' Secret-bearing stdin cannot be used with `--dry-run`. Use `--all-workspaces` to restore unrestricted scope, or `--workspace-slugs` for a comma-separated list.';
+    if (name === 'update-secret') guidance += login ? ' Omit either stdin flag to retain saved values; omit either Login field to retain that field.' : ' Omit `--value-stdin` to retain the saved value.';
+    commandBlocks.set(name, block + guidance);
   }
   const spec = JSON.parse(fs.readFileSync(SPEC_PATH, 'utf-8'));
   const assignments = assignOperationsToDomains(spec, FILTER_PREFIX);

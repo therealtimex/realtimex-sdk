@@ -41,3 +41,40 @@ when the installed launcher is a .cmd/.bat file. Shell pipelines must be compose
 explicitly; the wrapper does not interpret shell syntax.
 
 `npm test` runs isolated fixtures. `npm pack --dry-run` validates package contents.
+
+
+## Browser Login credentials (0.2.0)
+
+Create a **Login** in RealTimeX Settings > Secrets (encrypted username/password,
+login URL and exact allowed origins). Management belongs to the moderator CLI;
+rtxexec only uses credentials. Browser operations require Node.js 22 or newer.
+
+Prepare the page using agent-browser on your existing RealTimeX browser. Then:
+
+```sh
+rtxexec browser-tabs --cdp 9235
+rtxexec browser-login secret://company-login --cdp 9235 --tab <target-id> \
+  --username-selector '#username' --password-selector '#password' \
+  --submit-selector 'button[type=submit]'
+```
+
+Use the full target ID from `browser-tabs`, not agent-browser's `t1`/`t2` alias.
+The command never navigates or chooses a tab automatically. Each CSS selector must
+match exactly one visible top-level form control. Iframe forms are not supported.
+For two-step logins, specify only the username selector first, then prepare the
+password step and run again with only its selector. Omit submit to fill only.
+A `filled` or `submitted` result does not prove authentication: verify a non-secret
+success state separately. MFA and CAPTCHA stay in the normal browser workflow.
+
+This works with agent-browser 0.27.0 because it uses the local CDP connection
+instead of unsupported credential-provider flags. Values are passed as CDP
+arguments in an isolated execution context, never inserted into JavaScript source,
+saved in another vault, or printed in normal output. Scope, enabled state and exact
+origin are checked before resolution; the form's origin/action is rechecked during
+filling. History records resolution with browser origin/target and terminal context,
+not an assertion that login succeeded.
+
+The destination/browser necessarily receives the values. Do not take snapshots,
+screenshots, recordings, DOM-value reads, or network traces while credentials are
+present. A page may display a username after login. This reduces accidental exposure;
+it does not prevent intentional local extraction or malicious website behavior.

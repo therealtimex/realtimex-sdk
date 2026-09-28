@@ -2,6 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import { spawn } from 'node:child_process';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { patchSecretCommands } from './secret-cli-contract.mjs';
 
 const binary = process.env.REALTIMEX_SECRET_TEST_CLI;
 test('compiled secret commands keep values off argv and preserve scope semantics', { skip: !binary }, async () => {
@@ -45,7 +49,49 @@ test('compiled secret commands keep values off argv and preserve scope semantics
     const scoped = await run(['update-secret', 'test-id', '--workspace-slugs=team,project']);
     assert.equal(scoped.code, 0, scoped.output);
     assert.deepEqual(requests[2].body.workspaceSlugs, ['team', 'project']);
+    const pair = { username: 'fixture-private-user', password: 'fixture-private-password' };
+    const login = await run(['create-secret', '--name', 'login', '--kind', 'login', '--login-url', 'https://example.com/login', '--login-stdin'], JSON.stringify(pair));
+    assert.equal(login.code, 0, login.output);
+    assert.deepEqual(requests[3].body, { name: 'login', kind: 'login', loginUrl: 'https://example.com/login', ...pair });
+    assert.ok(!login.output.includes(pair.username)); assert.ok(!login.output.includes(pair.password));
+    const rotate = await run(['update-secret', 'test-id', '--login-stdin'], JSON.stringify({ password: 'replacement' }));
+    assert.equal(rotate.code, 0, rotate.output);
+    assert.deepEqual(requests[4].body, { password: 'replacement' });
+    assert.ok(!rotate.output.includes('replacement'));
+    for (const args of [['--login-stdin', '--dry-run'], ['--login-stdin', '--value-stdin'], ['--username', 'test'], ['--password', 'test']]) {
+      const rejected = await run(['update-secret', 'test-id', ...args], JSON.stringify(pair));
+      assert.notEqual(rejected.code, 0); assert.ok(!rejected.output.includes(pair.password)); assert.ok(!rejected.output.includes(pair.username));
+    }
+    const malformed = await run(['update-secret', 'test-id', '--login-stdin'], '{"password":"fixture-private-password",');
+    assert.notEqual(malformed.code, 0); assert.ok(!malformed.output.includes(pair.password));
+    assert.equal(requests.length, 5);
   } finally {
     await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+
+test('legacy required-value guards accept login stdin only when login fields exist', () => {
+  for (const login of [false, true]) {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'secret-contract-'));
+    const dir = path.join(root, 'internal/cli'); fs.mkdirSync(dir, { recursive: true });
+    const file = path.join(dir, 'promoted_create-secret.go');
+    try {
+      fs.writeFileSync(file, `"encoding/json"
+var bodyValue string
+${login ? 'var bodyUsername string\nvar bodyPassword string' : ''}
+if !cmd.Flags().Changed("value") { return fmt.Errorf("%s not set", "value") }
+c, err := flags.newClient()
+if bodyDescription != "" {}
+if bodyWorkspaceSlugs != "" {}
+data, statusCode, err := c.PostWithParams()
+cmd.Flags().StringVar(&bodyValue, "value", "", "Secret")
+${login ? 'cmd.Flags().StringVar(&bodyUsername, "username", "", "User")\ncmd.Flags().StringVar(&bodyPassword, "password", "", "Pass")' : ''}
+`);
+      patchSecretCommands(root);
+      const patched = fs.readFileSync(file, 'utf8');
+      assert.ok(patched.includes(login ? 'if !valueStdin && !loginStdin {' : 'if !valueStdin {'));
+      assert.equal(patched.includes('var loginStdin bool'), login);
+    } finally { fs.rmSync(root, { recursive: true, force: true }); }
   }
 });
