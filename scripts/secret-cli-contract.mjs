@@ -18,7 +18,7 @@ export function patchSecretCommands(sourceDir) {
     replace('var bodyValue string', 'var bodyValue string\n var valueStdin bool\n var allWorkspaces bool');
     replace(/cmd.Flags\(\).StringVar\(&bodyValue, "value", "", "[^"]*"\)/,
       'cmd.Flags().BoolVar(&valueStdin, "value-stdin", false, "Read the exact secret value from stdin (max 64 KiB); never pass a value as an argument")\n cmd.Flags().BoolVar(&allWorkspaces, "all-workspaces", false, "Allow all workspaces; mutually exclusive with --workspace-slugs")');
-    if (command === 'create-secret') {
+    if (command === 'create-secret' && source.includes('!cmd.Flags().Changed("value")')) {
       replace('!cmd.Flags().Changed("value")', '!valueStdin');
       replace('not set", "value")', 'not set", "value-stdin")');
     }
@@ -34,6 +34,26 @@ export function patchSecretCommands(sourceDir) {
     replace('if bodyWorkspaceSlugs != "" {', 'if cmd.Flags().Changed("workspace-slugs") {');
     replace('data, statusCode, err := c.PostWithParams',
       'if allWorkspaces { body["workspaceSlugs"] = nil }\n data, statusCode, err := c.PostWithParams');
+    if (source.includes('var bodyUsername string')) {
+      replace('var valueStdin bool', 'var valueStdin bool\n var loginStdin bool\n var loginFields map[string]string');
+      replace(/cmd.Flags\(\).StringVar\(&bodyUsername, "username", "", "[^"]*"\)/,
+        'cmd.Flags().BoolVar(&loginStdin, "login-stdin", false, "Read a JSON object containing username and/or password from stdin; never pass login values as arguments")');
+      replace(/cmd.Flags\(\).StringVar\(&bodyPassword, "password", "", "[^"]*"\)/, '// Password is accepted only through login-stdin.');
+      replace('if valueStdin {', `if loginStdin && valueStdin { return fmt.Errorf("choose --login-stdin or --value-stdin") }
+        if loginStdin {
+          if flags.dryRun { return fmt.Errorf("login stdin cannot be used with --dry-run") }
+          raw, readErr := io.ReadAll(io.LimitReader(cmd.InOrStdin(), 262145))
+          if readErr != nil || len(raw) == 0 || len(raw) > 262144 { return fmt.Errorf("login stdin must contain a JSON object of at most 256 KiB") }
+          if json.Unmarshal(raw, &loginFields) != nil || len(loginFields) == 0 { return fmt.Errorf("login stdin must contain username and/or password strings") }
+          for key, value := range loginFields {
+            if key != "username" && key != "password" { return fmt.Errorf("login stdin accepts only username and password") }
+            if len(value) == 0 || len(value) > 65536 { return fmt.Errorf("login fields must contain 1 to 65536 bytes") }
+          }
+        }
+        if valueStdin {`);
+      replace('if allWorkspaces { body["workspaceSlugs"] = nil }', `for key, value := range loginFields { body[key] = value }
+        if allWorkspaces { body["workspaceSlugs"] = nil }`);
+    }
     fs.writeFileSync(file, source);
   }
 }

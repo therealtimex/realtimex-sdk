@@ -381,7 +381,7 @@ function packageSkills() {
     fs.readFileSync(generatedSkillPath, 'utf-8')
   );
   for (const name of ['create-secret', 'update-secret']) {
-    if (commandBlocks.has(name)) commandBlocks.set(name, commandBlocks.get(name) + '\n\nRead a value with `--value-stdin` (raw stdin, not a shell literal). Use `--all-workspaces` to restore unrestricted scope, or `--workspace-slugs` for a comma-separated list. Omit `--value-stdin` on update to keep the saved value.');
+    if (commandBlocks.has(name)) commandBlocks.set(name, commandBlocks.get(name) + '\n\nRead a scalar value with `--value-stdin` or Login fields with `--login-stdin` (JSON object with username/password, from trusted stdin; never a shell literal). Use `--all-workspaces` to restore unrestricted scope, or `--workspace-slugs` for a comma-separated list. Omit `--value-stdin` on update to keep the saved value.');
   }
   const spec = JSON.parse(fs.readFileSync(SPEC_PATH, 'utf-8'));
   const assignments = assignOperationsToDomains(spec, FILTER_PREFIX);

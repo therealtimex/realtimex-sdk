@@ -45,6 +45,21 @@ test('compiled secret commands keep values off argv and preserve scope semantics
     const scoped = await run(['update-secret', 'test-id', '--workspace-slugs=team,project']);
     assert.equal(scoped.code, 0, scoped.output);
     assert.deepEqual(requests[2].body.workspaceSlugs, ['team', 'project']);
+    const pair = { username: 'fixture-private-user', password: 'fixture-private-password' };
+    const login = await run(['create-secret', '--name', 'login', '--kind', 'login', '--login-url', 'https://example.com/login', '--login-stdin'], JSON.stringify(pair));
+    assert.equal(login.code, 0, login.output);
+    assert.deepEqual(requests[3].body, { name: 'login', kind: 'login', loginUrl: 'https://example.com/login', ...pair });
+    assert.ok(!login.output.includes(pair.username)); assert.ok(!login.output.includes(pair.password));
+    const rotate = await run(['update-secret', 'test-id', '--login-stdin'], JSON.stringify({ password: 'replacement' }));
+    assert.equal(rotate.code, 0, rotate.output);
+    assert.deepEqual(requests[4].body, { password: 'replacement' });
+    for (const args of [['--login-stdin', '--dry-run'], ['--login-stdin', '--value-stdin'], ['--username', 'test'], ['--password', 'test']]) {
+      const rejected = await run(['update-secret', 'test-id', ...args], JSON.stringify(pair));
+      assert.notEqual(rejected.code, 0); assert.ok(!rejected.output.includes(pair.password));
+    }
+    const malformed = await run(['update-secret', 'test-id', '--login-stdin'], '{"password":"fixture-private-password",');
+    assert.notEqual(malformed.code, 0); assert.ok(!malformed.output.includes(pair.password));
+    assert.equal(requests.length, 5);
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }
