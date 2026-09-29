@@ -23,7 +23,7 @@ export async function resolveSecrets(plan, env = process.env, fetchImpl = fetch)
     response = await fetchImpl(url, {
       method: 'POST', redirect: 'error', signal: AbortSignal.timeout(15000),
       headers: { Authorization: `RealtimeX-Terminal ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ references: plan.references, executable: path.win32.basename(path.basename(plan.command)), ...(plan.browser ? { browser: plan.browser } : {}) }),
+      body: JSON.stringify({ references: plan.references, executable: path.win32.basename(path.basename(plan.command)), ...(plan.browser ? { browser: plan.browser } : {}), ...(plan.ssh ? { ssh: true } : {}) }),
     });
   } catch { throw new UsageError('Could not reach RealTimeX. Check that the app is running; no command was launched.'); }
   let text = '';
@@ -43,8 +43,12 @@ export async function resolveSecrets(plan, env = process.env, fetchImpl = fetch)
   try { body = JSON.parse(text); } catch { throw new UsageError('Invalid RealTimeX response; no command was launched.'); }
   if (!response.ok || body.success !== true) {
     const messages = {
-      SECRET_ORIGIN_DENIED: 'This login is not allowed on the selected website.',
-      SECRET_LOGIN_REQUIRED: 'Select a Login credential for browser login.',
+      SECRET_ORIGIN_DENIED: 'This item is not allowed on the selected website.',
+      SECRET_LOGIN_REQUIRED: 'Select a Login, Card or Identity item for browser fill.',
+      SECRET_FIELD_NOT_FOUND: 'The selected field has no saved value.',
+      SECRET_SSH_REQUIRED: 'Select an SSH key item.',
+      SECRET_SSO_INVALID: 'Select a saved Login linked to this item for SSO.',
+      SECRET_SSO_DENIED: 'The linked SSO Login is disabled or unavailable in this workspace.',
       SECRET_BROWSER_REQUIRED: 'Use rtxexec browser-login for Login credentials.',
       SECRET_NOT_FOUND: 'A referenced secret does not exist.',
       SECRET_SCOPE_DENIED: 'A referenced secret is not available in this workspace.',

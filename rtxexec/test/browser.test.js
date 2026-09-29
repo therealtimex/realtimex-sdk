@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import { parseBrowserArguments, browserTargets, runBrowser, fillLogin, connectCdp } from '../src/browser.js';
+import { parseBrowserArguments, browserTargets, runBrowser, fillLogin, fillFields, connectCdp } from '../src/browser.js';
 
 const args = ['browser-login', 'secret://login', '--cdp', '9235', '--tab', 'target-1', '--username-selector', '#user', '--password-selector', '#pass'];
 const plan = parseBrowserArguments(args);
@@ -34,7 +34,7 @@ test('browser resolves only the selected target and passes credentials as data i
   const h = harness(); const output = await runBrowser(plan, {}, h);
   assert.equal(output.status, 'filled'); assert.ok(h.closed);
   const request = h.calls.find((call) => call.request).request;
-  assert.deepEqual(request.browser, { origin: 'https://example.com', targetId: 'target-1' });
+  assert.deepEqual(request.browser, { origin: 'https://example.com', targetId: 'target-1', fields: ['username', 'password'] });
   const invocation = h.calls.find((call) => call.method === 'Runtime.callFunctionOn').params;
   assert.equal(invocation.executionContextId, 42);
   assert.equal(invocation.arguments[0].value, credential.username);
@@ -118,4 +118,47 @@ test('tab listing retains similar paths and reports invalid CDP JSON safely', as
   const tabs = await browserTargets('9235', async () => ({ ok: true, json: async () => [{ type: 'page', url: 'https://example.com/docs/cli-browser/index.html' }] }));
   assert.equal(tabs.length, 1);
   await assert.rejects(browserTargets('9235', async () => ({ ok: true, json: async () => { throw new Error('private response'); } })), /Invalid CDP target response/);
+});
+
+
+test('browser-fill requests only named fields, never submits, and rejects duplicate mappings', async () => {
+  const args = ['browser-fill', 'secret://card', '--cdp', '9235', '--tab', 'target-1', '--field', 'number=#card'];
+  const parsed = parseBrowserArguments(args);
+  assert.deepEqual(parsed.fields, [{ name: 'number', selector: '#card' }]);
+  for (const tail of [['--field', 'number=#other'], ['--field', 'securityCode=#card'], ['--submit-selector', '#pay']]) assert.throws(() => parseBrowserArguments([...args, ...tail]));
+  const h = harness();
+  h.resolver = async request => { h.calls.push({ request }); return [{ reference: 'secret://card', fields: { number: 'fixture-card-value' }, allowedOrigins: ['https://example.com'] }]; };
+  const result = await runBrowser(parsed, {}, h);
+  assert.deepEqual(h.calls.find(call => call.request).request.browser.fields, ['number']);
+  const invocation = h.calls.find(call => call.method === 'Runtime.callFunctionOn').params;
+  assert.equal(invocation.functionDeclaration, fillFields.toString());
+  assert.deepEqual(invocation.arguments[0].value, { number: 'fixture-card-value' });
+  assert.ok(!JSON.stringify(result).includes('fixture-card-value'));
+});
+
+test('multi-step login resolves only the field it fills', async () => {
+  const h = harness(); await runBrowser(parseBrowserArguments(args.slice(0, -2)), {}, h);
+  assert.deepEqual(h.calls.find(call => call.request).request.browser.fields, ['username']);
+});
+
+test('named field fill rejects hidden and cross-origin controls before mutation', () => {
+  const p = page();
+  p.context.HTMLTextAreaElement = class {}; p.context.HTMLSelectElement = class {};
+  const fill = vm.runInNewContext(`(${fillFields.toString()})`, p.context);
+  assert.equal(fill({ firstName: 'fixture' }, [{ name: 'firstName', selector: '#user' }], 'https://example.com').status, 'filled');
+  assert.equal(p.user.value, 'fixture');
+  p.pass.type = 'hidden';
+  assert.equal(fill({ firstName: 'changed', number: 'private' }, [{ name: 'firstName', selector: '#user' }, { name: 'number', selector: '#pass' }], 'https://example.com').error, 'field');
+  assert.equal(p.user.value, 'fixture');
+});
+
+test('SSO selection is explicit and forwarded with the relying-site reference', async () => {
+  const selected = parseBrowserArguments([...args, '--sso', 'secret://google']);
+  const h = harness();
+  await runBrowser(selected, {}, h);
+  const request = h.calls.find(call => call.request).request;
+  assert.deepEqual(request.references, ['secret://login']);
+  assert.equal(request.browser.ssoReference, 'secret://google');
+  for (const ref of ['google', 'secret://google#password']) assert.throws(() => parseBrowserArguments([...args, '--sso', ref]));
+  assert.throws(() => parseBrowserArguments(['browser-tabs', '--cdp', '9235', '--sso', 'secret://google']));
 });

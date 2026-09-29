@@ -1,4 +1,5 @@
 import { parseBrowserArguments, runBrowser } from "./browser.js";
+import { parseSshArguments, runSsh } from "./ssh.js";
 import { UsageError } from "./error.js";
 import { spawn } from 'node:child_process';
 import { constants } from 'node:os';
@@ -19,9 +20,19 @@ Browser use (Node.js 22+, existing local CDP browser):
   rtxexec browser-tabs --cdp <port>
   rtxexec browser-login secret://name --cdp <port> --tab <CDP-target-id>
     --username-selector <css> --password-selector <css> [--submit-selector <css>]
+  rtxexec browser-fill secret://name --cdp <port> --tab <CDP-target-id>
+    --field number="#card-number" --field securityCode="#cvv"
+  Add --sso secret://provider to explicitly use a linked SSO Login.
+  browser-fill fills only; use a separate authorized action to submit.
+  Named terminal fields use secret://name#field (for example #apiToken).
   Omit either field selector for a multi-step login. No navigation or screenshots.
   Supports top-level forms; use agent-browser to prepare the page first.
   Filled/submitted does not mean authenticated: verify a non-secret success state.
+
+SSH/Git use:
+  rtxexec ssh secret://name -- ssh user@host
+  rtxexec ssh secret://name -- git fetch origin
+  Requires OpenSSH. Creates an owner-only temporary key, removed after exit.
 
 Manage secrets with realtimex-pp-cli or Settings > Secrets.
 Requires the running app and its terminal-session environment. No secret cache.
@@ -67,11 +78,12 @@ export async function execute(plan, injected, { stdout = process.stdout, stderr 
 
 export async function main(argv, { env = process.env, stdout = process.stdout, stderr = process.stderr, resolver = resolveSecrets } = {}) {
   try {
-    if (['browser-tabs', 'browser-login'].includes(argv[0])) {
+    if (['browser-tabs', 'browser-login', 'browser-fill'].includes(argv[0])) {
       const result = await runBrowser(parseBrowserArguments(argv), env, { resolver });
       stdout.write(`${JSON.stringify(result)}\n`);
       return 0;
     }
+    if (argv[0] === "ssh") return await runSsh(parseSshArguments(argv), env, (plan, injected) => execute(plan, injected, { stdout, stderr }), { resolver });
     const plan = parseArguments(argv);
     if (plan.help) { stdout.write(help); return 0; }
     if (plan.version) { stdout.write(`${JSON.parse(readFileSync(new URL('../package.json', import.meta.url))).version}\n`); return 0; }
