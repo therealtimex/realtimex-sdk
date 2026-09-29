@@ -22,8 +22,9 @@ Browser use (Node.js 22+, existing local CDP browser):
     --username-selector <css> --password-selector <css> [--submit-selector <css>]
   rtxexec browser-fill secret://name --cdp <port> --tab <CDP-target-id>
     --field number="#card-number" --field securityCode="#cvv"
+  Add --sso secret://provider to explicitly use a linked SSO Login.
   browser-fill fills only; use a separate authorized action to submit.
-  Named terminal fields use secret://name#field (for example #token).
+  Named terminal fields use secret://name#field (for example #apiToken).
   Omit either field selector for a multi-step login. No navigation or screenshots.
   Supports top-level forms; use agent-browser to prepare the page first.
   Filled/submitted does not mean authenticated: verify a non-secret success state.

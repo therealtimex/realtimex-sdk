@@ -77,6 +77,12 @@ test('compiled secret commands keep values off argv and preserve scope semantics
     const cleared = await run(['update-secret', 'test-id', '--tags=', '--websites=', '--allowed-origins=', '--custom-fields=[]']);
     assert.equal(cleared.code, 0, cleared.output);
     assert.deepEqual(requests[6].body, { tags: [], websites: [], allowedOrigins: [], customFields: [] });
+    const linked = await run(['update-secret', 'test-id', '--sso-credential-ids', 'google-id,facebook-id']);
+    assert.equal(linked.code, 0, linked.output);
+    assert.deepEqual(requests[7].body, { ssoCredentialIds: ['google-id', 'facebook-id'] });
+    const unlinked = await run(['update-secret', 'test-id', '--sso-credential-ids=']);
+    assert.equal(unlinked.code, 0, unlinked.output);
+    assert.deepEqual(requests[8].body, { ssoCredentialIds: [] });
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }

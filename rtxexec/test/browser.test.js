@@ -151,3 +151,14 @@ test('named field fill rejects hidden and cross-origin controls before mutation'
   assert.equal(fill({ firstName: 'changed', number: 'private' }, [{ name: 'firstName', selector: '#user' }, { name: 'number', selector: '#pass' }], 'https://example.com').error, 'field');
   assert.equal(p.user.value, 'fixture');
 });
+
+test('SSO selection is explicit and forwarded with the relying-site reference', async () => {
+  const selected = parseBrowserArguments([...args, '--sso', 'secret://google']);
+  const h = harness();
+  await runBrowser(selected, {}, h);
+  const request = h.calls.find(call => call.request).request;
+  assert.deepEqual(request.references, ['secret://login']);
+  assert.equal(request.browser.ssoReference, 'secret://google');
+  for (const ref of ['google', 'secret://google#password']) assert.throws(() => parseBrowserArguments([...args, '--sso', ref]));
+  assert.throws(() => parseBrowserArguments(['browser-tabs', '--cdp', '9235', '--sso', 'secret://google']));
+});

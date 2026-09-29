@@ -131,3 +131,25 @@ to restrict the directory before writing. Existing host-key verification stays
 in effect. SIGKILL or a machine crash may prevent cleanup. The CLI keeps no
 persistent vault or secret cache. Output masking is best effort; this is an
 accidental-disclosure safeguard, not a boundary against deliberate local access.
+
+## Linked SSO logins
+
+A Login can keep its normal username/password and link multiple saved Login items
+for SSO. Management uses `ssoCredentialIds` (moderator flag
+`--sso-credential-ids id1,id2`; an empty flag clears links). Names and descriptions
+identify the provider and account; no separate provider instructions are needed.
+
+Use agent-browser to choose the matching sign-in button and reach the provider.
+Then explicitly select the linked Login:
+
+```sh
+rtxexec browser-login secret://rtgit --sso secret://google \
+  --cdp 9235 --tab TARGET_ID \
+  --username-selector '#username' --password-selector '#password'
+```
+
+The server checks both items' enabled state and workspace scope, and the provider's
+allowed website origin. It records usage for both without copying values into the
+site item. Omitting `--sso` uses normal credentials; selection never automatically
+follows further links. Ask when the provider/account is ambiguous, and handle
+already signed-in sessions or MFA through the normal browser workflow.

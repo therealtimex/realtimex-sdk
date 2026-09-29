@@ -78,7 +78,7 @@ export function patchSecretCommands(sourceDir) {
         }
         if loginStdin && valueStdin {`);
       replace('for key, value := range loginFields { body[key] = value }', 'for key, value := range loginFields { body[key] = value }\n for key, value := range itemFields { body[key] = value }');
-      for (const field of ['Tags', 'Websites', 'AllowedOrigins', 'CustomFields']) {
+      for (const field of ['Tags', 'Websites', 'AllowedOrigins', 'CustomFields', ...(source.includes('var bodySsoCredentialIds string') ? ['SsoCredentialIds'] : [])]) {
         const flag = field.replace(/[A-Z]/g, (letter, i) => (i ? '-' : '') + letter.toLowerCase());
         replace(`if body${field} != "" {`, `if cmd.Flags().Changed("${flag}") {`);
       }

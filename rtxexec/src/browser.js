@@ -7,7 +7,7 @@ export function parseBrowserArguments(argv) {
   let reference;
   let i = 1;
   if (command !== 'browser-tabs') reference = argv[i++];
-  const allowed = command === 'browser-tabs' ? ['cdp'] : command === 'browser-fill' ? ['cdp', 'tab', 'field'] : ['cdp', 'tab', 'username-selector', 'password-selector', 'submit-selector'];
+  const allowed = command === 'browser-tabs' ? ['cdp'] : command === 'browser-fill' ? ['cdp', 'tab', 'field', 'sso'] : ['cdp', 'tab', 'username-selector', 'password-selector', 'submit-selector', 'sso'];
   for (; i < argv.length; i += 2) {
     const key = argv[i]?.replace(/^--/, '');
     if (!argv[i]?.startsWith('--') || !allowed.includes(key) || (key !== 'field' && options[key] !== undefined) || !argv[i + 1] || argv[i + 1].startsWith('--')) throw new UsageError('Invalid browser option. See rtxexec --help.');
@@ -23,6 +23,7 @@ export function parseBrowserArguments(argv) {
   if (!/^\d{1,5}$/.test(options.cdp || '') || Number(options.cdp) < 1 || Number(options.cdp) > 65535) throw new UsageError('Provide a local CDP port with --cdp.');
   if (command === 'browser-login' && (!reference?.startsWith('secret://') || !/^[a-zA-Z0-9_-]{1,128}$/.test(options.tab || '') || (!options['username-selector'] && !options['password-selector']))) throw new UsageError('Provide a secret reference, --tab from browser-tabs, and at least one username/password selector.');
   if (command === 'browser-fill' && (!reference?.startsWith('secret://') || reference.includes('#') || !/^[a-zA-Z0-9_-]{1,128}$/.test(options.tab || '') || !options.fields?.length)) throw new UsageError('Provide an item reference, --tab and at least one --field name=selector.');
+  if (options.sso && (!options.sso.startsWith('secret://') || options.sso.includes('#') || options.sso.length > 1024)) throw new UsageError('Use --sso secret://provider with a linked Login item.');
   return { command, reference, ...options };
 }
 
@@ -161,7 +162,7 @@ export async function runBrowser(plan, env, { targets = browserTargets, connect 
     } catch { throw new UsageError('Selected page is not ready. Wait for navigation and run browser-tabs again.'); }
     const { executionContextId } = await cdp.send('Page.createIsolatedWorld', { frameId: frameTree.frame.id, worldName: 'rtxexec-login' });
     const requested = plan.command === 'browser-fill' ? plan.fields.map(entry => entry.name) : ['username', 'password'].filter(name => plan[`${name}-selector`]);
-    const values = await resolver({ references: [plan.reference], command: 'rtxexec', browser: { origin, targetId: target.id, fields: requested } }, env);
+    const values = await resolver({ references: [plan.reference], command: 'rtxexec', browser: { origin, targetId: target.id, fields: requested, ...(plan.sso ? { ssoReference: plan.sso } : {}) } }, env);
     const credential = values[0];
     const fields = credential?.fields || credential;
     if (requested.some(name => typeof fields?.[name] !== 'string' || !fields[name]) || !Array.isArray(credential?.allowedOrigins) || !credential.allowedOrigins.includes(origin)) throw new UsageError('RealTimeX did not authorize the requested fields for this website.');
