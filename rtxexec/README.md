@@ -78,3 +78,53 @@ The destination/browser necessarily receives the values. Do not take snapshots,
 screenshots, recordings, DOM-value reads, or network traces while credentials are
 present. A page may display a username after login. This reduces accidental exposure;
 it does not prevent intentional local extraction or malicious website behavior.
+
+
+## Structured credential items
+
+RealTimeX stores Login, Card, Identity, SSH key and Secure note items. Management
+stays in Settings or the moderator CLI; rtxexec only uses saved values.
+List metadata to discover `reference` and `fieldNames`. To select a field:
+
+```sh
+rtxexec --env API_TOKEN=secret://service#token -- program
+rtxexec --stdin secret://note#notes -- program
+```
+
+A Login can contain just a password or custom token fields; a username and
+website are optional for terminal use. Existing scalar references still resolve
+their value. New Login defaults to password and Secure note defaults to notes.
+Use explicit field references for Card, Identity and SSH items.
+
+### Fill Card or Identity forms
+
+Prepare a page with agent-browser, identify its visible top-level selectors,
+and use the exact CDP target ID from `browser-tabs`:
+
+```sh
+rtxexec browser-fill secret://card --cdp 9235 --tab TARGET_ID \
+  --field 'number=#card-number' --field 'securityCode=#cvv'
+```
+
+Only mapped fields are requested. The item's permitted origins and workspace
+scope are enforced. Inputs, textareas and selects are supported; iframe forms
+are not. This command never submits. Check non-secret status and perform any
+submission separately within the authorized task. Avoid snapshots, recordings
+and field-value reads while saved data is in the page. `browser-login` remains
+available and now requests only the username/password fields selected.
+
+### SSH and Git
+
+```sh
+rtxexec ssh secret://deploy-key -- ssh user@host
+rtxexec ssh secret://deploy-key -- git fetch origin
+```
+
+Requires OpenSSH (and Git for Git commands). The app unlocks the saved key for
+this execution. rtxexec writes it to a restricted temporary directory, supplies
+the path to SSH or Git, and removes the directory when the child finishes or
+fails. Unix uses directory mode 0700 and file mode 0600; Windows requires icacls
+to restrict the directory before writing. Existing host-key verification stays
+in effect. SIGKILL or a machine crash may prevent cleanup. The CLI keeps no
+persistent vault or secret cache. Output masking is best effort; this is an
+accidental-disclosure safeguard, not a boundary against deliberate local access.

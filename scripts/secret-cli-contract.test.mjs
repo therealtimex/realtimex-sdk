@@ -65,6 +65,18 @@ test('compiled secret commands keep values off argv and preserve scope semantics
     const malformed = await run(['update-secret', 'test-id', '--login-stdin'], '{"password":"fixture-private-password",');
     assert.notEqual(malformed.code, 0); assert.ok(!malformed.output.includes(pair.password));
     assert.equal(requests.length, 5);
+    const item = { fields: { number: 'fixture-card', securityCode: null }, notes: '' };
+    const card = await run(['create-secret', '--display-name', 'Travel card', '--kind', 'card', '--tags', 'work,travel', '--item-stdin'], JSON.stringify(item));
+    assert.equal(card.code, 0, card.output);
+    assert.deepEqual(requests[5].body, { displayName: 'Travel card', kind: 'card', tags: ['work', 'travel'], ...item });
+    assert.ok(!card.output.includes('fixture-card'));
+    for (const flags of [['--item-stdin', '--dry-run'], ['--item-stdin', '--value-stdin'], ['--fields', '{}'], ['--notes', 'private']]) {
+      const denied = await run(['update-secret', 'test-id', ...flags], JSON.stringify(item));
+      assert.notEqual(denied.code, 0); assert.ok(!denied.output.includes('fixture-card'));
+    }
+    const cleared = await run(['update-secret', 'test-id', '--tags=', '--websites=', '--allowed-origins=', '--custom-fields=[]']);
+    assert.equal(cleared.code, 0, cleared.output);
+    assert.deepEqual(requests[6].body, { tags: [], websites: [], allowedOrigins: [], customFields: [] });
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }

@@ -54,6 +54,35 @@ export function patchSecretCommands(sourceDir) {
       replace('if allWorkspaces { body["workspaceSlugs"] = nil }', `for key, value := range loginFields { body[key] = value }
         if allWorkspaces { body["workspaceSlugs"] = nil }`);
     }
+    if (source.includes('var bodyFields string')) {
+      replace('var valueStdin bool', 'var valueStdin bool\n var itemStdin bool\n var itemFields map[string]json.RawMessage');
+      replace(/cmd.Flags\(\).StringVar\(&bodyFields, "fields", "", "[^\"]*"\)/,
+        'cmd.Flags().BoolVar(&itemStdin, "item-stdin", false, "Read JSON containing fields and/or notes from trusted stdin (max 1 MiB); never pass values as arguments")');
+      replace(/cmd.Flags\(\).StringVar\(&bodyNotes, "notes", "", "[^\"]*"\)/, '// Notes are accepted only through item-stdin.');
+      replace('if loginStdin && valueStdin {', `if itemStdin && (loginStdin || valueStdin) { return fmt.Errorf("choose only one stdin mode") }
+        if itemStdin {
+          if flags.dryRun { return fmt.Errorf("item stdin cannot be used with --dry-run") }
+          raw, readErr := io.ReadAll(io.LimitReader(cmd.InOrStdin(), 1048577))
+          if readErr != nil || len(raw) == 0 || len(raw) > 1048576 { return fmt.Errorf("item stdin must contain a JSON object of at most 1 MiB") }
+          if json.Unmarshal(raw, &itemFields) != nil || len(itemFields) == 0 { return fmt.Errorf("item stdin must contain fields and/or notes") }
+          for key, value := range itemFields {
+            if key == "fields" {
+              var fields map[string]*string
+              if json.Unmarshal(value, &fields) != nil || fields == nil { return fmt.Errorf("fields must be an object of strings or nulls") }
+              for _, field := range fields { if field != nil && len(*field) > 65536 { return fmt.Errorf("field values must not exceed 64 KiB") } }
+            } else if key == "notes" {
+              var notes string
+              if string(value) == "null" || json.Unmarshal(value, &notes) != nil || len(notes) > 65536 { return fmt.Errorf("notes must be a string of at most 64 KiB") }
+            } else { return fmt.Errorf("item stdin accepts only fields and notes; use metadata flags for item settings") }
+          }
+        }
+        if loginStdin && valueStdin {`);
+      replace('for key, value := range loginFields { body[key] = value }', 'for key, value := range loginFields { body[key] = value }\n for key, value := range itemFields { body[key] = value }');
+      for (const field of ['Tags', 'Websites', 'AllowedOrigins', 'CustomFields']) {
+        const flag = field.replace(/[A-Z]/g, (letter, i) => (i ? '-' : '') + letter.toLowerCase());
+        replace(`if body${field} != "" {`, `if cmd.Flags().Changed("${flag}") {`);
+      }
+    }
     fs.writeFileSync(file, source);
   }
 }
