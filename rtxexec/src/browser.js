@@ -6,15 +6,23 @@ export function parseBrowserArguments(argv) {
   const options = {};
   let reference;
   let i = 1;
-  if (command === 'browser-login') reference = argv[i++];
-  const allowed = command === 'browser-tabs' ? ['cdp'] : ['cdp', 'tab', 'username-selector', 'password-selector', 'submit-selector'];
+  if (command !== 'browser-tabs') reference = argv[i++];
+  const allowed = command === 'browser-tabs' ? ['cdp'] : command === 'browser-fill' ? ['cdp', 'tab', 'field'] : ['cdp', 'tab', 'username-selector', 'password-selector', 'submit-selector'];
   for (; i < argv.length; i += 2) {
     const key = argv[i]?.replace(/^--/, '');
-    if (!argv[i]?.startsWith('--') || !allowed.includes(key) || options[key] !== undefined || !argv[i + 1] || argv[i + 1].startsWith('--')) throw new UsageError('Invalid browser option. See rtxexec --help.');
-    options[key] = argv[i + 1];
+    if (!argv[i]?.startsWith('--') || !allowed.includes(key) || (key !== 'field' && options[key] !== undefined) || !argv[i + 1] || argv[i + 1].startsWith('--')) throw new UsageError('Invalid browser option. See rtxexec --help.');
+    if (key === 'field') {
+      const value = argv[i + 1]; const split = value.indexOf('=');
+      const field = value.slice(0, split); const selector = value.slice(split + 1);
+      if (split < 1 || !/^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(field) || !selector || selector.length > 4096 || ['constructor', 'prototype', '__proto__'].includes(field)) throw new UsageError('Use --field fieldName=selector.');
+      options.fields ||= [];
+      if (options.fields.some((entry) => entry.name === field || entry.selector === selector) || options.fields.length >= 32) throw new UsageError('Use up to 32 distinct fields and selectors.');
+      options.fields.push({ name: field, selector });
+    } else options[key] = argv[i + 1];
   }
   if (!/^\d{1,5}$/.test(options.cdp || '') || Number(options.cdp) < 1 || Number(options.cdp) > 65535) throw new UsageError('Provide a local CDP port with --cdp.');
   if (command === 'browser-login' && (!reference?.startsWith('secret://') || !/^[a-zA-Z0-9_-]{1,128}$/.test(options.tab || '') || (!options['username-selector'] && !options['password-selector']))) throw new UsageError('Provide a secret reference, --tab from browser-tabs, and at least one username/password selector.');
+  if (command === 'browser-fill' && (!reference?.startsWith('secret://') || reference.includes('#') || !/^[a-zA-Z0-9_-]{1,128}$/.test(options.tab || '') || !options.fields?.length)) throw new UsageError('Provide an item reference, --tab and at least one --field name=selector.');
   return { command, reference, ...options };
 }
 
@@ -105,6 +113,38 @@ export function fillLogin(username, password, selectors, expectedOrigin) {
   return { status: submit ? 'submitted' : 'filled' };
 }
 
+
+// Fill-only: submission remains an explicit, separate browser action.
+export function fillFields(values, selectors, expectedOrigin) {
+  const usable = (element) => {
+    if (!element || !element.isConnected || element.disabled || element.matches(':disabled') || element.readOnly || !element.getClientRects().length) return false;
+    if (getComputedStyle(element).visibility !== 'visible') return false;
+    for (let node = element; node; node = node.parentElement) if (Number(getComputedStyle(node).opacity) === 0) return false;
+    return !element.form || new URL(element.form.action || location.href).origin === expectedOrigin;
+  };
+  if (location.origin !== expectedOrigin) return { error: 'origin' };
+  const fields = [];
+  for (const { name, selector } of selectors) {
+    const matches = document.querySelectorAll(selector);
+    const element = matches.length === 1 ? matches[0] : null;
+    if (!usable(element) || !(element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement)) return { error: 'field' };
+    if (element instanceof HTMLInputElement && ['file', 'hidden', 'checkbox', 'radio', 'button', 'submit', 'reset', 'image'].includes(element.type)) return { error: 'field' };
+    if (name === 'password' && (!(element instanceof HTMLInputElement) || element.type !== 'password')) return { error: 'password-field' };
+    if (element instanceof HTMLSelectElement && !Array.from(element.options).some(option => option.value === values[name] && !option.disabled)) return { error: 'option' };
+    if (fields.some(entry => entry.element === element)) return { error: 'duplicate' };
+    fields.push({ element, name, type: element.type });
+  }
+  for (const { element, name, type } of fields) {
+    if (location.origin !== expectedOrigin || !usable(element) || element.type !== type) return { error: 'changed' };
+    const prototype = element instanceof HTMLInputElement ? HTMLInputElement.prototype : element instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLTextAreaElement.prototype;
+    Object.getOwnPropertyDescriptor(prototype, 'value').set.call(element, values[name]);
+    if (element.value !== values[name]) return { error: 'value' };
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+    element.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  return { status: 'filled' };
+}
+
 export async function runBrowser(plan, env, { targets = browserTargets, connect = connectCdp, resolver = resolveSecrets } = {}) {
   const pages = await targets(plan.cdp);
   if (plan.command === 'browser-tabs') return { tabs: pages.map(({ id, url }) => { const clean = new URL(url); clean.search = ''; clean.hash = ''; clean.username = ''; clean.password = ''; return { id, url: clean.href }; }) };
@@ -120,14 +160,19 @@ export async function runBrowser(plan, env, { targets = browserTargets, connect 
       origin = url.origin;
     } catch { throw new UsageError('Selected page is not ready. Wait for navigation and run browser-tabs again.'); }
     const { executionContextId } = await cdp.send('Page.createIsolatedWorld', { frameId: frameTree.frame.id, worldName: 'rtxexec-login' });
-    const values = await resolver({ references: [plan.reference], command: 'rtxexec', browser: { origin, targetId: target.id } }, env);
+    const requested = plan.command === 'browser-fill' ? plan.fields.map(entry => entry.name) : ['username', 'password'].filter(name => plan[`${name}-selector`]);
+    const values = await resolver({ references: [plan.reference], command: 'rtxexec', browser: { origin, targetId: target.id, fields: requested } }, env);
     const credential = values[0];
-    if (typeof credential?.username !== 'string' || !credential.username || typeof credential.password !== 'string' || !credential.password || !Array.isArray(credential.allowedOrigins) || !credential.allowedOrigins.includes(origin)) throw new UsageError('RealTimeX did not authorize a Login credential for this website.');
+    const fields = credential?.fields || credential;
+    if (requested.some(name => typeof fields?.[name] !== 'string' || !fields[name]) || !Array.isArray(credential?.allowedOrigins) || !credential.allowedOrigins.includes(origin)) throw new UsageError('RealTimeX did not authorize the requested fields for this website.');
+    const args = plan.command === 'browser-fill'
+      ? [Object.fromEntries(requested.map(name => [name, fields[name]])), plan.fields, origin]
+      : [fields.username || '', fields.password || '', { username: plan['username-selector'], password: plan['password-selector'], submit: plan['submit-selector'] }, origin];
     const result = await cdp.send('Runtime.callFunctionOn', {
-      executionContextId, functionDeclaration: fillLogin.toString(), returnByValue: true,
-      arguments: [credential.username, credential.password, { username: plan['username-selector'], password: plan['password-selector'], submit: plan['submit-selector'] }, origin].map((value) => ({ value })),
+      executionContextId, functionDeclaration: (plan.command === 'browser-fill' ? fillFields : fillLogin).toString(), returnByValue: true,
+      arguments: args.map((value) => ({ value })),
     });
-    if (result.exceptionDetails || !['filled', 'submitted'].includes(result.result?.value?.status)) throw new UsageError('Login was not completed. Check the selected page, origin and visible form selectors; values were not printed.');
+    if (result.exceptionDetails || !['filled', 'submitted'].includes(result.result?.value?.status)) throw new UsageError('Form fill was not completed. Check the selected page, origin and visible form selectors; values were not printed.');
     return { status: result.result.value.status, targetId: target.id, origin };
   } finally { cdp.close(); }
 }

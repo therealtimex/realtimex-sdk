@@ -19,6 +19,10 @@ Browser use (Node.js 22+, existing local CDP browser):
   rtxexec browser-tabs --cdp <port>
   rtxexec browser-login secret://name --cdp <port> --tab <CDP-target-id>
     --username-selector <css> --password-selector <css> [--submit-selector <css>]
+  rtxexec browser-fill secret://name --cdp <port> --tab <CDP-target-id>
+    --field number="#card-number" --field securityCode="#cvv"
+  browser-fill fills only; use a separate authorized action to submit.
+  Named terminal fields use secret://name#field (for example #token).
   Omit either field selector for a multi-step login. No navigation or screenshots.
   Supports top-level forms; use agent-browser to prepare the page first.
   Filled/submitted does not mean authenticated: verify a non-secret success state.
@@ -67,7 +71,7 @@ export async function execute(plan, injected, { stdout = process.stdout, stderr 
 
 export async function main(argv, { env = process.env, stdout = process.stdout, stderr = process.stderr, resolver = resolveSecrets } = {}) {
   try {
-    if (['browser-tabs', 'browser-login'].includes(argv[0])) {
+    if (['browser-tabs', 'browser-login', 'browser-fill'].includes(argv[0])) {
       const result = await runBrowser(parseBrowserArguments(argv), env, { resolver });
       stdout.write(`${JSON.stringify(result)}\n`);
       return 0;
