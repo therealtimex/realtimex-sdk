@@ -87,13 +87,16 @@ stays in Settings or the moderator CLI; rtxexec only uses saved values.
 List metadata to discover `reference` and `fieldNames`. To select a field:
 
 ```sh
-rtxexec --env API_TOKEN=secret://service#token -- program
+rtxexec --env API_TOKEN=secret://service#apiToken -- program
 rtxexec --stdin secret://note#notes -- program
 ```
 
-A Login can contain just a password or custom token fields; a username and
-website are optional for terminal use. Existing scalar references still resolve
-their value. New Login defaults to password and Secure note defaults to notes.
+A Login can contain just a password, the built-in API key / Token (`apiToken`),
+or custom fields; a username and website are optional for terminal use. New Login
+defaults to password when present, otherwise `apiToken`; Secure note defaults to
+notes. Existing scalar references keep their value. An explicit move into Password
+or API key / Token preserves both default and `#value` references, including after
+rotation.
 Use explicit field references for Card, Identity and SSH items.
 
 ### Fill Card or Identity forms
