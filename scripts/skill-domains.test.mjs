@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
@@ -119,6 +120,18 @@ test('rejects a plugin skill owner that shares an SDK skill tag or name', () => 
       /collides with a generated SDK skill name/
     );
   }
+});
+
+test('pins the rtxexec version published from this repository', () => {
+  const { version } = JSON.parse(
+    readFileSync(new URL('../rtxexec/package.json', import.meta.url), 'utf8')
+  );
+  const pins = DOMAIN_SKILLS.flatMap(({ guidance }) =>
+    guidance.flatMap((rule) => [...rule.matchAll(/@realtimex\/rtxexec@([\w.-]*\w)/g)].map((match) => match[1]))
+  );
+
+  assert.ok(pins.length > 0);
+  assert.deepEqual(new Set(pins), new Set([version]));
 });
 
 test('renders a concise router and only the selected domain command blocks', () => {
