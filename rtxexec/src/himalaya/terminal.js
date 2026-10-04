@@ -77,14 +77,20 @@ async function rpc(action, body, env, fetchImpl, signal) {
   let endpoint;
   try { endpoint = resolveEndpoint(env); } catch { throw fail("EMAIL_CONTEXT_UNAVAILABLE"); }
   endpoint.pathname = endpoint.pathname.replace(/\/secrets\/resolve$/, "/email/himalaya/" + action);
-  let response;
+  const requestController = new AbortController();
+  const abort = () => requestController.abort();
+  signal?.addEventListener("abort", abort, { once: true });
+  if (signal?.aborted) abort();
+  const timeout = setTimeout(abort, 5000);
+  let response; let result;
   try {
     response = await fetchImpl(endpoint, { method: "POST", redirect: "error",
-      signal: AbortSignal.any([AbortSignal.timeout(5000), ...(signal ? [signal] : [])]),
+      signal: requestController.signal,
       headers: { Authorization: `RealtimeX-Terminal ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ contractVersion: executionContract, ...body }) });
+    result = await readResponse(response);
   } catch { throw fail(signal?.aborted ? "EMAIL_OPERATION_CANCELLED" : "EMAIL_CONTEXT_UNAVAILABLE"); }
-  const result = await readResponse(response);
+  finally { clearTimeout(timeout); signal?.removeEventListener("abort", abort); }
   if (!response.ok || result.success !== true)
     throw fail(safeCodes.has(result.code) ? result.code : "EMAIL_CONTEXT_UNAVAILABLE");
   if (result.contractVersion !== executionContract) throw fail("EMAIL_CONTEXT_UNAVAILABLE");
@@ -112,6 +118,7 @@ export async function runTerminalHimalaya(request, env = process.env, {
   if (signal?.aborted) abort();
   let timer; let stopped = false; let admissionError; let admission;
   try {
+    if (controller.signal.aborted) throw fail("EMAIL_OPERATION_CANCELLED");
     admission = await rpc("admit", request, env, fetchImpl, controller.signal);
     const p = admission.plan;
     const expiresAt = Date.parse(admission.expiresAt);
@@ -144,6 +151,7 @@ export async function runTerminalHimalaya(request, env = process.env, {
       finally { if (!stopped && !controller.signal.aborted) timer = setTimeout(refresh, revalidateMs); }
     };
     await validate();
+    if (controller.signal.aborted) throw fail("EMAIL_OPERATION_CANCELLED");
     timer = setTimeout(refresh, revalidateMs);
     const result = await run(plan, { password: admission.password, environment: env,
       signal: controller.signal, validateAdmission: validate });

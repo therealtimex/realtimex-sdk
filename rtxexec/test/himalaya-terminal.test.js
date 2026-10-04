@@ -94,6 +94,17 @@ test("terminal revocation cancels an active admitted process and discards its ou
   assert.equal(cancelled, true);
 });
 
+test("cancellation before admission or during resolution never launches the runner", async () => {
+  const before = new AbortController(); before.abort(); const f = fixtureHost();
+  const run = async () => assert.fail("Cancelled admission must not launch");
+  await assert.rejects(runTerminalHimalaya(request, env, { fetchImpl: f.fetchImpl, run, signal: before.signal }), { code: "EMAIL_OPERATION_CANCELLED" });
+  assert.equal(f.calls.length, 0);
+  const during = new AbortController();
+  await assert.rejects(runTerminalHimalaya(request, env, { run, signal: during.signal,
+    fetchImpl: async (url, options) => { during.abort(); return f.fetchImpl(url, options); }
+  }), { code: "EMAIL_OPERATION_CANCELLED" });
+});
+
 test("terminal transport forwards only known denial codes and never upstream diagnostics", async () => {
   for (const code of ["SECRET_SCOPE_DENIED", "SECRET_DISABLED", "EMAIL_BINDING_CHANGED", "untrusted-upstream-code"]) {
     const f = fixtureHost({ error: code });
