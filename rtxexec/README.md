@@ -70,8 +70,9 @@ The short-lived operation is revalidated before execution, before authentication
 periodically during execution and before returning results. Context loss cancels
 the process. Participating config-file hashes are checked before launch and again
 after the secret-free version probe. Only verified Himalaya v1.2.0 is supported
-by this adapter; other versions produce a compatibility error. The email adapter's
-real-binary proof covers macOS/Linux paths. Windows drive targets fail closed:
+by this adapter; other versions produce a compatibility error. The recorded
+real-binary proof uses Himalaya 1.2.0 on macOS; Linux binary verification remains
+required in the companion host proof. Windows drive targets fail closed:
 [v1.2.0's config parser](https://github.com/pimalaya/himalaya/blob/v1.2.0/src/cli.rs)
 uses a colon delimiter. Windows target/auth-command support needs a separately
 verified adapter; existing general rtxexec commands retain their platform support.
