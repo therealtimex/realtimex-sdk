@@ -8,7 +8,7 @@ import { finished } from 'node:stream/promises';
 import { parseArguments, inject } from './arguments.js';
 import { resolveSecrets } from './client.js';
 import { SecretMask } from './mask.js';
-import { parseHimalayaArguments, runTerminalHimalaya, himalayaFailureCode } from './himalaya/terminal.js';
+import { parseHimalayaArguments, runTerminalHimalaya, himalayaFailureResult } from './himalaya/terminal.js';
 
 const help = `rtxexec — run commands using RealTimeX secrets
 
@@ -95,7 +95,7 @@ export async function main(argv, { env = process.env, stdout = process.stdout, s
         stdout.write(`${JSON.stringify(result)}\n`);
         return 0;
       } catch (error) {
-        stdout.write(`${JSON.stringify({ ok: false, code: himalayaFailureCode(error) })}\n`);
+        stdout.write(`${JSON.stringify(himalayaFailureResult(error))}\n`);
         return 1;
       }
     }

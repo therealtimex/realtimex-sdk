@@ -20,7 +20,8 @@ The body contains only:
 
 No caller workspace/thread, credential values, arbitrary binary/config paths,
 command text or unverified session object is accepted. Plugin ID is a selector;
-the host independently checks plugin activation and destination access.
+the host independently checks plugin activation and destination access. This is
+the installed record ID (`PluginAPI.pluginId`), distinct from a manifest ID.
 
 Before resolving a managed password the host validates the stored credential
 ID/reference/explicit password field, Login kind, enabled/deleted/scope state,
@@ -47,6 +48,9 @@ Successful response:
 - `password`: only for the managed terminal child, privately consumed in memory
   by the SDK runner, never displayed, saved, cached or included in diagnostics
 
+Admission responses must be private and non-cacheable, excluded from response
+logging/traces and persistent operation records. Agent commands call the SDK
+adapter rather than issuing raw admission/resolution HTTP requests.
 The host stores no password in its operation record. A safe error response has
 `success: false` and one fixed denial code. No upstream diagnostic is interpreted
 as user-facing text. Response bodies are bounded to 512 KiB by the SDK.
@@ -65,6 +69,24 @@ every second during execution and before returning data. Denial aborts the child
 process group and discards a late result. The same fixed runner checks local file
 hashes before the probe and before authentication. No setup token is persisted
 or borrowed by a later scheduled run.
+
+## Mutation receipts and interruption
+
+The shared runner invokes the synchronous `onExecutionStart` callback only when
+the authenticated command emits its successful spawn event, never for the
+credential-free version probe. Host and terminal consumers retain the original
+admitted operation/run identity before that point. No automatic retry is made.
+
+For a move/add-folder, terminal success includes `operationId` and
+`outcome: "confirmed"`. An admitted failure includes the same ID and
+`outcome: "not_started"` if the command never successfully spawned, otherwise
+`outcome: "uncertain"`. Pre-admission failures have no operation ID. Context
+loss, expiry, timeout or a final validation failure after child success does
+not prove that a started mutation had no mailbox effect. A caller must retain
+its uncertain receipt and reconcile the original UIDs/folders before retrying,
+including when a process terminates without delivering a result. These fields
+contain no password or child diagnostic. Desktop execution must retain the
+same phase/identity semantics rather than treating cancellation as rollback.
 
 ## Desktop companion
 

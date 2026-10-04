@@ -18,6 +18,11 @@ const safeCodes = new Set(["EMAIL_CONTEXT_UNAVAILABLE", "EMAIL_BINDING_MISMATCH"
 safeCodes.add("EMAIL_PLATFORM_UNSUPPORTED");
 const fail = code => Object.assign(new Error(code), { code });
 export const himalayaFailureCode = error => safeCodes.has(error?.code) ? error.code : "EMAIL_CONTEXT_UNAVAILABLE";
+const mutationFailures = new WeakMap();
+// Only context authored by this adapter can enter CLI output. Arbitrary error
+// properties (including host diagnostics or a runner exception) are ignored.
+export const himalayaFailureResult = error => ({ ok: false, code: himalayaFailureCode(error),
+  ...(error && typeof error === "object" ? mutationFailures.get(error) : undefined) });
 
 export function parseHimalayaArguments(argv) {
   const options = {};
@@ -117,6 +122,8 @@ export async function runTerminalHimalaya(request, env = process.env, {
   signal?.addEventListener("abort", abort, { once: true });
   if (signal?.aborted) abort();
   let timer; let stopped = false; let admissionError; let admission;
+  let operationId; let executionStarted = false;
+  const mutation = ["move", "add-folder"].includes(request.operation);
   try {
     if (controller.signal.aborted) throw fail("EMAIL_OPERATION_CANCELLED");
     admission = await rpc("admit", request, env, fetchImpl, controller.signal);
@@ -139,6 +146,7 @@ export async function runTerminalHimalaya(request, env = process.env, {
       configRevisions: p.configRevisions, targetRevision: p.targetRevision,
       bindingRevision: p.bindingRevision };
     runner.operationArgs(plan);
+    operationId = admission.operationId;
     const validate = async () => {
       if (Date.now() >= expiresAt) throw fail("EMAIL_CONTEXT_UNAVAILABLE");
       const result = await rpc("validate", { operationId: admission.operationId }, env, fetchImpl, controller.signal);
@@ -154,12 +162,19 @@ export async function runTerminalHimalaya(request, env = process.env, {
     if (controller.signal.aborted) throw fail("EMAIL_OPERATION_CANCELLED");
     timer = setTimeout(refresh, revalidateMs);
     const result = await run(plan, { password: admission.password, environment: env,
-      signal: controller.signal, validateAdmission: validate });
+      signal: controller.signal, validateAdmission: validate,
+      onExecutionStart: () => { executionStarted = true; } });
     if (admissionError) throw admissionError;
     await validate();
-    return result;
+    return mutation ? { ...result, operationId, outcome: "confirmed" } : result;
   } catch (error) {
-    throw fail(himalayaFailureCode(admissionError || error));
+    const failure = fail(himalayaFailureCode(admissionError || error));
+    if (mutation && operationId) {
+      const context = { operationId, outcome: executionStarted ? "uncertain" : "not_started" };
+      Object.assign(failure, context);
+      mutationFailures.set(failure, context);
+    }
+    throw failure;
   } finally {
     stopped = true; clearTimeout(timer);
     for (const name of signals) signalSource.removeListener(name, abort);

@@ -89,7 +89,7 @@ function failureCode(stderr) {
   return "EMAIL_COMMAND_FAILED";
 }
 
-function capture(binary, args, env, { signal, timeoutMs, maxOutputBytes, spawnImpl = spawn }) {
+function capture(binary, args, env, { signal, timeoutMs, maxOutputBytes, spawnImpl = spawn, onExecutionStart }) {
   if (signal?.aborted) return Promise.reject(failure("EMAIL_OPERATION_CANCELLED"));
   return new Promise((resolve, reject) => {
     let child;
@@ -126,6 +126,12 @@ function capture(binary, args, env, { signal, timeoutMs, maxOutputBytes, spawnIm
     };
     child.stdout.on("data", (chunk) => output(chunk, true));
     child.stderr.on("data", (chunk) => output(chunk, false));
+    // A successful spawn can already cause an effect. The version probe does
+    // not receive this hook; callers retain the admitted mutation identity.
+    child.once("spawn", () => {
+      try { onExecutionStart?.(); }
+      catch { stop("EMAIL_CONTEXT_UNAVAILABLE"); }
+    });
     const cleanup = () => {
       clearTimeout(timer);
       clearTimeout(killTimer);
@@ -169,7 +175,7 @@ function verifyTarget(plan) {
 // before calling this runner. No arbitrary command or user-authored code entry.
 async function runHimalaya(plan, { password, environment = process.env, signal,
   timeoutMs = 120000, maxOutputBytes = 1024 * 1024, spawnImpl = spawn,
-  validateAdmission = async () => {} } = {}) {
+  validateAdmission = async () => {}, onExecutionStart } = {}) {
   const args = operationArgs(plan);
   if (typeof plan.binary !== "string" || !path.isAbsolute(plan.binary) || /[\r\n\0]/.test(plan.binary) ||
       !Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 120000 ||
@@ -193,7 +199,7 @@ async function runHimalaya(plan, { password, environment = process.env, signal,
   // gets the credential, and another account's helper rejects its binding ID.
   const authEnv = plan.bindingId ? { ...env,
     RTX_HIMALAYA_BINDING_ID: plan.bindingId, RTX_HIMALAYA_PASSWORD: password } : env;
-  const stdout = await capture(plan.binary, args, authEnv, { signal, timeoutMs, maxOutputBytes, spawnImpl });
+  const stdout = await capture(plan.binary, args, authEnv, { signal, timeoutMs, maxOutputBytes, spawnImpl, onExecutionStart });
   let data = null;
   if (["folders", "envelopes"].includes(plan.operation)) {
     const safeOutput = maskOutput(stdout, password);

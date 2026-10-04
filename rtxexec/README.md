@@ -47,7 +47,8 @@ explicitly; the wrapper does not interpret shell syntax.
 The email entry requires a matching host implementing `himalaya-execution@1`.
 The released 0.3.0 package and an older host do not provide this bridge.
 Choose an email Login through the host's private setup UI. The host owns its
-credential ID/reference/password-field/account/config-target binding. Then a
+credential ID/reference/password-field/account/config-target binding. `PLUGIN_ID`
+is the host-issued installed plugin record ID, distinct from its manifest ID. A
 newly authenticated terminal can use the non-secret selection:
 
 ```sh
@@ -93,6 +94,12 @@ location variables are retained only for unmanaged accounts. Credentials are
 resolved for each admitted operation, never saved in config, arguments or a
 local cache. This retains the normal trust in the selected local binary and
 config commands; output masking cannot isolate malicious local code.
+
+Mutations retain the admitted `operationId`. A confirmed success has
+`outcome: "confirmed"`; an admitted failure has `not_started` before a successful
+command spawn or `uncertain` afterward. Cancellation and final validation denial
+cannot undo an effect. Keep the original receipt and reconcile before retrying;
+the adapter never automatically replays a move or folder creation.
 
 The host can consume the CJS package exports or bundle the identical fixed assets
 before this companion is published. From this repository, use

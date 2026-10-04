@@ -25,6 +25,7 @@ function fakeSpawn({ version = "himalaya v1.2.0\n", data, stderr, exitCode = 0, 
     child.stderr = new PassThrough();
     child.kill = () => { setImmediate(() => { child.stdout.end(); child.stderr.end(); child.emit("close", null); }); };
     setImmediate(() => {
+      child.emit("spawn");
       if (args[0] === "--version") { child.stdout.end(version); child.stderr.end(); child.emit("close", 0); }
       else if (!hang) {
         child.stdout.end(JSON.stringify(data || [{ name: "INBOX" }]));
@@ -151,6 +152,23 @@ test("mutation success returns no child text and spawn exceptions are fixed", as
   await assert.rejects(runner.runHimalaya(plan(), { password: value, spawnImpl: () => { throw new Error(value); } }), error => {
     assert.equal(error.code, "EMAIL_BINARY_UNAVAILABLE"); assert.ok(!error.stack.includes(value)); return true;
   });
+});
+
+test("execution-start hook excludes the probe and failed authentication spawn", async () => {
+  let starts = 0;
+  const f = fakeSpawn();
+  await runner.runHimalaya(plan(), { password: password(), spawnImpl: f.spawnImpl,
+    onExecutionStart: () => { starts++; assert.equal(f.calls.length, 2); } });
+  assert.equal(starts, 1);
+  const g = fakeSpawn();
+  await assert.rejects(runner.runHimalaya(plan(), { password: password(),
+    onExecutionStart: () => { starts++; }, spawnImpl: (...args) => {
+      if (args[1][0] === "--version") return g.spawnImpl(...args);
+      const child = new EventEmitter(); child.stdout = new PassThrough(); child.stderr = new PassThrough();
+      setImmediate(() => child.emit("error", new Error("fixture launch failure")));
+      return child;
+    } }), { code: "EMAIL_BINARY_UNAVAILABLE" });
+  assert.equal(starts, 1);
 });
 
 test("cancellation, deadline and output ceiling return safe fixed errors", async () => {
