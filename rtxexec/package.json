@@ -1,10 +1,11 @@
 {
   "name": "@realtimex/rtxexec",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Run commands with secrets from the RealTimeX app vault",
   "type": "module",
   "bin": { "rtxexec": "bin/rtxexec.js" },
   "files": ["bin", "src", "README.md"],
+  "exports": { "./himalaya/runner": "./src/himalaya/runner.cjs", "./himalaya/password": "./src/himalaya/password.cjs" },
   "engines": { "node": ">=20" },
   "scripts": { "test": "node --test" },
   "license": "MIT",

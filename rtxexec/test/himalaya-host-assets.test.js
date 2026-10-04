@@ -1,0 +1,31 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { spawnSync } from "node:child_process";
+import { createRequire } from "node:module";
+
+test("exported host runner/helper are runnable and checked against SDK source hashes and version", t => {
+  const directory = mkdtempSync(path.join(tmpdir(), "rtx-host-assets-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const script = fileURLToPath(new URL("../scripts/export-himalaya-host.mjs", import.meta.url));
+  const run = mode => spawnSync(process.execPath, [script, mode, "--output", directory], { encoding: "utf8" });
+  assert.equal(run("--check").status, 1);
+  const write = run("--write"); assert.equal(write.status, 0);
+  const result = JSON.parse(write.stdout);
+  assert.equal(result.version, "0.4.0"); assert.equal(result.contractVersion, "himalaya-execution@1");
+  assert.equal(run("--check").status, 0);
+  const require = createRequire(import.meta.url);
+  assert.equal(typeof require(path.join(directory, "runner.cjs")).runHimalaya, "function");
+  assert.equal(typeof require(path.join(directory, "password.cjs")).passwordForBinding, "function");
+  const runner = path.join(directory, "runner.cjs");
+  writeFileSync(runner, readFileSync(runner, "utf8") + "// drift\n");
+  assert.equal(run("--check").status, 1);
+  assert.equal(run("--write").status, 0); assert.equal(run("--check").status, 0);
+  const manifestPath = path.join(directory, "sdk-manifest.json");
+  const manifest = JSON.parse(readFileSync(manifestPath, "utf8")); manifest.version = "0.3.0";
+  writeFileSync(manifestPath, JSON.stringify(manifest));
+  assert.equal(run("--check").status, 1);
+});
