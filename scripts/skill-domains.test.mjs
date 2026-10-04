@@ -1,13 +1,16 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
   DOMAIN_SKILLS,
+  ROUTER_SKILL,
   assignOperationsToDomains,
   commandNameForOperation,
   parseCommandReference,
   renderDomainSkill,
   renderRouterSkill,
+  skillOwnersByTag,
 } from './skill-domains.mjs';
 
 function operation(operationId, tag) {
@@ -29,7 +32,7 @@ test('assigns every focused capability to one directly named skill', () => {
     get: operation('setupHeartbeatTasks', 'Personality'),
   };
 
-  const assignments = assignOperationsToDomains({ paths });
+  const { domains: assignments } = assignOperationsToDomains({ paths });
 
   for (const [index, domain] of DOMAIN_SKILLS.entries()) {
     assert.equal(assignments.get(domain.name)[0].operationId, `capability${index}`);
@@ -53,6 +56,82 @@ test('fails generation when a CLI operation has no skill owner', () => {
       }),
     /unknownCapability.*no skill owner/
   );
+});
+
+test('leaves Memory operations to the RealTimeX Memory plugin skill', () => {
+  const memory = [
+    ['/cli/read-memory', 'get', 'readMemory'],
+    ['/cli/write-memory', 'put', 'writeMemory'],
+    ['/cli/search-memory', 'get', 'searchMemory'],
+    ['/cli/forget-memory', 'post', 'forgetMemory'],
+    ['/cli/get-memory-status', 'get', 'getMemoryStatus'],
+  ];
+  const paths = {
+    '/cli/list-workspaces': { get: operation('listWorkspaces', 'Workspaces') },
+  };
+  for (const [pathname, method, operationId] of memory) {
+    paths[pathname] = { [method]: operation(operationId, 'Memory') };
+  }
+
+  const { domains, pluginOwned } = assignOperationsToDomains({ paths });
+
+  assert.deepEqual(
+    pluginOwned.map(({ commandName, owner }) => [commandName, owner]),
+    memory.map(([pathname]) => [
+      pathname.slice('/cli/'.length),
+      'com.realtimex.memory/realtimex-memory',
+    ])
+  );
+  assert.deepEqual(
+    [...domains.values()].flat().map(({ operationId }) => operationId),
+    ['listWorkspaces']
+  );
+  const sdkSkillNames = [ROUTER_SKILL.name, ...DOMAIN_SKILLS.map(({ name }) => name)];
+  assert.ok(!sdkSkillNames.includes('realtimex-memory'));
+  assert.doesNotMatch(renderRouterSkill('9.8.7'), /realtimex-memory/);
+});
+
+test('fails generation when a Memory operation also carries an SDK skill tag', () => {
+  assert.throws(
+    () =>
+      assignOperationsToDomains({
+        paths: {
+          '/cli/read-memory': {
+            get: { ...operation('readMemory', 'Memory'), tags: ['Memory', 'Workspaces'] },
+          },
+        },
+      }),
+    /readMemory.*multiple skill owners: com\.realtimex\.memory\/realtimex-memory, realtimex-workspaces/
+  );
+});
+
+test('rejects a plugin skill owner that shares an SDK skill tag or name', () => {
+  assert.equal(skillOwnersByTag().get('Memory'), 'com.realtimex.memory/realtimex-memory');
+  assert.throws(
+    () =>
+      skillOwnersByTag(DOMAIN_SKILLS, [
+        { pluginId: 'com.example', skill: 'example', tags: ['Workspaces'] },
+      ]),
+    /tag is assigned to multiple skills: Workspaces/
+  );
+  for (const skill of [ROUTER_SKILL.name, 'realtimex-workspaces']) {
+    assert.throws(
+      () => skillOwnersByTag(DOMAIN_SKILLS, [{ pluginId: 'com.example', skill, tags: ['Other'] }]),
+      /collides with a generated SDK skill name/
+    );
+  }
+});
+
+test('pins the rtxexec version published from this repository', () => {
+  const { version } = JSON.parse(
+    readFileSync(new URL('../rtxexec/package.json', import.meta.url), 'utf8')
+  );
+  const pins = DOMAIN_SKILLS.flatMap(({ guidance }) =>
+    guidance.flatMap((rule) => [...rule.matchAll(/@realtimex\/rtxexec@([\w.-]*\w)/g)].map((match) => match[1]))
+  );
+
+  assert.ok(pins.length > 0);
+  assert.deepEqual(new Set(pins), new Set([version]));
 });
 
 test('renders a concise router and only the selected domain command blocks', () => {

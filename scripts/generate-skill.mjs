@@ -392,10 +392,13 @@ function packageSkills() {
     commandBlocks.set(name, block + guidance);
   }
   const spec = JSON.parse(fs.readFileSync(SPEC_PATH, 'utf-8'));
-  const assignments = assignOperationsToDomains(spec, FILTER_PREFIX);
+  const { domains: assignments, pluginOwned } = assignOperationsToDomains(spec, FILTER_PREFIX);
   const assignedCommands = new Set(
-    [...assignments.values()].flat().map((operation) => operation.commandName)
+    [...assignments.values(), pluginOwned].flat().map((operation) => operation.commandName)
   );
+  for (const { commandName, owner } of pluginOwned) {
+    console.log(`  ${commandName} is documented by plugin skill ${owner}`);
+  }
   const unassignedCommands = [...commandBlocks.keys()].filter(
     (commandName) => !assignedCommands.has(commandName)
   );

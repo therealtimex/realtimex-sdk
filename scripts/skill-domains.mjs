@@ -17,7 +17,7 @@ export const DOMAIN_SKILLS = [
       'Use realtimex-pp-cli for secret management only. List/get responses contain metadata and references, never values.',
       'Prefer the Secrets settings screen for entering or rotating values. Never put a raw secret in a command argument, shell history, chat, or an agent-created temporary file.',
       'Secrets default to all workspaces. Set workspaceSlugs to an explicit list to restrict execution; an empty list permits no workspace. Management remains app-wide in this single-user app.',
-      'Use rtxexec only for execution. Install @realtimex/rtxexec@0.3.0 if unavailable. It uses REALTIMEX_TERMINAL_SESSION_TOKEN and the app-provided local server URL; workspace scope comes from the authenticated session.',
+      'Use rtxexec only for execution. Install @realtimex/rtxexec@0.4.0 if unavailable. It uses REALTIMEX_TERMINAL_SESSION_TOKEN and the app-provided local server URL; workspace scope comes from the authenticated session.',
       'The item kinds are login, card, identity, ssh_key and note. Login also covers token-only entries: username, password, apiToken and websites are optional. Use the built-in apiToken field for an API key/token and custom fields for additional values. Tags replace folders. Names shown to people are displayName; name/reference remains stable.',
       'Create/edit values in Settings when possible. For moderator management use --display-name and --kind with --item-stdin containing JSON {"fields":{"password":"..."},"notes":"..."} from a trusted source. Never construct raw-value JSON in an agent command. Custom field definitions use --custom-fields JSON containing name,label,type (text or hidden); their values belong in fields. Omitted fields retain their values; null or empty clears them. Omit notes to retain, use empty notes to clear. Removing a custom definition deletes its stored value.',
       'Use --tags and --websites for comma-separated metadata. Empty --tags= or --websites= clears the list. Browser use requires the destination in allowedOrigins (derived from websites by default). Old --value-stdin and --login-stdin remain compatible; do not combine stdin modes, and never use secret stdin with --dry-run.',
@@ -174,6 +174,18 @@ export const DOMAIN_SKILLS = [
   },
 ];
 
+// Tags whose agent instructions ship with a RealTimeX plugin skill. Their
+// operations stay realtimex-pp-cli commands, but no SDK skill documents them:
+// the host provisions the plugin skill only where the plugin is enabled, and a
+// second SDK copy would compete with it and drift from its rules.
+export const PLUGIN_SKILL_OWNERS = [
+  {
+    pluginId: 'com.realtimex.memory',
+    skill: 'realtimex-memory',
+    tags: ['Memory'],
+  },
+];
+
 const OPERATION_DOMAIN_OVERRIDES = {
   setupHeartbeatTasks: 'realtimex-heartbeat',
 };
@@ -185,18 +197,42 @@ export function commandNameForOperation(operationId) {
     .toLowerCase();
 }
 
-export function assignOperationsToDomains(spec, prefix = '/cli') {
-  const domainsByTag = new Map();
-  for (const domain of DOMAIN_SKILLS) {
-    for (const tag of domain.tags) {
-      if (domainsByTag.has(tag)) {
-        throw new Error(`OpenAPI tag is assigned to multiple skills: ${tag}`);
-      }
-      domainsByTag.set(tag, domain.name);
+function pluginOwnerName(owner) {
+  return `${owner.pluginId}/${owner.skill}`;
+}
+
+export function skillOwnersByTag(domains = DOMAIN_SKILLS, pluginOwners = PLUGIN_SKILL_OWNERS) {
+  const sdkSkillNames = new Set([ROUTER_SKILL.name, ...domains.map(({ name }) => name)]);
+  const ownersByTag = new Map();
+  const claim = (tag, owner) => {
+    if (ownersByTag.has(tag)) {
+      throw new Error(`OpenAPI tag is assigned to multiple skills: ${tag}`);
     }
+    ownersByTag.set(tag, owner);
+  };
+  for (const domain of domains) {
+    for (const tag of domain.tags) claim(tag, domain.name);
   }
+  for (const owner of pluginOwners) {
+    if (sdkSkillNames.has(owner.skill)) {
+      throw new Error(`Plugin skill ${pluginOwnerName(owner)} collides with a generated SDK skill name`);
+    }
+    for (const tag of owner.tags) claim(tag, pluginOwnerName(owner));
+  }
+  return ownersByTag;
+}
+
+/**
+ * Gives every CLI operation exactly one owner. `domains` maps each generated
+ * SDK skill to the operations it documents; `pluginOwned` lists operations
+ * documented by a plugin skill, which the generator must not render.
+ */
+export function assignOperationsToDomains(spec, prefix = '/cli') {
+  const ownersByTag = skillOwnersByTag();
+  const pluginOwnerNames = new Set(PLUGIN_SKILL_OWNERS.map(pluginOwnerName));
 
   const assignments = new Map(DOMAIN_SKILLS.map((domain) => [domain.name, []]));
+  const pluginOwned = [];
   const seenOperationIds = new Set();
   const failures = [];
 
@@ -214,7 +250,7 @@ export function assignOperationsToDomains(spec, prefix = '/cli') {
       const candidates = new Set(
         override
           ? [override]
-          : (operation.tags || []).map((tag) => domainsByTag.get(tag)).filter(Boolean)
+          : (operation.tags || []).map((tag) => ownersByTag.get(tag)).filter(Boolean)
       );
       if (candidates.size !== 1) {
         failures.push(
@@ -224,18 +260,23 @@ export function assignOperationsToDomains(spec, prefix = '/cli') {
         );
         continue;
       }
-      const domainName = [...candidates][0];
-      if (!assignments.has(domainName)) {
-        failures.push(`${operation.operationId} overrides to unknown skill ${domainName}`);
-        continue;
-      }
-      assignments.get(domainName).push({
+      const ownerName = [...candidates][0];
+      const assigned = {
         operationId: operation.operationId,
         commandName: commandNameForOperation(operation.operationId),
         method: method.toUpperCase(),
         pathname,
         tags: operation.tags || [],
-      });
+      };
+      if (pluginOwnerNames.has(ownerName)) {
+        pluginOwned.push({ ...assigned, owner: ownerName });
+        continue;
+      }
+      if (!assignments.has(ownerName)) {
+        failures.push(`${operation.operationId} overrides to unknown skill ${ownerName}`);
+        continue;
+      }
+      assignments.get(ownerName).push(assigned);
     }
   }
 
@@ -245,7 +286,7 @@ export function assignOperationsToDomains(spec, prefix = '/cli') {
   if (!seenOperationIds.size) {
     throw new Error(`No CLI operations found under ${prefix || '(all paths)'}`);
   }
-  return assignments;
+  return { domains: assignments, pluginOwned };
 }
 
 export function parseCommandReference(markdown) {
