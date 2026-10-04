@@ -1,9 +1,9 @@
 name: Verify rtxexec
 on:
   pull_request:
-    paths: ['rtxexec/**', '.github/workflows/rtxexec.yml', '.github/workflows/pp-cli-publish.yml', 'scripts/publish-pp-cli-packages*']
+    paths: ['rtxexec/**', '.github/workflows/rtxexec.yml', '.github/workflows/pp-cli-publish.yml', 'scripts/publish-pp-cli-packages*', 'scripts/skill-domains*', 'scripts/generate-skill.mjs']
   push:
-    paths: ['rtxexec/**', '.github/workflows/rtxexec.yml', '.github/workflows/pp-cli-publish.yml', 'scripts/publish-pp-cli-packages*']
+    paths: ['rtxexec/**', '.github/workflows/rtxexec.yml', '.github/workflows/pp-cli-publish.yml', 'scripts/publish-pp-cli-packages*', 'scripts/skill-domains*', 'scripts/generate-skill.mjs']
 jobs:
   test:
     strategy:
@@ -21,3 +21,4 @@ jobs:
       - run: npm pack --dry-run
         working-directory: rtxexec
       - run: node --test scripts/publish-pp-cli-packages.test.mjs
+      - run: node --test scripts/skill-domains.test.mjs
