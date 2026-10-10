@@ -9,6 +9,19 @@ export const ROUTER_SKILL = {
 
 export const DOMAIN_SKILLS = [
   {
+    name: 'realtimex-decisions',
+    title: 'RealTimeX Decisions',
+    description:
+      'Run advisory decision-model judgments, list decision batteries, and calibrate battery thresholds with the moderator CLI. Use for batch judgments and battery inspection.',
+    tags: ['Decisions'],
+    guidance: [
+      'Treat decision results as advisory. When fitted is false, only raw probabilities are available; do not treat them as approval.',
+      'List batteries before using a named battery. Supply exactly one of battery or questions, and use workspaceSlug for workspace batteries.',
+      'Freeform and workspace batteries stay on host. Off-host host batteries require consent for their egress class; do not bypass a denial.',
+      'Calibrate in report-only mode before explicitly writing thresholds. A backend-unavailable response requires independent judgment, not a retry loop.',
+    ],
+  },
+  {
     name: 'realtimex-secrets',
     title: 'RealTimeX Secrets',
     description: 'Manage encrypted Login, Card, Identity, SSH key and Secure note items, tags and workspace scope with the moderator CLI. Use saved fields in terminal commands or browser forms through rtxexec.',
