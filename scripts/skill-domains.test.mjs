@@ -44,6 +44,27 @@ test('assigns every focused capability to one directly named skill', () => {
   );
 });
 
+test('assigns all Decisions verbs to the moderator SDK Decisions skill', () => {
+  const decisions = [
+    ['/cli/decide', 'post', 'decide'],
+    ['/cli/calibrate-decision-battery', 'post', 'calibrateDecisionBattery'],
+    ['/cli/list-decision-batteries', 'get', 'listDecisionBatteries'],
+  ];
+  const paths = Object.fromEntries(decisions.map(([pathname, method, operationId]) => [
+    pathname, { [method]: operation(operationId, 'Decisions') },
+  ]));
+
+  const { domains, pluginOwned } = assignOperationsToDomains({ paths });
+
+  assert.equal(skillOwnersByTag().get('Decisions'), 'realtimex-decisions');
+  assert.deepEqual(pluginOwned, []);
+  assert.deepEqual(
+    domains.get('realtimex-decisions').map(({ commandName }) => commandName),
+    decisions.map(([pathname]) => pathname.slice('/cli/'.length))
+  );
+  assert.deepEqual([...domains.values()].flat(), domains.get('realtimex-decisions'));
+});
+
 test('fails generation when a CLI operation has no skill owner', () => {
   assert.throws(
     () =>
