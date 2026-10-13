@@ -197,6 +197,11 @@ export const PLUGIN_SKILL_OWNERS = [
     skill: 'realtimex-memory',
     tags: ['Memory'],
   },
+  {
+    pluginId: 'com.realtimex.moderator-sdk',
+    skill: 'realtimex-human-requests',
+    tags: ['Human Questions'],
+  },
 ];
 
 const OPERATION_DOMAIN_OVERRIDES = {
