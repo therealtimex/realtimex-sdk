@@ -42,77 +42,31 @@ explicitly; the wrapper does not interpret shell syntax.
 
 `npm test` runs isolated fixtures. `npm pack --dry-run` validates package contents.
 
-## Bound Himalaya execution (0.4.0 companion)
+## Himalaya integration withdrawn (0.5.0)
 
-The email entry requires a matching host implementing `himalaya-execution@1`.
-The released 0.3.0 package and an older host do not provide this bridge.
-Choose an email Login through the host's private setup UI. The host owns its
-credential ID/reference/password-field/account/config-target binding. `PLUGIN_ID`
-is the host-issued installed plugin record ID, distinct from its manifest ID. A
-newly authenticated terminal can use the non-secret selection:
+The 0.4.0 `rtxexec himalaya` command and its `./himalaya/runner` and
+`./himalaya/password` exports were a companion to a host contract
+(`himalaya-execution@1`) that will not ship. No released RealTimeX app
+implements it, so the command could only fail. Since 0.5.0 every
+`rtxexec himalaya …` invocation exits with status 1 and writes this one JSON
+line to stdout, without reading its options or contacting the app:
 
-```sh
-rtxexec himalaya --plugin PLUGIN_ID --account work --binding BINDING_ID --operation folders
-rtxexec himalaya --plugin PLUGIN_ID --account work --binding BINDING_ID \
-  --operation envelopes --folder INBOX --page 1 --page-size 200 --query 'subject -invoice'
+```json
+{"ok":false,"code":"RTXEXEC_HIMALAYA_DEPRECATED","message":"Run himalaya directly with keyring/auth-command credentials, or use generic rtxexec --env/--stdin secret:// bindings with a compatible consumer; see the rtxexec README."}
 ```
 
-Other bounded operations are `move --from INBOX --to Archive --uids 1,2` and
-`add-folder --folder Auto/Newsletters`. The caller must separately enforce its
-mailbox policy and confirmation requirements. Omit `--binding` only for a
-host-admitted existing unmanaged account; this does not migrate its auth command.
-No arbitrary executable, configuration path, workspace authority or password is
-accepted by the email entry.
+To work with email from a RealTimeX terminal instead:
 
-Admission uses the current terminal token and a local nonredirecting connection.
-The host must atomically validate identity, enabled state, scope, account and
-target while resolving; the SDK cannot supply that server-side implementation.
-The short-lived operation is revalidated before execution, before authentication,
-periodically during execution and before returning results. Context loss cancels
-the process. Participating config-file hashes are checked before launch and again
-after the secret-free version probe. Only verified Himalaya v1.2.0 is supported
-by this adapter; other versions produce a compatibility error. The recorded
-real-binary proof uses Himalaya 1.2.0 on macOS; Linux binary verification remains
-required in the companion host proof. Windows drive targets fail closed:
-[v1.2.0's config parser](https://github.com/pimalaya/himalaya/blob/v1.2.0/src/cli.rs)
-uses a colon delimiter. Windows target/auth-command support needs a separately
-verified adapter; existing general rtxexec commands retain their platform support.
+- Run the standalone `himalaya` CLI directly, with credentials from Himalaya's
+  own keyring or auth-command (`backend.auth.cmd`) configuration.
+- Use generic `--env`/`--stdin secret://…` bindings only with a program that
+  actually reads its credential from that variable or from stdin. Himalaya
+  does not read an arbitrary password variable or raw stdin on its own.
+- Do not use generic rtxexec as a password-printing `backend.auth.cmd`. Output
+  masking replaces the printed value, so authentication would fail.
 
-The shared runner strips RealTimeX and other API credentials, injects the selected
-password into only the admitted Himalaya child and sets a binding marker. Its
-fixed inner helper writes one exact line into Himalaya's private auth pipe;
-CR/LF/NUL passwords are rejected and ordinary spaces are retained. Do not put
-generic rtxexec or a `secret://` URI inside `backend.auth.cmd`: masking the helper
-would destroy the authentication value. The host writes the fixed helper path
-and non-secret binding ID. The host uses the same runner for desktop operations;
-desktop execution does not borrow a terminal token or send a password to the UI.
-
-Results are bounded JSON. Known password encodings are masked, and private
-diagnostics become fixed auth/network/TLS/config/account codes. Cancellation,
-timeout and output-limit failures remain distinct. Existing pass/GnuPG/keyring
-location variables are retained only for unmanaged accounts. Credentials are
-resolved for each admitted operation, never saved in config, arguments or a
-local cache. This retains the normal trust in the selected local binary and
-config commands; output masking cannot isolate malicious local code.
-
-Mutations retain the admitted `operationId`. A confirmed success has
-`outcome: "confirmed"`; an admitted failure has `not_started` before a successful
-command spawn or `uncertain` afterward. Cancellation and final validation denial
-cannot undo an effect. Keep the original receipt and reconcile before retrying;
-the adapter never automatically replays a move or folder creation.
-
-The host can consume the CJS package exports or bundle the identical fixed assets
-before this companion is published. From this repository, use
-`node rtxexec/scripts/export-himalaya-host.mjs --write --output /absolute/host/asset/directory`,
-then the same command with `--check`. The source/version/hash manifest binds the
-host copy to this companion; no SDK worktree path is needed at runtime. Recheck
-the bundle whenever either source changes. This build step does not implement
-the host principal, binding database, Secrets resolution or private selection UI.
-
-Run the optional real binary proof only against its disposable loopback fixture:
-`HIMALAYA_TEST_BIN=/absolute/path/to/himalaya npm test`. It checks the private
-authentication pipe, synthetic rotation and an unmanaged helper without touching
-the user's vault, account config or mailbox.
+Generic execution is unchanged: `rtxexec --env … -- himalaya …` runs a binary
+named `himalaya` like any other executable.
 
 
 ## Browser Login credentials (0.2.0)
@@ -225,3 +179,15 @@ allowed website origin. It records usage for both without copying values into th
 site item. Omitting `--sso` uses normal credentials; selection never automatically
 follows further links. Ask when the provider/account is ambiguous, and handle
 already signed-in sessions or MFA through the normal browser workflow.
+
+## Changelog
+
+### 0.5.0
+
+- Breaking: `rtxexec himalaya` is withdrawn. Every invocation returns
+  `RTXEXEC_HIMALAYA_DEPRECATED` with exit status 1 (see above).
+- Breaking: the `./himalaya/runner` and `./himalaya/password` exports are
+  removed. The package is CLI-only and exposes no module entry points.
+- Removed the Himalaya host asset exporter. The companion contract document is
+  now a withdrawal notice.
+- Generic `--env`/`--secret`/`--stdin`, `ssh` and browser commands are unchanged.

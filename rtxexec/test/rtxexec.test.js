@@ -5,6 +5,11 @@ import { finished } from 'node:stream/promises';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { createServer } from 'node:http';
+import { existsSync } from 'node:fs';
+import { chmod, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { parseArguments, inject } from '../src/arguments.js';
 import { SecretMask } from '../src/mask.js';
 import { resolveEndpoint, resolveSecrets } from '../src/client.js';
@@ -110,4 +115,92 @@ test('POSIX termination is forwarded to the child group', { skip: process.platfo
   await once(out, 'data'); signalSource.emit('SIGTERM');
   assert.equal(await execution, 143);
   assert.equal(signalSource.listenerCount('SIGTERM'), 0);
+});
+
+// The withdrawn 0.4.0 managed email command (realtimex-ai-app#2437). The literal is the contract.
+const himalayaDeprecated = '{"ok":false,"code":"RTXEXEC_HIMALAYA_DEPRECATED","message":"Run himalaya directly with keyring/auth-command credentials, or use generic rtxexec --env/--stdin secret:// bindings with a compatible consumer; see the rtxexec README."}\n';
+const marker = 'marker-2437-never-echoed';
+const himalayaInvocations = [
+  ['himalaya'],
+  ['himalaya', '--help'],
+  ['himalaya', '--plugin', `plugin-${marker}`, '--account', `work-${marker}`, '--binding', `binding-${marker}`, '--operation', 'folders'],
+  ['himalaya', '--plugin', `plugin-${marker}`, '--account', 'work', '--operation', 'envelopes', '--folder', 'INBOX', '--page', '1', '--page-size', '200', '--query', `subject ${marker}`],
+  ['himalaya', '--plugin', `plugin-${marker}`, '--account', 'work', '--operation', 'move', '--from', 'INBOX', '--to', 'Archive', '--uids', '1,2'],
+  ['himalaya', '--operation', `delete-${marker}`, '--config', `/tmp/${marker}.toml`, '--password', marker],
+  ['himalaya', '--env', `TOKEN=secret://${marker}`, '--', process.execPath, '-e', 'process.exit(0)'],
+];
+
+async function countingHost() {
+  const requests = [];
+  const server = createServer((req, res) => { requests.push(req.url); res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ success: true, secrets: [] })); });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  return { requests, env: { REALTIMEX_BASE_URL: `http://127.0.0.1:${server.address().port}/cli`, REALTIMEX_TERMINAL_SESSION_TOKEN: `session-${marker}` },
+    close: () => new Promise((resolve) => server.close(resolve)) };
+}
+
+test('the withdrawn himalaya command returns one fixed result without parsing, resolving, or contacting the host', async () => {
+  const host = await countingHost();
+  try {
+    for (const argv of himalayaInvocations) {
+      for (const env of [{}, host.env, { ...process.env, ...host.env }]) {
+        const out = output(); const err = output(); let resolved = 0;
+        assert.equal(await main(argv, { env, stdout: out.stream, stderr: err.stream, resolver: async () => { resolved += 1; return []; } }), 1);
+        assert.equal(out.text(), himalayaDeprecated); assert.equal(err.text(), ''); assert.equal(resolved, 0);
+        const real = output(); const realErr = output();
+        assert.equal(await main(argv, { env, stdout: real.stream, stderr: realErr.stream }), 1);
+        assert.equal(real.text(), himalayaDeprecated); assert.equal(realErr.text(), '');
+      }
+    }
+    assert.ok(!himalayaDeprecated.includes(marker));
+    assert.deepEqual(host.requests, []);
+  } finally { await host.close(); }
+});
+
+test('the installed bin reports the withdrawal without contacting the host or launching himalaya', { timeout: 20000 }, async () => {
+  const host = await countingHost();
+  const root = await mkdtemp(path.join(tmpdir(), 'rtxexec-himalaya-'));
+  const launched = path.join(root, 'launched');
+  try {
+    // A himalaya on PATH that records any launch (POSIX: Windows spawn needs a native executable).
+    if (process.platform !== 'win32') {
+      await writeFile(path.join(root, 'himalaya'), `#!/bin/sh\necho ran > '${launched}'\n`);
+      await chmod(path.join(root, 'himalaya'), 0o755);
+    }
+    const bin = fileURLToPath(new URL('../bin/rtxexec.js', import.meta.url));
+    for (const argv of himalayaInvocations) {
+      const child = spawn(process.execPath, [bin, ...argv], { env: { ...process.env, ...host.env, PATH: `${root}${path.delimiter}${process.env.PATH}` }, stdio: ['ignore', 'pipe', 'pipe'] });
+      let stdout = ''; let stderr = '';
+      child.stdout.on('data', (chunk) => { stdout += chunk; }); child.stderr.on('data', (chunk) => { stderr += chunk; });
+      const [code] = await once(child, 'close');
+      assert.equal(code, 1); assert.equal(stdout, himalayaDeprecated); assert.equal(stderr, '');
+    }
+    assert.deepEqual(host.requests, []); assert.equal(existsSync(launched), false);
+  } finally { await host.close(); await rm(root, { recursive: true, force: true }); }
+});
+
+test('generic execution still treats himalaya as an ordinary executable or argument', async () => {
+  let plan;
+  const out = output(); const err = output();
+  assert.equal(await main(['--env', `TOKEN=${reference}`, '--', 'himalaya', '--version'], { stdout: out.stream, stderr: err.stream, resolver: async (request) => { plan = request; throw new Error(value); } }), 1);
+  assert.equal(plan.command, 'himalaya'); assert.deepEqual(plan.args, ['--version']);
+  assert.equal(out.text(), ''); assert.ok(!err.text().includes('HIMALAYA') && !err.text().includes(value));
+
+  const child = output();
+  assert.equal(await main(['run', '--stdin', reference, '--', process.execPath, '-e', 'process.stdout.write(process.argv.slice(1).join(" "))', 'himalaya', '--operation', 'folders'],
+    { stdout: child.stream, stderr: output().stream, resolver: async () => [{ reference, value }] }), 0);
+  assert.equal(child.text(), 'himalaya --operation folders');
+
+  const usage = output(); const usageErr = output();
+  assert.equal(await main(['run', 'himalaya', '--operation', 'folders'], { stdout: usage.stream, stderr: usageErr.stream, resolver: async () => { throw new Error('resolved'); } }), 1);
+  assert.equal(usage.text(), ''); assert.match(usageErr.text(), /^rtxexec: Use rtxexec \[bindings\]/);
+});
+
+test('help no longer advertises managed email and the package exposes no module entry points', async () => {
+  const out = output();
+  assert.equal(await main(['--help'], { stdout: out.stream, stderr: output().stream }), 0);
+  assert.match(out.text(), /^rtxexec — run commands/); assert.doesNotMatch(out.text(), /himalaya|email/i);
+  for (const specifier of ['@realtimex/rtxexec', '@realtimex/rtxexec/himalaya/runner', '@realtimex/rtxexec/himalaya/password', '@realtimex/rtxexec/src/cli.js']) {
+    await assert.rejects(import(specifier), { code: 'ERR_PACKAGE_PATH_NOT_EXPORTED' });
+  }
+  assert.equal(existsSync(new URL('../src/himalaya', import.meta.url)), false);
 });
