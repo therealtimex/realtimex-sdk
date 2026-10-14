@@ -112,6 +112,36 @@ test('leaves Memory operations to the RealTimeX Memory plugin skill', () => {
   assert.doesNotMatch(renderRouterSkill('9.8.7'), /realtimex-memory/);
 });
 
+test('leaves Human question operations to the app-owned Human requests skill', () => {
+  const questions = [
+    ['/cli/ask-human', 'post', 'askHuman'],
+    ['/cli/list-human-questions', 'get', 'listHumanQuestions'],
+    ['/cli/get-human-question/{requestId}', 'get', 'getHumanQuestion'],
+    ['/cli/resolve-human-question/{requestId}', 'post', 'resolveHumanQuestion'],
+    ['/cli/cancel-human-question/{requestId}', 'post', 'cancelHumanQuestion'],
+    ['/cli/resend-human-question/{requestId}', 'post', 'resendHumanQuestion'],
+  ];
+  const paths = {
+    '/cli/list-workspaces': { get: operation('listWorkspaces', 'Workspaces') },
+  };
+  for (const [pathname, method, operationId] of questions) {
+    paths[pathname] = { [method]: operation(operationId, 'Human Questions') };
+  }
+
+  const { domains, pluginOwned } = assignOperationsToDomains({ paths });
+
+  assert.deepEqual(
+    pluginOwned.map(({ operationId, owner }) => [operationId, owner]),
+    questions.map(([, , operationId]) => [operationId, 'com.realtimex.moderator-sdk/realtimex-human-requests'])
+  );
+  assert.deepEqual(
+    [...domains.values()].flat().map(({ operationId }) => operationId),
+    ['listWorkspaces']
+  );
+  const sdkSkillNames = [ROUTER_SKILL.name, ...DOMAIN_SKILLS.map(({ name }) => name)];
+  assert.ok(!sdkSkillNames.includes('realtimex-human-requests'));
+});
+
 test('fails generation when a Memory operation also carries an SDK skill tag', () => {
   assert.throws(
     () =>

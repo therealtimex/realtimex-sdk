@@ -8,7 +8,6 @@ import { finished } from 'node:stream/promises';
 import { parseArguments, inject } from './arguments.js';
 import { resolveSecrets } from './client.js';
 import { SecretMask } from './mask.js';
-import { parseHimalayaArguments, runTerminalHimalaya, himalayaFailureResult } from './himalaya/terminal.js';
 
 const help = `rtxexec — run commands using RealTimeX secrets
 
@@ -34,14 +33,6 @@ SSH/Git use:
   rtxexec ssh secret://name -- ssh user@host
   rtxexec ssh secret://name -- git fetch origin
   Requires OpenSSH. Creates an owner-only temporary key, removed after exit.
-
-Managed email use (host Himalaya execution contract v1):
-  rtxexec himalaya --plugin <id> --account <name> [--binding <id>] --operation folders
-  Other bounded operations: envelopes --folder <name> --page <n> --page-size <n>
-    [--query <filter>], move --from <name> --to <name> --uids <id,id>,
-    add-folder --folder <name>.
-  Host admission selects the binary/config and validates the live terminal,
-  plugin, account and Secrets binding. No paths, passwords or commands accepted.
 
 Manage secrets with realtimex-pp-cli or Settings > Secrets.
 Requires the running app and its terminal-session environment. No secret cache.
@@ -85,20 +76,14 @@ export async function execute(plan, injected, { stdout = process.stdout, stderr 
   }
 }
 
-export async function main(argv, { env = process.env, stdout = process.stdout, stderr = process.stderr, resolver = resolveSecrets,
-  emailRunner = runTerminalHimalaya } = {}) {
+// The 0.4.0 managed email command needed a host contract that will not ship (realtimex-ai-app#2437).
+// Answer every invocation with a fixed result before parsing or contacting the host.
+const himalayaDeprecation = Object.freeze({ ok: false, code: 'RTXEXEC_HIMALAYA_DEPRECATED',
+  message: 'Run himalaya directly with keyring/auth-command credentials, or use generic rtxexec --env/--stdin secret:// bindings with a compatible consumer; see the rtxexec README.' });
+
+export async function main(argv, { env = process.env, stdout = process.stdout, stderr = process.stderr, resolver = resolveSecrets } = {}) {
+  if (argv[0] === 'himalaya') { stdout.write(`${JSON.stringify(himalayaDeprecation)}\n`); return 1; }
   try {
-    if (argv[0] === 'himalaya') {
-      const request = parseHimalayaArguments(argv);
-      try {
-        const result = await emailRunner(request, env);
-        stdout.write(`${JSON.stringify(result)}\n`);
-        return 0;
-      } catch (error) {
-        stdout.write(`${JSON.stringify(himalayaFailureResult(error))}\n`);
-        return 1;
-      }
-    }
     if (['browser-tabs', 'browser-login', 'browser-fill'].includes(argv[0])) {
       const result = await runBrowser(parseBrowserArguments(argv), env, { resolver });
       stdout.write(`${JSON.stringify(result)}\n`);
