@@ -77,12 +77,13 @@ export const DOMAIN_SKILLS = [
     name: 'realtimex-browser-sessions',
     title: 'RealTimeX Browser Sessions',
     description:
-      'List, create, start, stop, and delete isolated RealTimeX browser sessions. Use for named browser runtime and profile lifecycle work.',
+      'List, create, start, stop, delete and show tabs of isolated RealTimeX browser sessions. Use for named browser runtime and profile lifecycle work.',
     tags: ['Browser Sessions'],
     guidance: [
       'List browser sessions before lifecycle changes and use the exact returned session name.',
       'Create a named session before starting it; stop it before permanent deletion.',
       'Treat each named browser session as an isolated profile and do not substitute terminal-session identifiers.',
+      'Before interacting with a tab over CDP, run `focus-browser-tab <sessionName> --tab-id <id>` so it becomes the displayed tab; add `--focus-window` only when the Human should see it.',
     ],
   },
   {
