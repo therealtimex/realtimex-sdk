@@ -13,6 +13,12 @@ import path from 'node:path';
 // error. A set or reset runs plugin lifecycle callbacks and rollback, and an
 // uncertain outcome must be read back, not repeated, so these two mutations
 // are sent exactly once, like the Delegate mutations.
+//
+// Reads go to the server every time. The generated client answers a repeated
+// GET from a five-minute response cache, cleared only by a successful CLI
+// mutation, and falls back to local data when the server is unreachable. A
+// set the plugin refused, or a change made in Settings, would then read back
+// stale state.
 
 const MARKER = '// realtimex-sdk workspace plugin command contract';
 const CLIENT_MARKER = 'func isWorkspacePluginMutationPath(';
@@ -105,12 +111,25 @@ function argumentGuard(command, maxArgs) {
 `;
 }
 
+function liveRead(edit, command) {
+  edit(
+    /(c, err := flags\.newClient\(\)\n(\s*)if err != nil \{\n\s*return err\n\s*\}\n)/,
+    (block, _match, indent) => `${block}${indent}c.NoCache = true\n`
+  );
+  edit(
+    `resolveReadWithStrategy(cmd.Context(), c, flags, "auto", "${command}"`,
+    `resolveReadWithStrategy(cmd.Context(), c, flags, "live", "${command}"`
+  );
+}
+
 const COMMANDS = {
   'list-workspace-plugins': (edit) => {
     edit('c, err := flags.newClient()', `${argumentGuard('list-workspace-plugins', 0)}			c, err := flags.newClient()`);
+    liveRead(edit, 'list-workspace-plugins');
   },
   'get-workspace-plugin': (edit) => {
     edit('c, err := flags.newClient()', `${argumentGuard('get-workspace-plugin', 1)}			c, err := flags.newClient()`);
+    liveRead(edit, 'get-workspace-plugin');
   },
   'set-workspace-plugin': (edit) => {
     edit(/var bodyConfig string\s+var bodyEnabled bool/, 'var bodyConfig []string\n\tvar bodyConfigJSON string\n\tvar bodyEnabled string');

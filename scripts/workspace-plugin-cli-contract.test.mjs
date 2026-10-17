@@ -15,10 +15,18 @@ const GENERATED = {
   'list-workspace-plugins': `func newListWorkspacePluginsPromotedCmd(flags *rootFlags) *cobra.Command {
 	var flagWorkspaceSlug string
 			c, err := flags.newClient()
+			if err != nil {
+				return err
+			}
+			data, prov, err := resolveReadWithStrategy(cmd.Context(), c, flags, "auto", "list-workspace-plugins", false, path, params, nil, cmd.ErrOrStderr())
 }`,
   'get-workspace-plugin': `func newGetWorkspacePluginPromotedCmd(flags *rootFlags) *cobra.Command {
 	var flagWorkspaceSlug string
 			c, err := flags.newClient()
+			if err != nil {
+				return err
+			}
+			data, prov, err := resolveReadWithStrategy(cmd.Context(), c, flags, "auto", "get-workspace-plugin", false, path, params, nil, cmd.ErrOrStderr())
 }`,
   'set-workspace-plugin': `func newSetWorkspacePluginPromotedCmd(flags *rootFlags) *cobra.Command {
 	var flagWorkspaceSlug string
@@ -102,7 +110,11 @@ test('patches set and reset into the workspace plugin command contract', () => {
     assert.ok(!reset.includes('flags.dryRun {\n\t\t\t\treturn fmt.Errorf("required flag'));
     assert.ok(reset.indexOf('if !flagYes {') < reset.indexOf('c, err := flags.newClient()'));
     for (const command of ['list-workspace-plugins', 'get-workspace-plugin']) {
-      assert.match(tree.read(command), /if len\(args\) > [01] \{/);
+      const read = tree.read(command);
+      assert.match(read, /if len\(args\) > [01] \{/);
+      assert.match(read, /return err\n\t\t\t\}\n\t\t\tc\.NoCache = true\n/);
+      assert.match(read, new RegExp(`resolveReadWithStrategy\\(cmd\\.Context\\(\\), c, flags, "live", "${command}"`));
+      assert.ok(!read.includes('"auto"'));
     }
     assert.ok(fs.existsSync(path.join(tree.dir, WORKSPACE_PLUGIN_HELPER_FILE)));
     const client = tree.client();
@@ -286,6 +298,16 @@ test('compiled workspace plugin commands send the documented requests', { skip: 
       assert.equal(requests.length - before, 1, `${command} was replayed`);
       assert.doesNotMatch(exploded.output, /retrying/);
     }
+    // Every read reaches the server: a repeated get is not answered from the
+    // response cache, so a refused set or a Settings change reads back.
+    const readsBefore = requests.length;
+    for (let i = 0; i < 2; i += 1) {
+      const fresh = await run(['get-workspace-plugin', 'plugin-a', ...target]);
+      assert.equal(fresh.code, 0, fresh.output);
+    }
+    assert.equal(requests.length - readsBefore, 2);
+    await refused(['list-workspace-plugins', ...target, '--data-source', 'local'], /live/);
+
     const flakyBefore = requests.length;
     const flaky = await run(['get-workspace-plugin', 'flaky', ...target]);
     assert.equal(flaky.code, 0, flaky.output);
