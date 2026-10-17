@@ -8,8 +8,14 @@ import path from 'node:path';
 // These commands instead take repeated --config KEY=VALUE or one
 // --config-json object, an explicit --enabled true|false, and a reset that
 // sends nothing without its own --yes (rtgit #2535).
+//
+// The generated client also replays any request on 5xx, 429 or a transport
+// error. A set or reset runs plugin lifecycle callbacks and rollback, and an
+// uncertain outcome must be read back, not repeated, so these two mutations
+// are sent exactly once, like the Delegate mutations.
 
 const MARKER = '// realtimex-sdk workspace plugin command contract';
+const CLIENT_MARKER = 'func isWorkspacePluginMutationPath(';
 
 export const WORKSPACE_PLUGIN_HELPER_FILE = 'workspace_plugin_contract.go';
 
@@ -157,6 +163,44 @@ const COMMANDS = {
   },
 };
 
+// The build stage's Delegate exemption extends the same `maxRetries` (see
+// patchCliDelegateContracts in build-pp-cli-packages.mjs), so this keeps the
+// variable form it accepts.
+export function patchWorkspacePluginClient(sourceDir) {
+  const file = path.join(sourceDir, 'internal/client/client.go');
+  let source = fs.readFileSync(file, 'utf8');
+  if (source.includes(CLIENT_MARKER)) return;
+  const replace = (pattern, value) => {
+    const next = source.replace(pattern, value);
+    if (next === source) {
+      throw new Error('Workspace plugin command contract changed: client retry policy');
+    }
+    source = next;
+  };
+  replace(
+    'func (c *Client) doInternal(',
+    `// Workspace plugin set and reset are never replayed automatically (rtgit #2535).
+${CLIENT_MARKER}method, path string) bool {
+\tif !isMutatingVerb(method) {
+\t\treturn false
+\t}
+\treturn strings.HasPrefix(path, "/set-workspace-plugin/") ||
+\t\tstrings.HasPrefix(path, "/reset-workspace-plugin/")
+}
+
+func (c *Client) doInternal(`
+  );
+  replace(
+    /\tconst maxRetries = 3\n/,
+    `\tmaxRetries := 3
+\tif !readOnlyIntent && isWorkspacePluginMutationPath(method, path) {
+\t\tmaxRetries = 0
+\t}
+`
+  );
+  fs.writeFileSync(file, source);
+}
+
 export function patchWorkspacePluginCommands(sourceDir) {
   const dir = path.join(sourceDir, 'internal/cli');
   let patched = 0;
@@ -178,6 +222,7 @@ export function patchWorkspacePluginCommands(sourceDir) {
   }
   if (patched > 0) {
     fs.writeFileSync(path.join(dir, WORKSPACE_PLUGIN_HELPER_FILE), HELPER_SOURCE);
+    patchWorkspacePluginClient(sourceDir);
   }
   return patched;
 }

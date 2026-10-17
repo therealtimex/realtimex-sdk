@@ -425,9 +425,11 @@ function patchCliDelegateContracts(sourceDir) {
 
 $1$2`
   );
+  // The generation stage may already have made maxRetries a variable for
+  // workspace plugin mutations (workspace-plugin-cli-contract.mjs); extend it.
   const retryPatched = replaceInFile(
     clientPath,
-    /\tconst maxRetries = 3\n/,
+    /\t(?:const maxRetries = 3|maxRetries := 3)\n/,
     `\tmaxRetries := 3
 \tif !readOnlyIntent && isDelegateMutationPath(method, path) {
 \t\tmaxRetries = 0

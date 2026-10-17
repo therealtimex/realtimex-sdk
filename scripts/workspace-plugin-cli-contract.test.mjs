@@ -55,6 +55,16 @@ const GENERATED = {
 }`,
 };
 
+// The retry policy anchors in the generated client.
+const GENERATED_CLIENT = `package client
+
+func (c *Client) doInternal(ctx context.Context, method, path string, params map[string]string, body any, headerOverrides map[string]string, readOnlyIntent bool) (json.RawMessage, int, error) {
+\tconst maxRetries = 3
+\tfor attempt := 0; attempt <= maxRetries; attempt++ {
+\t}
+}
+`;
+
 function generatedTree(commands = Object.keys(GENERATED)) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'workspace-plugin-contract-'));
   const dir = path.join(root, 'internal/cli');
@@ -62,7 +72,15 @@ function generatedTree(commands = Object.keys(GENERATED)) {
   for (const command of commands) {
     fs.writeFileSync(path.join(dir, `promoted_${command}.go`), GENERATED[command]);
   }
-  return { root, read: (command) => fs.readFileSync(path.join(dir, `promoted_${command}.go`), 'utf8'), dir };
+  const clientFile = path.join(root, 'internal/client/client.go');
+  fs.mkdirSync(path.dirname(clientFile), { recursive: true });
+  fs.writeFileSync(clientFile, GENERATED_CLIENT);
+  return {
+    root,
+    dir,
+    read: (command) => fs.readFileSync(path.join(dir, `promoted_${command}.go`), 'utf8'),
+    client: () => fs.readFileSync(clientFile, 'utf8'),
+  };
 }
 
 test('patches set and reset into the workspace plugin command contract', () => {
@@ -87,10 +105,16 @@ test('patches set and reset into the workspace plugin command contract', () => {
       assert.match(tree.read(command), /if len\(args\) > [01] \{/);
     }
     assert.ok(fs.existsSync(path.join(tree.dir, WORKSPACE_PLUGIN_HELPER_FILE)));
+    const client = tree.client();
+    assert.match(client, /func isWorkspacePluginMutationPath\(method, path string\) bool/);
+    assert.match(client, /"\/set-workspace-plugin\/"/);
+    assert.match(client, /"\/reset-workspace-plugin\/"/);
+    assert.match(client, /\tmaxRetries := 3\n\tif !readOnlyIntent && isWorkspacePluginMutationPath\(method, path\) \{\n\t\tmaxRetries = 0\n\t\}/);
+    assert.ok(!client.includes('const maxRetries'));
 
-    const once = Object.keys(GENERATED).map(tree.read);
+    const once = [...Object.keys(GENERATED).map(tree.read), tree.client()];
     assert.equal(patchWorkspacePluginCommands(tree.root), 4);
-    assert.deepEqual(Object.keys(GENERATED).map(tree.read), once);
+    assert.deepEqual([...Object.keys(GENERATED).map(tree.read), tree.client()], once);
   } finally {
     fs.rmSync(tree.root, { recursive: true, force: true });
   }
@@ -101,6 +125,23 @@ test('an app spec without workspace plugin commands is left alone', () => {
   try {
     assert.equal(patchWorkspacePluginCommands(tree.root), 0);
     assert.ok(!fs.existsSync(path.join(tree.dir, WORKSPACE_PLUGIN_HELPER_FILE)));
+    assert.equal(tree.client(), GENERATED_CLIENT);
+  } finally {
+    fs.rmSync(tree.root, { recursive: true, force: true });
+  }
+});
+
+test('fails loudly when the generated retry policy no longer matches', () => {
+  const tree = generatedTree();
+  try {
+    fs.writeFileSync(
+      path.join(tree.root, 'internal/client/client.go'),
+      GENERATED_CLIENT.replace('const maxRetries = 3', 'const maxRetries = 5')
+    );
+    assert.throws(
+      () => patchWorkspacePluginCommands(tree.root),
+      /Workspace plugin command contract changed: client retry policy/
+    );
   } finally {
     fs.rmSync(tree.root, { recursive: true, force: true });
   }
@@ -135,6 +176,16 @@ test('compiled workspace plugin commands send the documented requests', { skip: 
       token: req.headers.authorization,
     });
     res.setHeader('Content-Type', 'application/json');
+    if (url.pathname.endsWith('/explode')) {
+      res.statusCode = 500;
+      res.end(JSON.stringify({ success: false, error: 'Internal server error' }));
+      return;
+    }
+    if (url.pathname.endsWith('/flaky') && requests.filter((request) => request.path === url.pathname).length === 1) {
+      res.statusCode = 500;
+      res.end(JSON.stringify({ success: false, error: 'Internal server error' }));
+      return;
+    }
     if (url.pathname.endsWith('/refused')) {
       res.statusCode = 400;
       res.end(JSON.stringify({ success: false, error: 'Plugin not found.', code: 'PLUGIN_NOT_FOUND' }));
@@ -225,6 +276,20 @@ test('compiled workspace plugin commands send the documented requests', { skip: 
     const reset = await run(['reset-workspace-plugin', 'plugin-a', ...target, '--yes']);
     assert.equal(reset.code, 0, reset.output);
     assert.deepEqual(requests.at(-1), { method: 'DELETE', path: '/cli/reset-workspace-plugin/plugin-a', query: { workspaceSlug: 'scratch', yes: 'true' }, body: null, token: 'RealtimeX-Terminal fixture-session-token' });
+
+    // A set or reset is sent exactly once, even on a 5xx: its outcome is read
+    // back, not replayed. Reads keep the generated retry.
+    for (const [command, extra] of [['set-workspace-plugin', ['--enabled', 'false']], ['reset-workspace-plugin', ['--yes']]]) {
+      const before = requests.length;
+      const exploded = await run([command, 'explode', ...target, ...extra]);
+      assert.notEqual(exploded.code, 0, exploded.output);
+      assert.equal(requests.length - before, 1, `${command} was replayed`);
+      assert.doesNotMatch(exploded.output, /retrying/);
+    }
+    const flakyBefore = requests.length;
+    const flaky = await run(['get-workspace-plugin', 'flaky', ...target]);
+    assert.equal(flaky.code, 0, flaky.output);
+    assert.equal(requests.length - flakyBefore, 2);
 
     const failed = await run(['get-workspace-plugin', 'refused', ...target]);
     assert.notEqual(failed.code, 0);
