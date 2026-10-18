@@ -168,6 +168,10 @@ export const DOMAIN_SKILLS = [
       'List plugins or skills before changing them and use the exact returned identifier.',
       'Inspect a plugin schema before configuration and never invent configuration keys.',
       'After reloading agent skills, reload the caller skill context before relying on changed instructions.',
+      'To turn a plugin on or off in one workspace or change its workspace settings, use `list-workspace-plugins`, `get-workspace-plugin`, `set-workspace-plugin` and `reset-workspace-plugin` with `--workspace-slug <slug>`. Do not use the global `enable-plugin`, `disable-plugin` or `configure-plugin` for a one-workspace change, and do not ask the Human to make it in Workspace Settings.',
+      'Run `get-workspace-plugin` before `set-workspace-plugin` and set only keys from its `setupSchema`. Use `--enabled true` or `--enabled false` for the selection. Use repeated `--config KEY=VALUE`, or one `--config-json \'<object>\'`, to change settings; settings you leave out keep their values. Secret fields are refused: ask the Human to set them in Workspace Settings → Plugins.',
+      'In the read-back, `workspaceEnabled` is the saved selection and `enabled` the effective state; a global disable or activation pause can make them differ. `provisioning` is always null, so confirm what a plugin provisioned through its own status.',
+      '`reset-workspace-plugin` removes the selection and every workspace setting, including secrets set in Workspace Settings. It needs its own `--yes`, which `--agent` does not supply. Record `get-workspace-plugin` first, and prefer `set-workspace-plugin` to put back an earlier state.',
     ],
   },
   {

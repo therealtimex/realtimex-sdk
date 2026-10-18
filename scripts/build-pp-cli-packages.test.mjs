@@ -11,6 +11,7 @@ import {
   patchCliDelegateContracts,
   patchCliTerminalSessionAuth,
 } from './build-pp-cli-packages.mjs';
+import { patchWorkspacePluginClient } from './workspace-plugin-cli-contract.mjs';
 
 function writeFixture(sourceDir) {
   const configDir = path.join(sourceDir, 'internal', 'config');
@@ -457,6 +458,30 @@ test('rejects changed numeric contracts in present Delegate commands', () => {
     const filePath = path.join(sourceDir, 'internal', 'cli', 'promoted_save-delegate-policy-draft.go');
     fs.writeFileSync(filePath, fs.readFileSync(filePath, 'utf8').replace('bodyExpectedRevision != 0', 'bodyExpectedRevision > 0'));
     assert.throws(() => patchCliDelegateContracts(sourceDir), /required numeric body presence/);
+  } finally {
+    fs.rmSync(sourceDir, { recursive: true, force: true });
+  }
+});
+
+// rtgit #2535: the generation stage exempts workspace plugin set/reset from
+// automatic replay first; the Delegate exemption must extend that policy.
+test('keeps both no-replay exemptions when workspace plugin commands exist', () => {
+  const sourceDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pp-cli-no-replay-'));
+  try {
+    writeDelegateFixture(sourceDir);
+    patchWorkspacePluginClient(sourceDir);
+    patchCliDelegateContracts(sourceDir);
+
+    const client = fs.readFileSync(
+      path.join(sourceDir, 'internal', 'client', 'client.go'),
+      'utf8'
+    );
+    assert.match(client, /func isWorkspacePluginMutationPath/);
+    assert.match(client, /func isDelegateMutationPath/);
+    assert.equal(client.match(/\tmaxRetries := 3\n/g).length, 1);
+    assert.match(client, /isDelegateMutationPath\(method, path\) \{\n\t\tmaxRetries = 0/);
+    assert.match(client, /isWorkspacePluginMutationPath\(method, path\) \{\n\t\tmaxRetries = 0/);
+    assert.doesNotMatch(client, /const maxRetries/);
   } finally {
     fs.rmSync(sourceDir, { recursive: true, force: true });
   }

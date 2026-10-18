@@ -22,6 +22,7 @@
 
 import fs from 'fs';
 import { patchSecretCommands } from './secret-cli-contract.mjs';
+import { patchWorkspacePluginCommands } from './workspace-plugin-cli-contract.mjs';
 import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -442,6 +443,7 @@ function main() {
 
   generatePrintingPressProject();
   patchSecretCommands(PP_OUTPUT_DIR);
+  patchWorkspacePluginCommands(PP_OUTPUT_DIR);
   patchCliVersion();
   patchGeneratedCliDefaults();
   packageSkills();

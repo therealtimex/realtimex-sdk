@@ -65,6 +65,41 @@ test('assigns all Decisions verbs to the moderator SDK Decisions skill', () => {
   assert.deepEqual([...domains.values()].flat(), domains.get('realtimex-decisions'));
 });
 
+// rtgit #2535: the per-workspace plugin commands belong to the plugin skill,
+// which tells agents to use them instead of asking the Human.
+test('assigns the workspace plugin commands to the plugin and skill skill', () => {
+  const commands = [
+    ['/cli/list-workspace-plugins', 'get', 'listWorkspacePlugins'],
+    ['/cli/get-workspace-plugin/{pluginId}', 'get', 'getWorkspacePlugin'],
+    ['/cli/set-workspace-plugin/{pluginId}', 'post', 'setWorkspacePlugin'],
+    ['/cli/reset-workspace-plugin/{pluginId}', 'delete', 'resetWorkspacePlugin'],
+  ];
+  const paths = Object.fromEntries(commands.map(([pathname, method, operationId]) => [
+    pathname, { [method]: operation(operationId, 'Plugins') },
+  ]));
+
+  const { domains, pluginOwned } = assignOperationsToDomains({ paths });
+
+  assert.deepEqual(pluginOwned, []);
+  assert.deepEqual(
+    domains.get('realtimex-plugin-and-skill').map(({ commandName }) => commandName),
+    ['list-workspace-plugins', 'get-workspace-plugin', 'set-workspace-plugin', 'reset-workspace-plugin']
+  );
+
+  const domain = DOMAIN_SKILLS.find(({ name }) => name === 'realtimex-plugin-and-skill');
+  const markdown = `# Generated\n\n## Command Reference\n\n**set-workspace-plugin** — Set workspace plugin\n\n- \`realtimex-pp-cli set-workspace-plugin <pluginId>\`\n\n## Agent Mode\n`;
+  const rendered = renderDomainSkill(
+    domain,
+    [{ operationId: 'setWorkspacePlugin', commandName: 'set-workspace-plugin' }],
+    parseCommandReference(markdown),
+    '9.8.7'
+  );
+  assert.match(rendered, /--workspace-slug <slug>/);
+  assert.match(rendered, /do not ask the Human to make it in Workspace Settings/);
+  assert.match(rendered, /--config KEY=VALUE/);
+  assert.match(rendered, /needs its own `--yes`, which `--agent` does not supply/);
+});
+
 test('fails generation when a CLI operation has no skill owner', () => {
   assert.throws(
     () =>
