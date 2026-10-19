@@ -81,9 +81,10 @@ export const DOMAIN_SKILLS = [
     tags: ['Browser Sessions'],
     guidance: [
       'List browser sessions before lifecycle changes and use the exact returned session name.',
-      'Create a named session before starting it; stop it before permanent deletion.',
-      'Treat each named browser session as an isolated profile and do not substitute terminal-session identifiers.',
+      'Create a named session before starting it; stop it when the task is done and do not delete it to clean up. Pass `--profile-name` only for a profile the user created in Settings and `list-browser-profiles` shows; the host removes throwaway sessions after your agent session ends.',
+      'A session runs on a profile (a saved sign-in); without `--profile-name` it gets its own throwaway profile. Never substitute terminal-session identifiers for session names.',
       'Before interacting with a tab over CDP, run `focus-browser-tab <sessionName> --tab-id <id>` so it becomes the displayed tab; add `--focus-window` only when the Human should see it.',
+      'If you attached `agent-browser` to a session, do not run `agent-browser close`; stopping the session closes it.',
     ],
   },
   {
