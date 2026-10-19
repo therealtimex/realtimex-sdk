@@ -270,6 +270,28 @@ test('renders Delegate authority guidance separately from topology deployment', 
   assert.match(rendered, /expected-policy-version none/);
 });
 
+test('renders browser-session profile guidance without an agent-facing keep or close', () => {
+  const browser = DOMAIN_SKILLS.find(
+    ({ name }) => name === 'realtimex-browser-sessions'
+  );
+  const markdown = `# Generated\n\n## Command Reference\n\n**create-browser-session** — Create browser session\n\n- \`realtimex-pp-cli create-browser-session\`\n\n## Agent Mode\n`;
+  const rendered = renderDomainSkill(
+    browser,
+    [{ operationId: 'createBrowserSession', commandName: 'create-browser-session' }],
+    parseCommandReference(markdown),
+    '9.8.7'
+  );
+
+  assert.equal(browser.guidance.length, 5);
+  assert.match(rendered, /Pass `--profile-name` only for a profile the user created in Settings and `list-browser-profiles` shows/);
+  assert.match(rendered, /without `--profile-name` it gets its own throwaway profile/);
+  assert.match(rendered, /do not run `agent-browser close`; stopping the session closes it/);
+  assert.match(rendered, /`focus-browser-tab <sessionName> --tab-id <id>`/);
+  assert.doesNotMatch(rendered, /isolated profile/);
+  assert.doesNotMatch(rendered, /--profile(?!-name)/);
+  assert.doesNotMatch(rendered, /keep-browser-profile|delete-browser-profile/);
+});
+
 test('renders the complete Delegate command catalog into one focused skill', () => {
   const operationIds = [
     'resolveDelegate',
