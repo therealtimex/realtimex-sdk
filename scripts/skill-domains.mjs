@@ -85,6 +85,8 @@ export const DOMAIN_SKILLS = [
       'A session runs on a profile (a saved sign-in); without `--profile-name` it gets its own throwaway profile. Never substitute terminal-session identifiers for session names.',
       'Before interacting with a tab over CDP, run `focus-browser-tab <sessionName> --tab-id <id>` so it becomes the displayed tab; add `--focus-window` only when the Human should see it.',
       'If you attached `agent-browser` to a session, do not run `agent-browser close`; stopping the session closes it.',
+      '`list-browser-sessions` returns `control` per session (`mode` is `agent`, `person` or `idle`; null with browser control off). If a command fails because the person is in control, stop and wait for the hand-back message; to check later, run `list-browser-sessions` once and read `control.mode`, never in a loop.',
+      '`list-browser-downloads <sessionName>` lists the files a session downloaded, with `state`, `path` and `startedBy`; files are under `<Downloads>/RealTimeX Browser/<profile name>/`. A session entry\'s `pendingAuth` names an HTTP challenge only the person can answer.',
     ],
   },
   {
