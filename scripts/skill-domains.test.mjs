@@ -282,7 +282,7 @@ test('renders browser-session profile guidance without an agent-facing keep or c
     '9.8.7'
   );
 
-  assert.equal(browser.guidance.length, 5);
+  assert.equal(browser.guidance.length, 7);
   assert.match(rendered, /Pass `--profile-name` only for a profile the user created in Settings and `list-browser-profiles` shows/);
   assert.match(rendered, /without `--profile-name` it gets its own throwaway profile/);
   assert.match(rendered, /do not run `agent-browser close`; stopping the session closes it/);
@@ -290,6 +290,28 @@ test('renders browser-session profile guidance without an agent-facing keep or c
   assert.doesNotMatch(rendered, /isolated profile/);
   assert.doesNotMatch(rendered, /--profile(?!-name)/);
   assert.doesNotMatch(rendered, /keep-browser-profile|delete-browser-profile/);
+});
+
+// rtgit #2593 MR-C (ADR-2593-81): who is in control, read once and never
+// polled, and the downloads command with the HTTP sign-in field.
+test('renders browser-session control and downloads guidance', () => {
+  const browser = DOMAIN_SKILLS.find(
+    ({ name }) => name === 'realtimex-browser-sessions'
+  );
+  const markdown = `# Generated\n\n## Command Reference\n\n**list-browser-sessions** — List browser sessions\n\n- \`realtimex-pp-cli list-browser-sessions\`\n\n## Agent Mode\n`;
+  const rendered = renderDomainSkill(
+    browser,
+    [{ operationId: 'listBrowserSessions', commandName: 'list-browser-sessions' }],
+    parseCommandReference(markdown),
+    '9.8.7'
+  );
+
+  assert.match(rendered, /`list-browser-sessions` returns `control` per session \(`mode` is `agent`, `person` or `idle`; null with browser control off\)/);
+  assert.match(rendered, /run `list-browser-sessions` once and read `control.mode`, never in a loop/);
+  assert.match(rendered, /`list-browser-downloads <sessionName>` lists the files a session downloaded, with `state`, `path` and `startedBy`/);
+  assert.match(rendered, /`<Downloads>\/RealTimeX Browser\/<profile name>\/`/);
+  assert.match(rendered, /A session entry's `pendingAuth` names an HTTP challenge only the person can answer/);
+  assert.doesNotMatch(rendered, /get-browser-session|poll/);
 });
 
 test('renders the complete Delegate command catalog into one focused skill', () => {
