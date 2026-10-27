@@ -284,10 +284,13 @@ test('renders browser-session profile guidance without an agent-facing keep or c
 
   assert.equal(browser.guidance.length, 7);
   assert.match(rendered, /Pass `--profile-name` only for a profile the user created in Settings and `list-browser-profiles` shows/);
+  // rtgit #2593 (ADR-2593-89): the refusal an unknown profile name gets.
+  assert.match(rendered, /a name `list-browser-profiles` does not show answers `404 profile-not-found` with `knownProfiles`/);
   assert.match(rendered, /without `--profile-name` it gets its own throwaway profile/);
   assert.match(rendered, /do not run `agent-browser close`; stopping the session closes it/);
   assert.match(rendered, /`focus-browser-tab <sessionName> --tab-id <id>`/);
-  assert.doesNotMatch(rendered, /isolated profile/);
+  assert.match(browser.description, /tabs of named RealTimeX browser sessions/);
+  assert.doesNotMatch(rendered, /isolated/);
   assert.doesNotMatch(rendered, /--profile(?!-name)/);
   assert.doesNotMatch(rendered, /keep-browser-profile|delete-browser-profile/);
 });

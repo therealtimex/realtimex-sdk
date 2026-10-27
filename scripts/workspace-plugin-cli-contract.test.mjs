@@ -10,7 +10,7 @@ import {
   patchWorkspacePluginCommands,
 } from './workspace-plugin-cli-contract.mjs';
 
-// The anchors Printing Press v4.20.1 renders for the four commands.
+// The anchors Printing Press v4.20.1 renders for the six commands.
 const GENERATED = {
   'list-workspace-plugins': `func newListWorkspacePluginsPromotedCmd(flags *rootFlags) *cobra.Command {
 	var flagWorkspaceSlug string
@@ -61,7 +61,34 @@ const GENERATED = {
 			}
 	cmd.Flags().StringVar(&flagYes, "yes", "", "Required true.")
 }`,
+  'list-browser-sessions': `func newListBrowserSessionsPromotedCmd(flags *rootFlags) *cobra.Command {
+			c, err := flags.newClient()
+			if err != nil {
+				return err
+			}
+			data, prov, err := resolveReadWithStrategy(cmd.Context(), c, flags, "auto", "list-browser-sessions", false, path, params, nil, cmd.ErrOrStderr())
+}`,
+  'list-browser-downloads': `func newListBrowserDownloadsPromotedCmd(flags *rootFlags) *cobra.Command {
+			c, err := flags.newClient()
+			if err != nil {
+				return err
+			}
+			path := "/list-browser-downloads/{sessionName}"
+			data, prov, err := resolveReadWithStrategy(cmd.Context(), c, flags, "auto", "list-browser-downloads", false, path, params, nil, cmd.ErrOrStderr())
+}`,
 };
+
+// The routes of the prepared spec the generator writes next to its output.
+const SPEC_ROUTES = {
+  'list-workspace-plugins': '/list-workspace-plugins',
+  'get-workspace-plugin': '/get-workspace-plugin/{pluginId}',
+  'set-workspace-plugin': '/set-workspace-plugin/{pluginId}',
+  'reset-workspace-plugin': '/reset-workspace-plugin/{pluginId}',
+  'list-browser-sessions': '/list-browser-sessions',
+  'list-browser-downloads': '/list-browser-downloads/{sessionName}',
+};
+
+const LIVE_READS = ['list-workspace-plugins', 'get-workspace-plugin', 'list-browser-sessions', 'list-browser-downloads'];
 
 // The retry policy anchors in the generated client.
 const GENERATED_CLIENT = `package client
@@ -73,12 +100,16 @@ func (c *Client) doInternal(ctx context.Context, method, path string, params map
 }
 `;
 
-function generatedTree(commands = Object.keys(GENERATED)) {
+function generatedTree(commands = Object.keys(GENERATED), specRoutes = null) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'workspace-plugin-contract-'));
   const dir = path.join(root, 'internal/cli');
   fs.mkdirSync(dir, { recursive: true });
   for (const command of commands) {
     fs.writeFileSync(path.join(dir, `promoted_${command}.go`), GENERATED[command]);
+  }
+  if (specRoutes) {
+    const paths = Object.fromEntries(specRoutes.map((route) => [route, { get: { operationId: route } }]));
+    fs.writeFileSync(path.join(root, 'filtered-openapi.json'), JSON.stringify({ openapi: '3.0.0', paths }));
   }
   const clientFile = path.join(root, 'internal/client/client.go');
   fs.mkdirSync(path.dirname(clientFile), { recursive: true });
@@ -92,9 +123,9 @@ function generatedTree(commands = Object.keys(GENERATED)) {
 }
 
 test('patches set and reset into the workspace plugin command contract', () => {
-  const tree = generatedTree();
+  const tree = generatedTree(Object.keys(GENERATED), Object.values(SPEC_ROUTES));
   try {
-    assert.equal(patchWorkspacePluginCommands(tree.root), 4);
+    assert.equal(patchWorkspacePluginCommands(tree.root), 6);
     const set = tree.read('set-workspace-plugin');
     assert.match(set, /StringArrayVar\(&bodyConfig, "config", nil,/);
     assert.match(set, /StringVar\(&bodyConfigJSON, "config-json", "",/);
@@ -109,9 +140,13 @@ test('patches set and reset into the workspace plugin command contract', () => {
     assert.ok(reset.includes('params["yes"] = "true"'));
     assert.ok(!reset.includes('flags.dryRun {\n\t\t\t\treturn fmt.Errorf("required flag'));
     assert.ok(reset.indexOf('if !flagYes {') < reset.indexOf('c, err := flags.newClient()'));
-    for (const command of ['list-workspace-plugins', 'get-workspace-plugin']) {
+    for (const command of LIVE_READS) {
       const read = tree.read(command);
-      assert.match(read, /if len\(args\) > [01] \{/);
+      if (command.includes('workspace-plugin')) {
+        assert.match(read, /if len\(args\) > [01] \{/);
+      } else {
+        assert.ok(!read.includes('if len(args) >'), `${command} gained an argument guard`);
+      }
       assert.match(read, /return err\n\t\t\t\}\n\t\t\tc\.NoCache = true\n/);
       assert.match(read, new RegExp(`resolveReadWithStrategy\\(cmd\\.Context\\(\\), c, flags, "live", "${command}"`));
       assert.ok(!read.includes('"auto"'));
@@ -125,8 +160,35 @@ test('patches set and reset into the workspace plugin command contract', () => {
     assert.ok(!client.includes('const maxRetries'));
 
     const once = [...Object.keys(GENERATED).map(tree.read), tree.client()];
-    assert.equal(patchWorkspacePluginCommands(tree.root), 4);
+    assert.equal(patchWorkspacePluginCommands(tree.root), 6);
     assert.deepEqual([...Object.keys(GENERATED).map(tree.read), tree.client()], once);
+  } finally {
+    fs.rmSync(tree.root, { recursive: true, force: true });
+  }
+});
+
+// rtgit #2593: a route the spec has but Printing Press wrote under another
+// name would otherwise be skipped, and the cached read would ship unnoticed.
+test('fails loudly when a route in the spec has no generated command file', () => {
+  for (const missing of ['list-browser-sessions', 'list-browser-downloads']) {
+    const tree = generatedTree(Object.keys(GENERATED).filter((command) => command !== missing), Object.values(SPEC_ROUTES));
+    try {
+      assert.throws(
+        () => patchWorkspacePluginCommands(tree.root),
+        new RegExp(`Workspace plugin command contract changed: ${missing} is in the spec but promoted_${missing}\\.go was not generated`)
+      );
+    } finally {
+      fs.rmSync(tree.root, { recursive: true, force: true });
+    }
+  }
+});
+
+test('an older spec without the downloads route still patches the rest', () => {
+  const commands = Object.keys(GENERATED).filter((command) => command !== 'list-browser-downloads');
+  const tree = generatedTree(commands, commands.map((command) => SPEC_ROUTES[command]));
+  try {
+    assert.equal(patchWorkspacePluginCommands(tree.root), 5);
+    assert.match(tree.read('list-browser-sessions'), /c\.NoCache = true/);
   } finally {
     fs.rmSync(tree.root, { recursive: true, force: true });
   }
@@ -207,8 +269,10 @@ test('compiled workspace plugin commands send the documented requests', { skip: 
   });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'workspace-plugin-cli-home-'));
-  async function run(args) {
-    const child = spawn(binary, [...args, '--json', '--no-cache'], {
+  // Most runs pass --no-cache so each assertion sees its own request; the
+  // live-read checks leave it off, as an agent does.
+  async function run(args, { cache = false } = {}) {
+    const child = spawn(binary, [...args, '--json', ...(cache ? [] : ['--no-cache'])], {
       env: {
         PATH: process.env.PATH,
         HOME: home,
@@ -298,15 +362,25 @@ test('compiled workspace plugin commands send the documented requests', { skip: 
       assert.equal(requests.length - before, 1, `${command} was replayed`);
       assert.doesNotMatch(exploded.output, /retrying/);
     }
-    // Every read reaches the server: a repeated get is not answered from the
-    // response cache, so a refused set or a Settings change reads back.
-    const readsBefore = requests.length;
-    for (let i = 0; i < 2; i += 1) {
-      const fresh = await run(['get-workspace-plugin', 'plugin-a', ...target]);
-      assert.equal(fresh.code, 0, fresh.output);
+    // Every read reaches the server: a repeated read is not answered from the
+    // response cache, so a refused set, a Settings change, the person taking
+    // over or a finished download reads back (rtgit #2535, #2593).
+    for (const [args, route] of [
+      [['get-workspace-plugin', 'plugin-a', ...target], '/cli/get-workspace-plugin/plugin-a'],
+      [['list-workspace-plugins', ...target], '/cli/list-workspace-plugins'],
+      [['list-browser-sessions'], '/cli/list-browser-sessions'],
+      [['list-browser-downloads', 'agent-task'], '/cli/list-browser-downloads/agent-task'],
+    ]) {
+      const readsBefore = requests.length;
+      for (let i = 0; i < 2; i += 1) {
+        const fresh = await run(args, { cache: true });
+        assert.equal(fresh.code, 0, fresh.output);
+      }
+      assert.deepEqual(requests.slice(readsBefore).map((request) => request.path), [route, route], `${args[0]} answered from the cache`);
     }
-    assert.equal(requests.length - readsBefore, 2);
     await refused(['list-workspace-plugins', ...target, '--data-source', 'local'], /live/);
+    await refused(['list-browser-sessions', '--data-source', 'local'], /live/);
+    await refused(['list-browser-downloads', 'agent-task', '--data-source', 'local'], /live/);
 
     const flakyBefore = requests.length;
     const flaky = await run(['get-workspace-plugin', 'flaky', ...target]);
