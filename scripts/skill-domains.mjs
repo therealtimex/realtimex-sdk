@@ -77,11 +77,11 @@ export const DOMAIN_SKILLS = [
     name: 'realtimex-browser-sessions',
     title: 'RealTimeX Browser Sessions',
     description:
-      'List, create, start, stop, delete and show tabs of isolated RealTimeX browser sessions. Use for named browser runtime and profile lifecycle work.',
+      'List, create, start, stop, delete and show tabs of named RealTimeX browser sessions. Use for named browser runtime and profile lifecycle work.',
     tags: ['Browser Sessions'],
     guidance: [
       'List browser sessions before lifecycle changes and use the exact returned session name.',
-      'Create a named session before starting it; stop it when the task is done and do not delete it to clean up. Pass `--profile-name` only for a profile the user created in Settings and `list-browser-profiles` shows; the host removes throwaway sessions after your agent session ends.',
+      'Create a named session before starting it; stop it when the task is done and do not delete it to clean up. Pass `--profile-name` only for a profile the user created in Settings and `list-browser-profiles` shows, and a name `list-browser-profiles` does not show answers `404 profile-not-found` with `knownProfiles`; the host removes throwaway sessions after your agent session ends.',
       'A session runs on a profile (a saved sign-in); without `--profile-name` it gets its own throwaway profile. Never substitute terminal-session identifiers for session names.',
       'Before interacting with a tab over CDP, run `focus-browser-tab <sessionName> --tab-id <id>` so it becomes the displayed tab; add `--focus-window` only when the Human should see it.',
       'If you attached `agent-browser` to a session, do not run `agent-browser close`; stopping the session closes it.',

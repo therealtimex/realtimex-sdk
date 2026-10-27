@@ -18,7 +18,14 @@ import path from 'node:path';
 // GET from a five-minute response cache, cleared only by a successful CLI
 // mutation, and falls back to local data when the server is unreachable. A
 // set the plugin refused, or a change made in Settings, would then read back
-// stale state.
+// stale state. The browser session and download lists read the same way: an
+// agent reads once who is in control or whether a download finished, and a
+// cached answer would show the agent in control after the person took over
+// (rtgit #2593).
+//
+// A command whose route is in the prepared spec must have its generated file;
+// a missing one means Printing Press renamed it, and skipping it would ship
+// the generated behaviour unnoticed. Older app specs simply lack some routes.
 
 const MARKER = '// realtimex-sdk workspace plugin command contract';
 const CLIENT_MARKER = 'func isWorkspacePluginMutationPath(';
@@ -180,7 +187,24 @@ const COMMANDS = {
       'cmd.Flags().BoolVar(&flagYes, "yes", false, "Confirm the reset. It removes this workspace\'s selection and every workspace setting of the plugin, including secrets set in Workspace Settings. --agent does not confirm it.")'
     );
   },
+  'list-browser-sessions': (edit) => {
+    edit('c, err := flags.newClient()', `${MARKER}\n\t\t\tc, err := flags.newClient()`);
+    liveRead(edit, 'list-browser-sessions');
+  },
+  'list-browser-downloads': (edit) => {
+    edit('c, err := flags.newClient()', `${MARKER}\n\t\t\tc, err := flags.newClient()`);
+    liveRead(edit, 'list-browser-downloads');
+  },
 };
+
+// The routes the generator was given, from the prepared spec it writes next
+// to the generated source; null when there is none (a hand-made tree).
+function specCommands(sourceDir) {
+  const file = path.join(sourceDir, 'filtered-openapi.json');
+  if (!fs.existsSync(file)) return null;
+  const { paths = {} } = JSON.parse(fs.readFileSync(file, 'utf8'));
+  return new Set(Object.keys(paths).map((route) => route.split('/')[1]));
+}
 
 // The build stage's Delegate exemption extends the same `maxRetries` (see
 // patchCliDelegateContracts in build-pp-cli-packages.mjs), so this keeps the
@@ -222,10 +246,16 @@ func (c *Client) doInternal(`
 
 export function patchWorkspacePluginCommands(sourceDir) {
   const dir = path.join(sourceDir, 'internal/cli');
+  const inSpec = specCommands(sourceDir);
   let patched = 0;
   for (const [command, patch] of Object.entries(COMMANDS)) {
     const file = path.join(dir, `promoted_${command}.go`);
-    if (!fs.existsSync(file)) continue; // Older app specs have no workspace plugin API.
+    if (!fs.existsSync(file)) {
+      if (inSpec?.has(command)) {
+        throw new Error(`Workspace plugin command contract changed: ${command} is in the spec but promoted_${command}.go was not generated`);
+      }
+      continue; // Older app specs lack the route.
+    }
     let source = fs.readFileSync(file, 'utf8');
     if (!source.includes(MARKER)) {
       patch((pattern, value) => {
