@@ -6,9 +6,17 @@ import path from 'node:path';
 import test from 'node:test';
 
 import {
+  FORBIDDEN_HELPER_FILE,
+  FORBIDDEN_HELPER_SOURCE,
+  RATE_LIMIT_HELPER_FILE,
+  RATE_LIMIT_HELPER_SOURCE,
+  RATE_LIMIT_MAX_RETRIES,
+  RATE_LIMIT_MAX_WAIT_SECONDS,
+  RATE_LIMIT_TOTAL_WAIT_SECONDS,
   patchCliBaseURLPathJoin,
   patchCliCredentialReference,
   patchCliDelegateContracts,
+  patchCliRetryAfterAndForbidden,
   patchCliTerminalSessionAuth,
 } from './build-pp-cli-packages.mjs';
 import { patchWorkspacePluginClient } from './workspace-plugin-cli-contract.mjs';
@@ -522,8 +530,284 @@ test('patches generated Delegate mutation retry, numeric presence, and machine e
     assert.match(activate, /replacePathParam\(path, "candidateId", args\[1\]\)/);
     assert.doesNotMatch(activate, /flagCandidateId/);
     assert.match(helpers, /payload\["status"\] = apiErr\.StatusCode/);
-    assert.match(helpers, /\[\]string\{"code", "details"\}/);
+    assert.match(helpers, /\[\]string\{"code", "details", "retry_after"\}/);
+    assert.match(helpers, /payload\["retry_after"\] = apiErr\.RetryAfterSeconds/);
     assert.match(helpers, /writeAPIErrorEnvelope\(flags, classified, ExitCode\(classified\)\)/);
+    // rtgit #3053: a 403 gets the auth hint only for a credential refusal.
+    assert.match(helpers, /case isScopeForbidden\(forbiddenBody\):\n\t\t\tclassified = authErr/);
+    assert.match(helpers, /case isAuthForbidden\(forbiddenBody\):\n\t\t\tclassified = authErr/);
+    assert.match(helpers, /default:\n\t\t\tclassified = apiErr\(serverRefusal\(err, forbiddenPrefix, forbiddenBody\)\)/);
+    assert.match(helpers, /The server asks to wait %d seconds \(retry_after\)/);
+  } finally {
+    fs.rmSync(sourceDir, { recursive: true, force: true });
+  }
+});
+
+// rtgit #3053: the parts of the generated client.go that the Retry-After patch
+// rewrites, as cli-printing-press 4.20.1 renders them.
+function writeRetryFixture(sourceDir) {
+  const clientDir = path.join(sourceDir, 'internal', 'client');
+  const cliDir = path.join(sourceDir, 'internal', 'cli');
+  fs.mkdirSync(clientDir, { recursive: true });
+  fs.mkdirSync(cliDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(clientDir, 'client.go'),
+    `package client
+
+import (
+\t"context"
+\t"fmt"
+\t"math"
+\t"net/http"
+\t"os"
+\t"strings"
+\t"time"
+)
+
+type Client struct{}
+
+// APIError carries HTTP status information for structured exit codes.
+type APIError struct {
+\tMethod     string
+\tPath       string
+\tStatusCode int
+\tBody       string
+}
+
+func isMutatingVerb(method string) bool { return method == "POST" }
+
+func (c *Client) doInternal(ctx context.Context, method, path string, params map[string]string, body any, headerOverrides map[string]string, readOnlyIntent bool) (json.RawMessage, int, error) {
+\tconst maxRetries = 3
+\tvar lastErr error
+
+\tfor attempt := 0; attempt <= maxRetries; attempt++ {
+\t\tvar resp *http.Response
+\t\tvar respBody []byte
+\t\tapiErr := &APIError{StatusCode: resp.StatusCode, Body: string(respBody)}
+
+\t\t// Rate limited - adjust adaptive limiter and retry
+\t\tif resp.StatusCode == 429 && attempt < maxRetries {
+\t\t\tc.limiter.OnRateLimit()
+\t\t\twait := cliutil.RetryAfter(resp)
+\t\t\tfmt.Fprintf(os.Stderr, "rate limited, waiting %s (attempt %d/%d, rate adjusted to %.1f req/s)\\n", wait, attempt+1, maxRetries, c.limiter.Rate())
+\t\t\tif err := sleepContext(ctx, wait); err != nil {
+\t\t\t\treturn nil, 0, err
+\t\t\t}
+\t\t\tlastErr = apiErr
+\t\t\tcontinue
+\t\t}
+
+\t\t// Server error - retry with backoff
+\t\tif resp.StatusCode >= 500 && attempt < maxRetries {
+\t\t\twait := time.Duration(math.Pow(2, float64(attempt))) * time.Second
+\t\t\tif err := sleepContext(ctx, wait); err != nil {
+\t\t\t\treturn nil, 0, err
+\t\t\t}
+\t\t\tlastErr = apiErr
+\t\t\tcontinue
+\t\t}
+
+\t\treturn nil, resp.StatusCode, apiErr
+\t}
+\t_ = strings.TrimSpace(path)
+\treturn nil, 0, lastErr
+}
+`
+  );
+}
+
+test('waits for the server Retry-After on 429 within the bounds and keeps no-replay exemptions', () => {
+  const sourceDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pp-cli-retry-after-'));
+  try {
+    writeDelegateFixture(sourceDir);
+    writeRetryFixture(sourceDir);
+    patchWorkspacePluginClient(sourceDir);
+    patchCliDelegateContracts(sourceDir);
+    patchCliRetryAfterAndForbidden(sourceDir);
+
+    const client = fs.readFileSync(path.join(sourceDir, 'internal', 'client', 'client.go'), 'utf8');
+    assert.match(client, /RetryAfterSeconds int\n\}/);
+    assert.match(client, /rateLimitRetries := 0\n\tvar rateLimitWaited time\.Duration\n\n\tfor attempt := 0;/);
+    assert.match(client, /if resp\.StatusCode == 429 \{/);
+    assert.match(client, /serverRetryAfter\(resp\.Header, respBody, time\.Now\(\)\)/);
+    assert.match(client, /if retry && attempt < maxRetries \{/);
+    // A wait outside the bounds fails at once instead of falling through.
+    assert.match(client, /\t\t\treturn nil, resp\.StatusCode, apiErr\n\t\t\}\n\n\t\t\/\/ Server error/);
+    assert.doesNotMatch(client, /cliutil\.RetryAfter\(resp\)/);
+    assert.doesNotMatch(client, /resp\.StatusCode == 429 && attempt < maxRetries/);
+    // Both "send once" exemptions still zero maxRetries, which also gates 429.
+    assert.match(client, /isDelegateMutationPath\(method, path\) \{\n\t\tmaxRetries = 0/);
+    assert.match(client, /isWorkspacePluginMutationPath\(method, path\) \{\n\t\tmaxRetries = 0/);
+    // The 5xx backoff is unchanged.
+    assert.match(client, /if resp\.StatusCode >= 500 && attempt < maxRetries \{/);
+
+    const helper = fs.readFileSync(path.join(sourceDir, 'internal', 'client', RATE_LIMIT_HELPER_FILE), 'utf8');
+    assert.match(helper, new RegExp(`rateLimitMaxWait\\s+= ${RATE_LIMIT_MAX_WAIT_SECONDS} \\* time\\.Second`));
+    assert.match(helper, new RegExp(`rateLimitMaxRetries\\s+= ${RATE_LIMIT_MAX_RETRIES}\\n`));
+    assert.match(helper, new RegExp(`rateLimitTotalWait\\s+= ${RATE_LIMIT_TOTAL_WAIT_SECONDS} \\* time\\.Second`));
+    assert.ok(fs.existsSync(path.join(sourceDir, 'internal', 'cli', FORBIDDEN_HELPER_FILE)));
+  } finally {
+    fs.rmSync(sourceDir, { recursive: true, force: true });
+  }
+});
+
+test('fails the build when the generated 429 retry changes', () => {
+  const sourceDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pp-cli-retry-drift-'));
+  try {
+    writeRetryFixture(sourceDir);
+    const clientPath = path.join(sourceDir, 'internal', 'client', 'client.go');
+    fs.writeFileSync(
+      clientPath,
+      fs.readFileSync(clientPath, 'utf8').replace('wait := cliutil.RetryAfter(resp)', 'wait := cliutil.Backoff(resp)')
+    );
+    assert.throws(() => patchCliRetryAfterAndForbidden(sourceDir), /Retry-After patch did not match[^\n]*429 retry/);
+    assert.ok(!fs.existsSync(path.join(sourceDir, 'internal', 'client', RATE_LIMIT_HELPER_FILE)));
+  } finally {
+    fs.rmSync(sourceDir, { recursive: true, force: true });
+  }
+});
+
+// The helpers decide the wait and the 403 kind; run them as Go.
+test('generated Retry-After and 403 helpers behave as specified', () => {
+  const sourceDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pp-cli-retry-helpers-'));
+  try {
+    const clientDir = path.join(sourceDir, 'internal', 'client');
+    const cliDir = path.join(sourceDir, 'internal', 'cli');
+    fs.mkdirSync(clientDir, { recursive: true });
+    fs.mkdirSync(cliDir, { recursive: true });
+    fs.writeFileSync(path.join(clientDir, RATE_LIMIT_HELPER_FILE), RATE_LIMIT_HELPER_SOURCE);
+    fs.writeFileSync(path.join(cliDir, FORBIDDEN_HELPER_FILE), FORBIDDEN_HELPER_SOURCE);
+    fs.writeFileSync(
+      path.join(clientDir, 'rate_limit_contract_test.go'),
+      `package client
+
+import (
+\t"net/http"
+\t"testing"
+\t"time"
+)
+
+func TestServerRetryAfter(t *testing.T) {
+\tnow := time.Date(2026, 11, 2, 12, 0, 0, 0, time.UTC)
+\tcases := []struct {
+\t\tname   string
+\t\theader string
+\t\tbody   string
+\t\twant   time.Duration
+\t\tok     bool
+\t}{
+\t\t{"header seconds", "2", \`{"retry_after":9}\`, 2 * time.Second, true},
+\t\t{"header wins over body", "600", \`{"retry_after":1}\`, 600 * time.Second, true},
+\t\t{"header http date", now.Add(30 * time.Second).Format(http.TimeFormat), "", 30 * time.Second, true},
+\t\t{"body only", "", \`{"code":"CHANNEL_ACT_RATE_LIMITED","retry_after":3}\`, 3 * time.Second, true},
+\t\t{"body string", "", \`{"retry_after":"4"}\`, 4 * time.Second, true},
+\t\t{"bad header falls back to body", "soon", \`{"retry_after":5}\`, 5 * time.Second, true},
+\t\t{"nothing", "", \`{"error":"slow down"}\`, 0, false},
+\t\t{"not json", "", "Too Many Requests", 0, false},
+\t}
+\tfor _, tc := range cases {
+\t\th := http.Header{}
+\t\tif tc.header != "" {
+\t\t\th.Set("Retry-After", tc.header)
+\t\t}
+\t\tgot, ok := serverRetryAfter(h, []byte(tc.body), now)
+\t\tif got != tc.want || ok != tc.ok {
+\t\t\tt.Errorf("%s: got %v %v, want %v %v", tc.name, got, ok, tc.want, tc.ok)
+\t\t}
+\t}
+}
+
+func TestRateLimitRetryWait(t *testing.T) {
+\tif wait, retry := rateLimitRetryWait(2*time.Second, true, 0, 0); !retry || wait != 2*time.Second {
+\t\tt.Errorf("2s first retry: got %v %v", wait, retry)
+\t}
+\tif _, retry := rateLimitRetryWait(60*time.Second, true, 0, 0); !retry {
+\t\tt.Error("60s is within the one-wait bound")
+\t}
+\tif _, retry := rateLimitRetryWait(61*time.Second, true, 0, 0); retry {
+\t\tt.Error("61s exceeds the one-wait bound and must fail at once")
+\t}
+\tif _, retry := rateLimitRetryWait(600*time.Second, true, 0, 0); retry {
+\t\tt.Error("600s must fail at once")
+\t}
+\tif _, retry := rateLimitRetryWait(time.Second, true, 2, 2*time.Second); retry {
+\t\tt.Error("no third retry")
+\t}
+\tif _, retry := rateLimitRetryWait(40*time.Second, true, 1, 60*time.Second); retry {
+\t\tt.Error("60s+40s exceeds the 90s total bound")
+\t}
+\tif wait, retry := rateLimitRetryWait(0, false, 0, 0); !retry || wait != 5*time.Second {
+\t\tt.Errorf("no server wait keeps the 5s default: got %v %v", wait, retry)
+\t}
+\tif got := retryAfterSeconds(1500 * time.Millisecond); got != 2 {
+\t\tt.Errorf("retry_after rounds up: got %d", got)
+\t}
+}
+`
+    );
+    fs.writeFileSync(
+      path.join(cliDir, 'forbidden_contract_test.go'),
+      `package cli
+
+import (
+\t"errors"
+\t"testing"
+)
+
+func TestForbiddenKinds(t *testing.T) {
+\tcases := []struct {
+\t\tbody  string
+\t\tauth  bool
+\t\tscope bool
+\t}{
+\t\t// App server credential refusals (validApiKey.js).
+\t\t{\`{"error":"No valid api key found."}\`, true, false},
+\t\t{\`{"error":"No valid api key found.","code":"API_KEY_INVALID"}\`, true, false},
+\t\t{\`{"error":"CLI credential does not authorize this operation.","code":"CLI_CREDENTIAL_SCOPE_FORBIDDEN","requiredScope":"channels:act"}\`, true, true},
+\t\t{\`{"error":"This device is not permitted to use that endpoint","code":"DEVICE_ROUTE_NOT_PERMITTED"}\`, true, true},
+\t\t{\`{"error":"Invalid terminal session token.","code":"TERMINAL_SESSION_TOKEN_INVALID"}\`, true, false},
+\t\t// API refusals of this request.
+\t\t{\`{"success":false,"error":"This account also serves other workspaces.","code":"CHANNEL_ACT_ISOLATED"}\`, false, false},
+\t\t{\`{"success":false,"error":"That ref is not from this chat.","code":"CHANNEL_ACT_REF_NOT_OWN"}\`, false, false},
+\t\t{\`{"success":false,"error":"Not available in this chat type.","code":"CHANNEL_ACT_CHAT_TYPE_UNSUPPORTED"}\`, false, false},
+\t\t{\`{"success":false,"error":"Pass a valid token in the message ref.","code":"CHANNEL_ACT_REF_NOT_OWN"}\`, false, false},
+\t\t{\`{"error":"Only the owner can do that."}\`, false, false},
+\t\t{"<html>403 Forbidden</html>", false, false},
+\t}
+\tfor _, tc := range cases {
+\t\tif got := isAuthForbidden(tc.body); got != tc.auth {
+\t\t\tt.Errorf("isAuthForbidden(%s) = %v, want %v", tc.body, got, tc.auth)
+\t\t}
+\t\tif got := isScopeForbidden(tc.body); got != tc.scope {
+\t\t\tt.Errorf("isScopeForbidden(%s) = %v, want %v", tc.body, got, tc.scope)
+\t\t}
+\t}
+}
+
+func TestServerRefusal(t *testing.T) {
+\tbase := errors.New("raw")
+\tgot := serverRefusal(base, "POST /channel-act/getFriendList returned HTTP 403", \`{"error":"Serves other workspaces.","code":"CHANNEL_ACT_ISOLATED"}\`)
+\tif got.Error() != "POST /channel-act/getFriendList returned HTTP 403 CHANNEL_ACT_ISOLATED: Serves other workspaces." {
+\t\tt.Errorf("message: %q", got.Error())
+\t}
+\tif !errors.Is(got, base) {
+\t\tt.Error("the original error must stay reachable for the JSON envelope")
+\t}
+\tif serverRefusal(base, "", \`{"error":"x","code":"Y"}\`) != base {
+\t\tt.Error("without a request line the error is unchanged")
+\t}
+\tif serverRefusal(base, "POST /x returned HTTP 403", "not json") != base {
+\t\tt.Error("a body without an error text is unchanged")
+\t}
+}
+`
+    );
+    execFileSync('go', ['mod', 'init', 'retry-after-contract'], { cwd: sourceDir, stdio: 'ignore' });
+    execFileSync('go', ['test', './internal/client', './internal/cli'], {
+      cwd: sourceDir,
+      env: { ...process.env, CGO_ENABLED: '0' },
+      stdio: 'pipe',
+    });
   } finally {
     fs.rmSync(sourceDir, { recursive: true, force: true });
   }
