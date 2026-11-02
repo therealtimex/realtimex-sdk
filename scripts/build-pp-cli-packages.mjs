@@ -568,7 +568,7 @@ $1$2`
 \t\tif json.Unmarshal([]byte(apiErr.Body), &body) == nil {
 \t\t\tpayload["body"] = body
 \t\t\tif object, ok := body.(map[string]any); ok {
-\t\t\t\tfor _, key := range []string{"code", "details"} {
+\t\t\t\tfor _, key := range []string{"code", "details", "retry_after"} {
 \t\t\t\t\tif value, exists := object[key]; exists {
 \t\t\t\t\t\tpayload[key] = value
 \t\t\t\t\t}
@@ -581,6 +581,10 @@ $1$2`
 \t\t\t}
 \t\t} else {
 \t\t\tpayload["body"] = apiErr.Body
+\t\t}
+\t\t// The wait the server asked for (Retry-After header first), in seconds.
+\t\tif apiErr.RetryAfterSeconds > 0 {
+\t\t\tpayload["retry_after"] = apiErr.RetryAfterSeconds
 \t\t}
 \t}
 \tif _, exists := payload["code"]; !exists {
@@ -621,14 +625,37 @@ $1$2`
 \t\t\t" Set it with: export REALTIMEX_APP_ID_AUTH=<your-key>"+
 \t\t\t"\\n      Run 'realtimex-pp-cli doctor' to check auth status.", err))
 \tcase strings.Contains(msg, "HTTP 403"):
-\t\tclassified = authErr(fmt.Errorf("%w\\nhint: permission denied. Your credentials are valid but lack access to this resource."+
-\t\t\t"\\n      Check that your API key has the required permissions."+
-\t\t\t"\\n      Set it with: export REALTIMEX_APP_ID_AUTH=<your-key>"+
-\t\t\t"\\n      Run 'realtimex-pp-cli doctor' to check auth status.", err))
+\t\t// Only the auth middleware's credential refusals get the auth hint and
+\t\t// exit code; any other 403 is the API refusing this request (rtgit #3053).
+\t\tforbiddenBody := msg
+\t\tforbiddenPrefix := ""
+\t\tvar forbidden *client.APIError
+\t\tif errors.As(err, &forbidden) {
+\t\t\tforbiddenBody = forbidden.Body
+\t\t\tforbiddenPrefix = fmt.Sprintf("%s %s returned HTTP %d", forbidden.Method, forbidden.Path, forbidden.StatusCode)
+\t\t}
+\t\tswitch {
+\t\tcase isScopeForbidden(forbiddenBody):
+\t\t\tclassified = authErr(fmt.Errorf("%w\\nhint: permission denied. Your credentials are valid but lack access to this resource."+
+\t\t\t\t"\\n      Check that your API key has the required permissions."+
+\t\t\t\t"\\n      Set it with: export REALTIMEX_APP_ID_AUTH=<your-key>"+
+\t\t\t\t"\\n      Run 'realtimex-pp-cli doctor' to check auth status.", err))
+\t\tcase isAuthForbidden(forbiddenBody):
+\t\t\tclassified = authErr(fmt.Errorf("%w\\nhint: the server did not accept your credentials. Check your API key."+
+\t\t\t\t"\\n      Set it with: export REALTIMEX_APP_ID_AUTH=<your-key>"+
+\t\t\t\t"\\n      Run 'realtimex-pp-cli doctor' to check auth status.", err))
+\t\tdefault:
+\t\t\tclassified = apiErr(serverRefusal(err, forbiddenPrefix, forbiddenBody))
+\t\t}
 \tcase strings.Contains(msg, "HTTP 404"):
 \t\tclassified = notFoundErr(fmt.Errorf("%w\\nhint: resource not found. Run the 'list' command to see available items", err))
 \tcase strings.Contains(msg, "HTTP 429"):
-\t\tclassified = rateLimitErr(err)
+\t\tvar limited *client.APIError
+\t\tif errors.As(err, &limited) && limited.RetryAfterSeconds > 0 {
+\t\t\tclassified = rateLimitErr(fmt.Errorf("%w\\nhint: rate limited. The server asks to wait %d seconds (retry_after) before trying again.", err, limited.RetryAfterSeconds))
+\t\t} else {
+\t\t\tclassified = rateLimitErr(err)
+\t\t}
 \tdefault:
 \t\tclassified = apiErr(err)
 \t}
@@ -674,6 +701,260 @@ $1$2`
   run('gofmt', ['-w', ...gofmtPaths]);
 }
 
+// rtgit #3053. The generated client answers an HTTP 429 with up to three
+// retries, each after the Retry-After header capped at 60 s, or after a fixed
+// 5 s guess when the server put the wait only in the body. A longer wait was
+// cut short and replayed into the same limit, and a body-only retry_after was
+// ignored, so the CLI gave up before the server's time. The patched loop waits
+// exactly as long as the server asks (header first, then the body's
+// retry_after), within the bounds below; a longer wait fails at once and the
+// error carries retry_after so the agent can decide. Requests sent at most
+// once (maxRetries == 0: Delegate mutations, workspace plugin set/reset) are
+// still never replayed.
+export const RATE_LIMIT_MAX_WAIT_SECONDS = 60;
+export const RATE_LIMIT_MAX_RETRIES = 2;
+export const RATE_LIMIT_TOTAL_WAIT_SECONDS = 90;
+
+export const RATE_LIMIT_HELPER_FILE = 'rate_limit_contract.go';
+export const RATE_LIMIT_HELPER_SOURCE = `// Added by realtimex-sdk scripts/build-pp-cli-packages.mjs (rtgit #3053).
+
+package client
+
+import (
+\t"encoding/json"
+\t"math"
+\t"net/http"
+\t"strconv"
+\t"strings"
+\t"time"
+)
+
+// A 429 is retried after the wait the server asks for: one wait of at most
+// rateLimitMaxWait, at most rateLimitMaxRetries retries, and no more than
+// rateLimitTotalWait in total, so a CLI call stays inside an agent's command
+// timeout. A longer wait fails at once with retry_after.
+const (
+\trateLimitMaxWait     = ${RATE_LIMIT_MAX_WAIT_SECONDS} * time.Second
+\trateLimitMaxRetries  = ${RATE_LIMIT_MAX_RETRIES}
+\trateLimitTotalWait   = ${RATE_LIMIT_TOTAL_WAIT_SECONDS} * time.Second
+\trateLimitDefaultWait = 5 * time.Second
+\t// Larger values are treated as "not within any bound".
+\trateLimitMaxSeconds = 365 * 24 * 60 * 60
+)
+
+func rateLimitSeconds(seconds float64) time.Duration {
+\tif seconds > rateLimitMaxSeconds {
+\t\tseconds = rateLimitMaxSeconds
+\t}
+\treturn time.Duration(seconds * float64(time.Second))
+}
+
+// serverRetryAfter reads how long the server asks to wait: the Retry-After
+// header (seconds or an HTTP date), then the body's retry_after (seconds).
+func serverRetryAfter(header http.Header, body []byte, now time.Time) (time.Duration, bool) {
+\tif value := strings.TrimSpace(header.Get("Retry-After")); value != "" {
+\t\tif seconds, err := strconv.ParseFloat(value, 64); err == nil && seconds >= 0 && !math.IsInf(seconds, 0) {
+\t\t\treturn rateLimitSeconds(seconds), true
+\t\t}
+\t\tif at, err := http.ParseTime(value); err == nil {
+\t\t\tif wait := at.Sub(now); wait > 0 {
+\t\t\t\treturn wait, true
+\t\t\t}
+\t\t\treturn 0, true
+\t\t}
+\t}
+\tvar payload map[string]any
+\tif json.Unmarshal(body, &payload) == nil {
+\t\tswitch value := payload["retry_after"].(type) {
+\t\tcase float64:
+\t\t\tif value >= 0 {
+\t\t\t\treturn rateLimitSeconds(value), true
+\t\t\t}
+\t\tcase string:
+\t\t\tif seconds, err := strconv.ParseFloat(strings.TrimSpace(value), 64); err == nil && seconds >= 0 && !math.IsInf(seconds, 0) {
+\t\t\t\treturn rateLimitSeconds(seconds), true
+\t\t\t}
+\t\t}
+\t}
+\treturn 0, false
+}
+
+// rateLimitRetryWait decides one 429: the wait before the next attempt, and
+// whether to retry at all given the retries and wait already spent.
+func rateLimitRetryWait(wait time.Duration, fromServer bool, retries int, waited time.Duration) (time.Duration, bool) {
+\tif !fromServer {
+\t\twait = rateLimitDefaultWait
+\t}
+\tif retries >= rateLimitMaxRetries || wait > rateLimitMaxWait || waited+wait > rateLimitTotalWait {
+\t\treturn wait, false
+\t}
+\treturn wait, true
+}
+
+// retryAfterSeconds is the wait in whole seconds, rounded up, for the error
+// envelope's retry_after.
+func retryAfterSeconds(wait time.Duration) int {
+\tseconds := int(math.Ceil(wait.Seconds()))
+\tif seconds < 1 {
+\t\treturn 1
+\t}
+\treturn seconds
+}
+`;
+
+export const FORBIDDEN_HELPER_FILE = 'forbidden_contract.go';
+export const FORBIDDEN_HELPER_SOURCE = `// Added by realtimex-sdk scripts/build-pp-cli-packages.mjs (rtgit #3053).
+
+package cli
+
+import (
+\t"encoding/json"
+\t"fmt"
+\t"regexp"
+\t"strings"
+)
+
+// The 403 codes of the app server's credential checks
+// (server/utils/middleware/validApiKey.js and the auth helpers it calls):
+// API_KEY_INVALID, CLI_CREDENTIAL_* (expired, revoked, scope), TERMINAL_SESSION_*
+// and the DEVICE_* route allowlist. Any other coded 403, such as
+// CHANNEL_ACT_ISOLATED or CHANNEL_ACT_REF_NOT_OWN, is the API refusing this
+// request, not a credential problem.
+var authForbiddenCodePrefixes = []string{"API_KEY_", "CLI_CREDENTIAL_", "TERMINAL_SESSION_", "DEVICE_"}
+
+// A 403 without a code is a credential refusal only when its text says so,
+// like the middleware's "No valid api key found.".
+var credentialRefusalText = regexp.MustCompile(\`(?i)(\\bapi[ _-]?key|\\bapp[ _-]?id\\b|\\bcredential|\\bunauthori[sz]ed\\b|\\bauthenticat|\\btoken\\b)\`)
+
+// serverErrorFields reads the server's code and error text from a JSON body.
+func serverErrorFields(body string) (code, message string, ok bool) {
+\tvar payload map[string]any
+\tif json.Unmarshal([]byte(strings.TrimSpace(body)), &payload) != nil {
+\t\treturn "", "", false
+\t}
+\tcode, _ = payload["code"].(string)
+\tif text, isText := payload["error"].(string); isText && text != "" {
+\t\tmessage = text
+\t} else if text, isText := payload["message"].(string); isText {
+\t\tmessage = text
+\t}
+\treturn strings.TrimSpace(code), strings.TrimSpace(message), true
+}
+
+// isAuthForbidden reports whether a 403 body is a credential refusal.
+func isAuthForbidden(body string) bool {
+\tcode, message, ok := serverErrorFields(body)
+\tif code != "" {
+\t\tfor _, prefix := range authForbiddenCodePrefixes {
+\t\t\tif strings.HasPrefix(code, prefix) {
+\t\t\t\treturn true
+\t\t\t}
+\t\t}
+\t\treturn false
+\t}
+\tif !ok || message == "" {
+\t\tmessage = body
+\t}
+\treturn credentialRefusalText.MatchString(message)
+}
+
+// isScopeForbidden reports a valid credential that may not do this request.
+func isScopeForbidden(body string) bool {
+\tcode, _, _ := serverErrorFields(body)
+\treturn code == "CLI_CREDENTIAL_SCOPE_FORBIDDEN" || strings.HasPrefix(code, "DEVICE_")
+}
+
+type serverRefusalError struct {
+\tmessage string
+\terr     error
+}
+
+func (e *serverRefusalError) Error() string { return e.message }
+func (e *serverRefusalError) Unwrap() error { return e.err }
+
+// serverRefusal shows a non-credential 403 as the server stated it:
+// "<METHOD> <path> returned HTTP 403 <code>: <error>", with no auth hint.
+func serverRefusal(err error, prefix, body string) error {
+\tcode, message, _ := serverErrorFields(body)
+\tif prefix == "" || message == "" {
+\t\treturn err
+\t}
+\tif code != "" {
+\t\treturn &serverRefusalError{message: fmt.Sprintf("%s %s: %s", prefix, code, message), err: err}
+\t}
+\treturn &serverRefusalError{message: fmt.Sprintf("%s: %s", prefix, message), err: err}
+}
+`;
+
+function patchCliRetryAfterAndForbidden(sourceDir) {
+  const clientDir = path.join(sourceDir, 'internal', 'client');
+  const cliDir = path.join(sourceDir, 'internal', 'cli');
+  const clientPath = path.join(clientDir, 'client.go');
+
+  const apiErrorFieldPatched = replaceInFile(
+    clientPath,
+    /(type APIError struct \{\n(?:\t[^\n]*\n)*?\tBody\s+string\n)\}/,
+    `$1\t// RetryAfterSeconds is the wait a 429 asked for, 0 when none (rtgit #3053).\n\tRetryAfterSeconds int\n}`
+  );
+  const retryStatePatched = replaceInFile(
+    clientPath,
+    /(\n)(\tfor attempt := 0; attempt <= maxRetries; attempt\+\+ \{\n)/,
+    `$1\trateLimitRetries := 0\n\tvar rateLimitWaited time.Duration\n\n$2`
+  );
+  const retryLoopPatched = replaceInFile(
+    clientPath,
+    /(?:\t\t\/\/ Rate limited[^\n]*\n)?\t\tif resp\.StatusCode == 429 && attempt < maxRetries \{\n\t\t\tc\.limiter\.OnRateLimit\(\)\n\t\t\twait := cliutil\.RetryAfter\(resp\)\n[\s\S]*?\t\t\tlastErr = apiErr\n\t\t\tcontinue\n\t\t\}\n/,
+    `\t\t// Rate limited: wait as long as the server asks (Retry-After, then
+\t\t// the body's retry_after) within the rateLimit* bounds, else fail at
+\t\t// once with retry_after. A request sent at most once (maxRetries 0)
+\t\t// is never replayed (rtgit #3053).
+\t\tif resp.StatusCode == 429 {
+\t\t\tc.limiter.OnRateLimit()
+\t\t\tserverWait, fromServer := serverRetryAfter(resp.Header, respBody, time.Now())
+\t\t\tif fromServer {
+\t\t\t\tapiErr.RetryAfterSeconds = retryAfterSeconds(serverWait)
+\t\t\t}
+\t\t\twait, retry := rateLimitRetryWait(serverWait, fromServer, rateLimitRetries, rateLimitWaited)
+\t\t\tif retry && attempt < maxRetries {
+\t\t\t\trateLimitRetries++
+\t\t\t\trateLimitWaited += wait
+\t\t\t\treason := "as the server asked"
+\t\t\t\tif !fromServer {
+\t\t\t\t\treason = "(the server gave no Retry-After)"
+\t\t\t\t}
+\t\t\t\tfmt.Fprintf(os.Stderr, "rate limited, waiting %s %s (retry %d/%d)\\n", wait, reason, rateLimitRetries, rateLimitMaxRetries)
+\t\t\t\tif err := sleepContext(ctx, wait); err != nil {
+\t\t\t\t\treturn nil, 0, err
+\t\t\t\t}
+\t\t\t\tlastErr = apiErr
+\t\t\t\tcontinue
+\t\t\t}
+\t\t\treturn nil, resp.StatusCode, apiErr
+\t\t}
+`
+  );
+
+  if (!apiErrorFieldPatched || !retryStatePatched || !retryLoopPatched) {
+    const missed = [
+      [apiErrorFieldPatched, 'APIError retry_after field'],
+      [retryStatePatched, 'retry loop state'],
+      [retryLoopPatched, '429 retry'],
+    ]
+      .filter(([matched]) => !matched)
+      .map(([, label]) => label)
+      .join(', ');
+    throw new Error(
+      `Generated CLI Retry-After patch did not match the Printing Press output: ${missed}.`
+    );
+  }
+
+  const rateLimitHelperPath = path.join(clientDir, RATE_LIMIT_HELPER_FILE);
+  const forbiddenHelperPath = path.join(cliDir, FORBIDDEN_HELPER_FILE);
+  fs.writeFileSync(rateLimitHelperPath, RATE_LIMIT_HELPER_SOURCE);
+  fs.writeFileSync(forbiddenHelperPath, FORBIDDEN_HELPER_SOURCE);
+  run('gofmt', ['-w', clientPath, rateLimitHelperPath, forbiddenHelperPath]);
+}
+
 function ensureSourceProject() {
   run('node', [
     path.join(REPO_ROOT, 'scripts', 'generate-skill.mjs'),
@@ -689,6 +970,7 @@ function ensureSourceProject() {
   patchCliCredentialReference(SOURCE_DIR);
   patchCliBaseURLPathJoin(SOURCE_DIR);
   patchCliDelegateContracts(SOURCE_DIR);
+  patchCliRetryAfterAndForbidden(SOURCE_DIR);
   run('go', ['get', GO_KEYRING_PACKAGE], { cwd: SOURCE_DIR });
   run('go', ['mod', 'tidy'], { cwd: SOURCE_DIR });
 }
@@ -954,5 +1236,6 @@ export {
   patchCliBaseURLPathJoin,
   patchCliCredentialReference,
   patchCliDelegateContracts,
+  patchCliRetryAfterAndForbidden,
   patchCliTerminalSessionAuth,
 };
