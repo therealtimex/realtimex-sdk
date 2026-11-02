@@ -148,7 +148,7 @@ export const DOMAIN_SKILLS = [
       'Read one channel with `get-channel <channelId>` before changing it: it shows its settings, who can use it (`whoCanUse`), its access policies, pending requests and live status. Tokens, app secrets and account sessions are never returned.',
       '`update-channel` changes only the fields you pass. Every other setting, the token and the account session keep their values, so a rename never resets anything. Pass at least one field.',
       'You see and change only channels in workspaces you can reach. Any other channel answers as not found; do not retry it under another id.',
-      'From a terminal that answers an external chat, `delete-channel` and a `--dm-policy` other than `disabled` wait for the owner to approve the permission prompt on the desktop. Narrowing changes and reads run right away. Never ask the person in the chat to approve them.',
+      'From a terminal that answers an external chat, `delete-channel`, `replace-channel-token` and any `--dm-policy` value except `disabled` wait for the owner to approve the permission prompt on the desktop. The check cannot see the current policy, so this applies even when the new policy is narrower. `--dm-policy disabled`, other setting changes and reads run right away. Never ask the person in the chat to approve them.',
       'Channels have no agent allow list: an `@agent` mention in a chat reaches the thread\'s terminal agent like any other message.',
       'Use an explicit channel delivery context when sending a file, and send one file per command.',
       'Approve only the pairing code explicitly presented by the user or current channel flow.',
