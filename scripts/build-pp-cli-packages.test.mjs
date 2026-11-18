@@ -8,6 +8,8 @@ import test from 'node:test';
 import {
   FORBIDDEN_HELPER_FILE,
   FORBIDDEN_HELPER_SOURCE,
+  IDEMPOTENCY_HELPER_FILE,
+  IDEMPOTENCY_HELPER_SOURCE,
   RATE_LIMIT_HELPER_FILE,
   RATE_LIMIT_HELPER_SOURCE,
   RATE_LIMIT_MAX_RETRIES,
@@ -16,6 +18,7 @@ import {
   patchCliBaseURLPathJoin,
   patchCliCredentialReference,
   patchCliDelegateContracts,
+  patchCliIdempotentRetries,
   patchCliRetryAfterAndForbidden,
   patchCliTerminalSessionAuth,
 } from './build-pp-cli-packages.mjs';
@@ -808,6 +811,192 @@ func TestServerRefusal(t *testing.T) {
       env: { ...process.env, CGO_ENABLED: '0' },
       stdio: 'pipe',
     });
+  } finally {
+    fs.rmSync(sourceDir, { recursive: true, force: true });
+  }
+});
+
+// rtgit #3191: the generated retry loop as Printing Press 4.20.1 writes it
+// (header overrides, a dropped connection, 429 and 5xx retries).
+function writeIdempotencyFixture(sourceDir) {
+  const clientDir = path.join(sourceDir, 'internal', 'client');
+  fs.mkdirSync(clientDir, { recursive: true });
+  fs.mkdirSync(path.join(sourceDir, 'internal', 'cli'), { recursive: true });
+  fs.writeFileSync(
+    path.join(clientDir, 'client.go'),
+    `package client
+
+import (
+\t"context"
+\t"encoding/json"
+\t"fmt"
+\t"math"
+\t"net/http"
+\t"os"
+\t"time"
+)
+
+type Client struct{ HTTPClient *http.Client }
+
+// APIError carries HTTP status information for structured exit codes.
+type APIError struct {
+\tMethod     string
+\tPath       string
+\tStatusCode int
+\tBody       string
+}
+
+func isMutatingVerb(method string) bool { return method != http.MethodGet }
+
+func (c *Client) doInternal(ctx context.Context, method, path string, params map[string]string, body any, headerOverrides map[string]string, readOnlyIntent bool) (json.RawMessage, int, error) {
+\tconst maxRetries = 3
+\tvar lastErr error
+
+\tfor attempt := 0; attempt <= maxRetries; attempt++ {
+\t\treq, err := http.NewRequestWithContext(ctx, method, path, nil)
+\t\tif err != nil {
+\t\t\treturn nil, 0, fmt.Errorf("creating request: %w", err)
+\t\t}
+\t\t// Per-endpoint header overrides (e.g., different API version per resource)
+\t\tfor k, v := range headerOverrides {
+\t\t\treq.Header.Set(k, v)
+\t\t}
+
+\t\tresp, err := c.HTTPClient.Do(req)
+\t\tif err != nil {
+\t\t\tif ctxErr := ctx.Err(); ctxErr != nil {
+\t\t\t\treturn nil, 0, ctxErr
+\t\t\t}
+\t\t\tlastErr = fmt.Errorf("%s %s: %w", method, path, err)
+\t\t\tcontinue
+\t\t}
+\t\tvar respBody []byte
+\t\tapiErr := &APIError{StatusCode: resp.StatusCode, Body: string(respBody)}
+
+\t\t// Rate limited - adjust adaptive limiter and retry
+\t\tif resp.StatusCode == 429 && attempt < maxRetries {
+\t\t\tc.limiter.OnRateLimit()
+\t\t\twait := cliutil.RetryAfter(resp)
+\t\t\tfmt.Fprintf(os.Stderr, "rate limited, waiting %s (attempt %d/%d, rate adjusted to %.1f req/s)\\n", wait, attempt+1, maxRetries, c.limiter.Rate())
+\t\t\tif err := sleepContext(ctx, wait); err != nil {
+\t\t\t\treturn nil, 0, err
+\t\t\t}
+\t\t\tlastErr = apiErr
+\t\t\tcontinue
+\t\t}
+
+\t\t// Server error - retry with backoff
+\t\tif resp.StatusCode >= 500 && attempt < maxRetries {
+\t\t\twait := time.Duration(math.Pow(2, float64(attempt))) * time.Second
+\t\t\tfmt.Fprintf(os.Stderr, "server error %d, retrying in %s (attempt %d/%d)\\n", resp.StatusCode, wait, attempt+1, maxRetries)
+\t\t\tif err := sleepContext(ctx, wait); err != nil {
+\t\t\t\treturn nil, 0, err
+\t\t\t}
+\t\t\tlastErr = apiErr
+\t\t\tcontinue
+\t\t}
+
+\t\treturn nil, resp.StatusCode, apiErr
+\t}
+
+\treturn nil, 0, lastErr
+}
+`
+  );
+}
+
+test('sends one Idempotency-Key per request on every retry and warns with the retry count (rtgit #3191)', () => {
+  const sourceDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pp-cli-idempotency-'));
+  try {
+    writeIdempotencyFixture(sourceDir);
+    // The build applies it after the Retry-After patch, which also edits the loop.
+    patchCliRetryAfterAndForbidden(sourceDir);
+    patchCliIdempotentRetries(sourceDir);
+
+    const client = fs.readFileSync(path.join(sourceDir, 'internal', 'client', 'client.go'), 'utf8');
+    // One key per request (mutating, not read-only), made before the first attempt.
+    assert.match(
+      client,
+      /idempotencyKey := ""\n\tif !readOnlyIntent && isMutatingVerb\(method\) \{\n\t\tidempotencyKey = newIdempotencyKey\(\)\n\t\}\n\terrorRetries := 0\n\tdefer func\(\) \{ warnRetried\(errorRetries, idempotencyKey\) \}\(\)\n\n\tfor attempt := 0;/
+    );
+    assert.equal(client.match(/newIdempotencyKey\(\)/g).length, 1);
+    // Every attempt sets it, after the per-endpoint overrides, never over one.
+    assert.match(
+      client,
+      /for k, v := range headerOverrides \{\n\t\t\treq\.Header\.Set\(k, v\)\n\t\t\}\n\t\tif idempotencyKey != "" && req\.Header\.Get\(IdempotencyHeader\) == "" \{\n\t\t\treq\.Header\.Set\(IdempotencyHeader, idempotencyKey\)\n\t\t\}/
+    );
+    // A 5xx retry and a dropped-connection retry are counted; a 429 is not.
+    assert.match(client, /if resp\.StatusCode >= 500 && attempt < maxRetries \{[\s\S]*?errorRetries\+\+\n\t\t\tlastErr = apiErr\n\t\t\tcontinue/);
+    assert.match(client, /lastErr = fmt\.Errorf\([^\n]*\n\t\t\tif attempt < maxRetries \{\n\t\t\t\terrorRetries\+\+\n\t\t\t\}\n\t\t\tcontinue/);
+    assert.equal(client.match(/errorRetries\+\+/g).length, 2);
+    assert.match(client, /if resp\.StatusCode == 429 \{/);
+    assert.equal(
+      fs.readFileSync(path.join(sourceDir, 'internal', 'client', IDEMPOTENCY_HELPER_FILE), 'utf8'),
+      IDEMPOTENCY_HELPER_SOURCE
+    );
+  } finally {
+    fs.rmSync(sourceDir, { recursive: true, force: true });
+  }
+});
+
+test('fails the build when the generated retry loop changes (rtgit #3191)', () => {
+  const sourceDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pp-cli-idempotency-drift-'));
+  try {
+    writeIdempotencyFixture(sourceDir);
+    const clientPath = path.join(sourceDir, 'internal', 'client', 'client.go');
+    fs.writeFileSync(
+      clientPath,
+      fs.readFileSync(clientPath, 'utf8').replace('for k, v := range headerOverrides {', 'for k, v := range overrides {')
+    );
+    assert.throws(() => patchCliIdempotentRetries(sourceDir), /idempotency patch did not match[^\n]*request header/);
+    assert.ok(!fs.existsSync(path.join(sourceDir, 'internal', 'client', IDEMPOTENCY_HELPER_FILE)));
+  } finally {
+    fs.rmSync(sourceDir, { recursive: true, force: true });
+  }
+});
+
+// The helper makes the keys and the warning; run it as Go.
+test('generated idempotency helper makes distinct keys and the retry warning (rtgit #3191)', () => {
+  const sourceDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pp-cli-idempotency-helper-'));
+  try {
+    const clientDir = path.join(sourceDir, 'internal', 'client');
+    fs.mkdirSync(clientDir, { recursive: true });
+    fs.writeFileSync(path.join(sourceDir, 'go.mod'), 'module example.com/ppcli\n\ngo 1.22\n');
+    fs.writeFileSync(path.join(clientDir, IDEMPOTENCY_HELPER_FILE), IDEMPOTENCY_HELPER_SOURCE);
+    fs.writeFileSync(
+      path.join(clientDir, 'idempotency_key_test.go'),
+      `package client
+
+import (
+\t"strings"
+\t"testing"
+)
+
+func TestIdempotencyKeys(t *testing.T) {
+\tseen := map[string]bool{}
+\tfor i := 0; i < 100; i++ {
+\t\tkey := newIdempotencyKey()
+\t\tif !strings.HasPrefix(key, "ppcli-") || len(key) != len("ppcli-")+32 || seen[key] {
+\t\t\tt.Fatalf("bad or repeated key %q", key)
+\t\t}
+\t\tseen[key] = true
+\t}
+}
+
+func TestRetriedWarning(t *testing.T) {
+\tif got := retriedWarning(0, "ppcli-x"); got != "" {
+\t\tt.Fatalf("no retry must print nothing, got %q", got)
+\t}
+\tif got := retriedWarning(3, "ppcli-x"); !strings.Contains(got, "retried 3 time(s)") || !strings.Contains(got, "same Idempotency-Key") {
+\t\tt.Fatalf("unexpected warning %q", got)
+\t}
+\tif got := retriedWarning(1, ""); !strings.Contains(got, "retried 1 time(s)") || strings.Contains(got, "Idempotency-Key") {
+\t\tt.Fatalf("a read retry names no key, got %q", got)
+\t}
+}
+`
+    );
+    execFileSync('go', ['test', './...'], { cwd: sourceDir, stdio: 'pipe', env: { ...process.env, GOFLAGS: '-mod=mod' } });
   } finally {
     fs.rmSync(sourceDir, { recursive: true, force: true });
   }

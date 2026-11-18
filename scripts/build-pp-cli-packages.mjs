@@ -955,6 +955,115 @@ function patchCliRetryAfterAndForbidden(sourceDir) {
   run('gofmt', ['-w', clientPath, rateLimitHelperPath, forbiddenHelperPath]);
 }
 
+// rtgit #3191: one Idempotency-Key per request, the same on every retry, and a
+// warning with the retry count. pp-cli repeats a request after a 5xx or a
+// dropped connection; a send the server had already applied was repeated (one
+// send-message became four messages). The app's /cli send routes answer a
+// repeated key with their first answer instead of running it again.
+export const IDEMPOTENCY_HELPER_FILE = 'idempotency_key.go';
+export const IDEMPOTENCY_HELPER_SOURCE = `// Added by realtimex-sdk scripts/build-pp-cli-packages.mjs (rtgit #3191).
+
+package client
+
+import (
+\t"crypto/rand"
+\t"encoding/hex"
+\t"fmt"
+\t"os"
+\t"time"
+)
+
+// IdempotencyHeader carries one request's key on every attempt.
+const IdempotencyHeader = "Idempotency-Key"
+
+// newIdempotencyKey returns a random key for one request.
+func newIdempotencyKey() string {
+\tbuf := make([]byte, 16)
+\tif _, err := rand.Read(buf); err != nil {
+\t\treturn fmt.Sprintf("ppcli-%d", time.Now().UnixNano())
+\t}
+\treturn "ppcli-" + hex.EncodeToString(buf)
+}
+
+// retriedWarning is the line printed when one request was sent again after
+// server or connection errors; empty when it was sent once.
+func retriedWarning(retries int, key string) string {
+\tif retries <= 0 {
+\t\treturn ""
+\t}
+\tif key != "" {
+\t\treturn fmt.Sprintf("warning: this request was retried %d time(s) after server or connection errors. Every attempt carried the same Idempotency-Key, so a server that supports it applied it once. Check the result before sending it again.", retries)
+\t}
+\treturn fmt.Sprintf("warning: this request was retried %d time(s) after server or connection errors.", retries)
+}
+
+// warnRetried prints retriedWarning to stderr.
+func warnRetried(retries int, key string) {
+\tif line := retriedWarning(retries, key); line != "" {
+\t\tfmt.Fprintln(os.Stderr, line)
+\t}
+}
+`;
+
+function patchCliIdempotentRetries(sourceDir) {
+  const clientDir = path.join(sourceDir, 'internal', 'client');
+  const clientPath = path.join(clientDir, 'client.go');
+
+  const statePatched = replaceInFile(
+    clientPath,
+    /(\n)(\tfor attempt := 0; attempt <= maxRetries; attempt\+\+ \{\n)/,
+    `$1\t// rtgit #3191: one key per request, the same on every attempt.
+\tidempotencyKey := ""
+\tif !readOnlyIntent && isMutatingVerb(method) {
+\t\tidempotencyKey = newIdempotencyKey()
+\t}
+\terrorRetries := 0
+\tdefer func() { warnRetried(errorRetries, idempotencyKey) }()
+
+$2`
+  );
+  const headerPatched = replaceInFile(
+    clientPath,
+    /(\t\tfor k, v := range headerOverrides \{\n\t\t\treq\.Header\.Set\(k, v\)\n\t\t\}\n)/,
+    `$1\t\tif idempotencyKey != "" && req.Header.Get(IdempotencyHeader) == "" {
+\t\t\treq.Header.Set(IdempotencyHeader, idempotencyKey)
+\t\t}
+`
+  );
+  const serverErrorPatched = replaceInFile(
+    clientPath,
+    /(\t\tif resp\.StatusCode >= 500 && attempt < maxRetries \{\n[\s\S]*?)(\t\t\tlastErr = apiErr\n\t\t\tcontinue\n)/,
+    `$1\t\t\terrorRetries++\n$2`
+  );
+  const transportPatched = replaceInFile(
+    clientPath,
+    /(\t\t\tlastErr = fmt\.Errorf\([^\n]*\n)(\t\t\tcontinue\n)/,
+    `$1\t\t\tif attempt < maxRetries {
+\t\t\t\terrorRetries++
+\t\t\t}
+$2`
+  );
+
+  if (!statePatched || !headerPatched || !serverErrorPatched || !transportPatched) {
+    const missed = [
+      [statePatched, 'retry state'],
+      [headerPatched, 'request header'],
+      [serverErrorPatched, '5xx retry count'],
+      [transportPatched, 'transport retry count'],
+    ]
+      .filter(([matched]) => !matched)
+      .map(([, label]) => label)
+      .join(', ');
+    throw new Error(
+      `Generated CLI idempotency patch did not match the Printing Press output: ${missed}.`
+    );
+  }
+
+  const helperPath = path.join(clientDir, IDEMPOTENCY_HELPER_FILE);
+  fs.writeFileSync(helperPath, IDEMPOTENCY_HELPER_SOURCE);
+  run('gofmt', ['-w', clientPath, helperPath]);
+}
+
 function ensureSourceProject() {
   run('node', [
     path.join(REPO_ROOT, 'scripts', 'generate-skill.mjs'),
@@ -971,6 +1080,7 @@ function ensureSourceProject() {
   patchCliBaseURLPathJoin(SOURCE_DIR);
   patchCliDelegateContracts(SOURCE_DIR);
   patchCliRetryAfterAndForbidden(SOURCE_DIR);
+  patchCliIdempotentRetries(SOURCE_DIR);
   run('go', ['get', GO_KEYRING_PACKAGE], { cwd: SOURCE_DIR });
   run('go', ['mod', 'tidy'], { cwd: SOURCE_DIR });
 }
@@ -1236,6 +1346,7 @@ export {
   patchCliBaseURLPathJoin,
   patchCliCredentialReference,
   patchCliDelegateContracts,
+  patchCliIdempotentRetries,
   patchCliRetryAfterAndForbidden,
   patchCliTerminalSessionAuth,
 };
