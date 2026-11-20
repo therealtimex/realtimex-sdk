@@ -23,7 +23,7 @@ export async function resolveSecrets(plan, env = process.env, fetchImpl = fetch)
     response = await fetchImpl(url, {
       method: 'POST', redirect: 'error', signal: AbortSignal.timeout(15000),
       headers: { Authorization: `RealtimeX-Terminal ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ references: plan.references, executable: path.win32.basename(path.basename(plan.command)), ...(plan.browser ? { browser: plan.browser } : {}), ...(plan.ssh ? { ssh: true } : {}) }),
+      body: JSON.stringify({ references: plan.references, executable: path.win32.basename(path.basename(plan.command)), ...(plan.browser ? { browser: plan.browser } : {}), ...(plan.ssh ? { ssh: true, sshLogin: 1 } : {}) }),
     });
   } catch { throw new UsageError('Could not reach RealTimeX. Check that the app is running; no command was launched.'); }
   let text = '';
@@ -46,7 +46,10 @@ export async function resolveSecrets(plan, env = process.env, fetchImpl = fetch)
       SECRET_ORIGIN_DENIED: 'This item is not allowed on the selected website.',
       SECRET_LOGIN_REQUIRED: 'Select a Login, Card or Identity item for browser fill.',
       SECRET_FIELD_NOT_FOUND: 'The selected field has no saved value.',
-      SECRET_SSH_REQUIRED: 'Select an SSH key item.',
+      SECRET_SSH_REQUIRED: 'Select an SSH login item.',
+      SECRET_SSH_LOGIN_EMPTY: 'This SSH login has no private key or password. Add a key, a password, or both in Settings > Secrets.',
+      SECRET_SSH_CLIENT_OUTDATED: 'Update rtxexec to sign in with a password: npm install -g @realtimex/rtxexec@latest',
+      SECRET_FIELD_REQUIRED: 'Select a field, for example secret://name#password.',
       SECRET_SSO_INVALID: 'Select a saved Login linked to this item for SSO.',
       SECRET_SSO_DENIED: 'The linked SSO Login is disabled or unavailable in this workspace.',
       SECRET_BROWSER_REQUIRED: 'Use rtxexec browser-login for Login credentials.',
