@@ -170,6 +170,10 @@ keys cannot cause "Too many authentication failures"; key plus password tries th
 key first. For Git, `GIT_ASKPASS` points at a helper that always refuses, so
 the password cannot be sent to an HTTPS remote. Do not pass `BatchMode=yes`; it
 turns askpass off.
+SSH logins with a password don't go through jump hosts; use a key-only login for -J/ProxyJump.
+rtxexec refuses `-J`, `ProxyJump` and `ProxyCommand` with a password and adds
+`-o ProxyJump=none -o ProxyCommand=none -o PermitLocalCommand=no` before your
+arguments, so a jump from a config file is turned off too.
 
 **Host keys.** Host-key verification stays on. Add the host key first (for
 example with a manual `ssh` or `ssh-keyscan` you checked), or pass your own

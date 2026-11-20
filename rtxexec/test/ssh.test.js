@@ -7,7 +7,7 @@ import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { parseSshArguments, runSsh, fillDestination, readCredential, parseOpenSshVersion, supportsAskpassRequire, writeAskpassHelpers, PASSWORD_PROMPT } from '../src/ssh.js';
+import { parseSshArguments, runSsh, fillDestination, readCredential, parseOpenSshVersion, supportsAskpassRequire, writeAskpassHelpers, PASSWORD_PROMPT, NO_JUMP_OPTIONS, scanSshArguments } from '../src/ssh.js';
 import { execute } from '../src/cli.js';
 import { resolveSecrets } from '../src/client.js';
 
@@ -129,12 +129,12 @@ test('ssh options for key only, password only, and both', async () => {
   try {
     const cases = [
       [{ privateKey }, ['-i', 'IDENTITY', '-o', 'IdentitiesOnly=yes', '-o', 'IdentityAgent=none']],
-      [{ password }, ['-o', 'PubkeyAuthentication=no', '-o', 'PreferredAuthentications=keyboard-interactive,password', '-o', 'NumberOfPasswordPrompts=1']],
-      [{ privateKey, password }, ['-i', 'IDENTITY', '-o', 'IdentitiesOnly=yes', '-o', 'IdentityAgent=none', '-o', 'PreferredAuthentications=publickey,keyboard-interactive,password', '-o', 'NumberOfPasswordPrompts=1']],
+      [{ password }, [...NO_JUMP_OPTIONS, '-o', 'PubkeyAuthentication=no', '-o', 'PreferredAuthentications=keyboard-interactive,password', '-o', 'NumberOfPasswordPrompts=1']],
+      [{ privateKey, password }, [...NO_JUMP_OPTIONS, '-i', 'IDENTITY', '-o', 'IdentitiesOnly=yes', '-o', 'IdentityAgent=none', '-o', 'PreferredAuthentications=publickey,keyboard-interactive,password', '-o', 'NumberOfPasswordPrompts=1']],
     ];
     for (const [credential, expected] of cases) {
       await runSsh(parseSshArguments(['ssh', 'secret://box', '--', 'ssh', '{{target}}', 'uptime']), { KEEP: '1' }, async (_, injected) => {
-        const dir = path.dirname(credential.privateKey ? injected.args[1] : injected.env.SSH_ASKPASS);
+        const dir = path.dirname(credential.privateKey ? injected.args[injected.args.indexOf('-i') + 1] : injected.env.SSH_ASKPASS);
         assert.deepEqual(injected.args.map(arg => arg === path.join(dir, 'identity') ? 'IDENTITY' : arg), [...expected, '-l', 'ops', 'box', 'uptime']);
         assert.ok(!injected.args.some(arg => /BatchMode/i.test(arg)));
         assert.deepEqual(injected.values, [credential.privateKey, credential.password].filter(Boolean));
@@ -162,7 +162,7 @@ test('ssh options for key only, password only, and both', async () => {
 test('git gets the same options, a deny-all GIT_ASKPASS, and no stored destination', async () => {
   await runSsh(parseSshArguments(['ssh', 'secret://box', '--', 'git', 'fetch', 'origin']), {}, async (_, injected) => {
     assert.deepEqual(injected.args, ['fetch', 'origin']);
-    for (const option of ['PubkeyAuthentication=no', 'PreferredAuthentications=keyboard-interactive,password', 'NumberOfPasswordPrompts=1']) assert.ok(injected.env.GIT_SSH_COMMAND.includes(option));
+    for (const option of ['ProxyJump=none', 'ProxyCommand=none', 'PermitLocalCommand=no', 'PubkeyAuthentication=no', 'PreferredAuthentications=keyboard-interactive,password', 'NumberOfPasswordPrompts=1']) assert.ok(injected.env.GIT_SSH_COMMAND.includes(option));
     assert.ok(!injected.env.GIT_SSH_COMMAND.includes('box.example') && !injected.env.GIT_SSH_COMMAND.includes('-p'));
     assert.ok(!injected.env.GIT_SSH_COMMAND.includes(password));
     assert.equal(injected.env.SSH_ASKPASS_REQUIRE, 'force');
@@ -175,7 +175,7 @@ test('git gets the same options, a deny-all GIT_ASKPASS, and no stored destinati
   }, { resolver: async () => [{ password, privateKey: undefined, host: 'box.example', port: '2222', username: 'ops' }], sshVersion: v96 });
   // Both credentials together on git as well.
   await runSsh(parseSshArguments(['ssh', 'secret://box', '--', 'git', 'fetch']), {}, async (_, injected) => {
-    for (const option of ['IdentitiesOnly=yes', 'IdentityAgent=none', 'PreferredAuthentications=publickey,keyboard-interactive,password']) assert.ok(injected.env.GIT_SSH_COMMAND.includes(option));
+    for (const option of ['ProxyJump=none', 'ProxyCommand=none', 'PermitLocalCommand=no', 'IdentitiesOnly=yes', 'IdentityAgent=none', 'PreferredAuthentications=publickey,keyboard-interactive,password']) assert.ok(injected.env.GIT_SSH_COMMAND.includes(option));
     assert.ok(injected.env.GIT_ASKPASS);
     return 0;
   }, { resolver: async () => [{ password, privateKey }], sshVersion: v96 });
@@ -259,4 +259,93 @@ test('the client asks for the SSH login fields and maps the new refusals', async
   for (const [code, message] of [['SECRET_SSH_LOGIN_EMPTY', /private key or password/], ['SECRET_SSH_CLIENT_OUTDATED', /Update rtxexec/], ['SECRET_FIELD_REQUIRED', /#password/]]) {
     await assert.rejects(resolveSecrets(plan, env, async () => new Response(JSON.stringify({ success: false, code }), { status: 422 })), message);
   }
+});
+
+test('a bracketed host is unwrapped only for a real IPv6 literal (Review P1-1)', async () => {
+  for (const [host, expected] of [['[2001:db8::1]', '2001:db8::1'], ['[::1]', '::1'], ['[fe80::1%en0]', 'fe80::1%en0'], ['[::ffff:192.0.2.1]', '::ffff:192.0.2.1'], ['2001:db8::1', '2001:db8::1']]) {
+    assert.equal(readCredential({ password, host }).host, expected, host);
+  }
+  const bad = ['[-oProxyCommand=review-fixture]', '[-p]', '[box.example]', '[1.2.3.4]', '[::1', '::1]', '[::1%en0 x]', '[::1%-x;y]', '[]', '[:: 1]'];
+  for (const host of bad) assert.throws(() => readCredential({ password, host }), /SSH host/, host);
+  for (const host of bad) assert.throws(() => readCredential({ privateKey, host }), /SSH host/, host);
+  // End to end: nothing launches for any of the shapes Review named.
+  for (const args of [['{{target}}', 'uptime'], [], ['{{target}}'], ['-v']]) {
+    let launched = false;
+    await assert.rejects(runSsh(parseSshArguments(['ssh', 'secret://box', '--', 'ssh', ...args]), {}, async () => { launched = true; return 0; }, {
+      resolver: async () => [{ privateKey, host: '[-oProxyCommand=review-fixture]' }], sshVersion: v96,
+    }), /SSH host/);
+    assert.equal(launched, false);
+  }
+});
+
+const jumpForms = [['-J', 'bastion'], ['-Jbastion'], ['-vJ', 'bastion'], ['-o', 'ProxyJump=bastion'], ['-oProxyJump=bastion'], ['-o', 'proxyjump bastion'],
+  ['-o', 'PROXYJUMP = bastion'], ['-o', 'ProxyCommand=nc %h %p'], ['-oproxycommand ssh -W %h:%p bastion'], ['-o', 'ProxyCommand\tnc bastion 22']];
+
+test('the jump parser finds every spelling, and none is not a jump', () => {
+  for (const form of jumpForms) {
+    assert.equal(scanSshArguments([...form, 'host']).jump, true, form.join(' '));
+    assert.equal(scanSshArguments(['host', ...form, 'uptime']).jump, true, `after destination: ${form.join(' ')}`);
+  }
+  for (const args of [['-o', 'ProxyJump=none', 'h'], ['-oProxyCommand none', 'h'], ['-o', 'ProxyJumpX=1', 'h'], ['h', 'echo', '-J', 'x'], ['-F', 'cfg', 'h'], ['--', '-J', 'x']]) {
+    assert.equal(scanSshArguments(args).jump, false, args.join(' '));
+  }
+});
+
+test('a password item refuses a jump before anything is written; key-only jumps pass through (A4)', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'rtxexec-test-'));
+  try {
+    for (const credential of [{ password }, { privateKey, password }]) {
+      for (const form of jumpForms) {
+        let launched = false;
+        await assert.rejects(runSsh(parseSshArguments(['ssh', 'secret://box', '--', 'ssh', ...form, '{{target}}', 'uptime']), {}, async () => { launched = true; return 0; }, {
+          root, resolver: async () => [{ ...credential, host: 'box' }], sshVersion: v96,
+        }), /Password sign-in can't go through a jump host\. Use a key, or connect without -J\/ProxyJump\./);
+        assert.equal(launched, false);
+        assert.deepEqual(await readdir(root), []);
+      }
+    }
+    // Key-only: no injected jump options, and the user's jump goes to ssh unchanged.
+    await runSsh(parseSshArguments(['ssh', 'secret://box', '--', 'ssh', '-J', 'bastion', 'box']), {}, async (_, injected) => {
+      assert.deepEqual(injected.args.slice(-3), ['-J', 'bastion', 'box']);
+      assert.ok(!injected.args.some(arg => /ProxyJump|ProxyCommand|PermitLocalCommand/.test(arg)));
+      assert.equal(injected.env.SSH_ASKPASS, undefined);
+      return 0;
+    }, { root, resolver: async () => [{ privateKey, host: 'other' }] });
+    // The direct target still works with a password.
+    await runSsh(parseSshArguments(['ssh', 'secret://box', '--', 'ssh', '{{target}}', 'uptime']), {}, async (_, injected) => {
+      assert.deepEqual(injected.args.slice(-2), ['box', 'uptime']);
+      assert.deepEqual(injected.args.slice(0, 6), NO_JUMP_OPTIONS);
+      return 0;
+    }, { root, resolver: async () => [{ password, host: 'box' }], sshVersion: v96 });
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+const sshOnPath = await run('ssh', ['-V']).then(() => true, () => false);
+test('ssh -G: the injected options turn off a jump from a -F config (Review repro)', { skip: !sshOnPath && 'ssh not on PATH' }, async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'rtxexec-test-'));
+  try {
+    const config = path.join(dir, 'config');
+    await writeFile(config, 'Host *\n  ProxyJump bastion.example\n  PermitLocalCommand yes\n  LocalCommand echo leak\n');
+    const commandConfig = path.join(dir, 'config2');
+    await writeFile(commandConfig, 'Host *\n  ProxyCommand ssh -W %h:%p bastion.example\n');
+    const resolved = async args => Object.fromEntries((await run('ssh', ['-G', ...args, 'box.example'])).stdout.split(/\r?\n/).map(line => line.split(' ')).map(([k, ...v]) => [k.toLowerCase(), v.join(' ')]));
+    // Control: without rtxexec's options the jump is active.
+    assert.equal((await resolved(['-F', config])).proxyjump, 'bastion.example');
+    assert.equal((await resolved(['-F', commandConfig])).proxycommand, 'ssh -W %h:%p bastion.example');
+    // With them (first value wins), no jump or proxy command survives and LocalCommand is off.
+    for (const file of [config, commandConfig]) {
+      const options = await resolved([...NO_JUMP_OPTIONS, '-F', file]);
+      assert.ok(options.proxyjump === undefined || options.proxyjump === 'none', JSON.stringify(options.proxyjump));
+      assert.ok(options.proxycommand === undefined || options.proxycommand === 'none', JSON.stringify(options.proxycommand));
+      assert.equal(options.permitlocalcommand, 'no');
+    }
+    // The same through the full runSsh path: the jump never gets the target password.
+    await runSsh(parseSshArguments(['ssh', 'secret://box', '--', 'ssh', '-F', config, '{{target}}']), {}, async (_, injected) => {
+      const args = injected.args.filter((arg, i, all) => arg !== 'box.example' || i !== all.length - 1);
+      const options = await resolved(args);
+      assert.ok(options.proxyjump === undefined || options.proxyjump === 'none');
+      assert.equal(options.permitlocalcommand, 'no');
+      return 0;
+    }, { resolver: async () => [{ password, host: 'box.example' }], sshVersion: v96 });
+  } finally { await rm(dir, { recursive: true, force: true }); }
 });

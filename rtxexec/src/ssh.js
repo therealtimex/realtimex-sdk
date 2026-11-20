@@ -13,6 +13,12 @@ const MAX_SECRET = 65536;
 // OpenSSH's getopt string: these options consume a value (attached or the next argument).
 const VALUE_OPTIONS = new Set('BbcDEeFIiJLlmOoPpQRSWw');
 const TARGET = '{{target}}';
+// A leading "-" would turn the host into an ssh option.
+const SAFE_HOST = /^(?!-)[^\s@\0-\x1f\x7f]{1,253}$/;
+// A jump's ssh inherits SSH_ASKPASS, so with a password no jump may run (A4).
+// OpenSSH keeps the first value it gets, so these beat -F files and the config.
+export const NO_JUMP_OPTIONS = ['-o', 'ProxyJump=none', '-o', 'ProxyCommand=none', '-o', 'PermitLocalCommand=no'];
+const JUMP_REFUSED = "Password sign-in can't go through a jump host. Use a key, or connect without -J/ProxyJump.";
 // Answer only password and keyboard-interactive password prompts, never host-key questions.
 export const PASSWORD_PROMPT = /(^|\s|\))password[^:]*:\s*$/i;
 export const MIN_OPENSSH = [8, 4];
@@ -56,21 +62,31 @@ export function readCredential(credential) {
   if (!privateKey && !password) throw new UsageError('RealTimeX did not provide a usable SSH key or password.');
   // A leading "-" would turn a stored value into an ssh option.
   const username = optional(credential.username, 'username', /^(?!-)[^\s\0-\x1f\x7f]{1,256}$/);
-  let host = optional(credential.host, 'host', /^(?!-)[^\s@\0-\x1f\x7f]{1,253}$/);
-  if (host && /^\[.*\]$/.test(host)) host = host.slice(1, -1); // ssh takes IPv6 literals without brackets.
-  if (host === '') throw new UsageError('RealTimeX returned an invalid SSH host.');
+  let host = optional(credential.host, 'host', /^[^\s@\0-\x1f\x7f]{1,253}$/);
+  if (host?.startsWith('[') || host?.endsWith(']')) {
+    // ssh takes IPv6 literals without brackets. Unwrap only a real IPv6 literal.
+    const literal = /^\[([0-9A-Fa-f.]*:[0-9A-Fa-f:.]*(?:%[A-Za-z0-9._-]+)?)\]$/.exec(host);
+    if (!literal) throw new UsageError('RealTimeX returned an invalid SSH host.');
+    host = literal[1];
+  }
+  if (host !== undefined && !SAFE_HOST.test(host)) throw new UsageError('RealTimeX returned an invalid SSH host.');
   const port = optional(credential.port, 'port', /^\d{1,5}$/);
   if (port && (Number(port) < 1 || Number(port) > 65535)) throw new UsageError('RealTimeX returned an invalid SSH port.');
   return { privateKey, password, username, host, port };
 }
 
+const isNone = value => /^\s*none\s*$/i.test(value);
+
 function noteOption(flag, value, found) {
   if (value === undefined) return;
   if (flag === 'p') found.port = true;
   else if (flag === 'l') found.user = true;
+  else if (flag === 'J') found.jump ||= !isNone(value);
   else if (flag === 'o') {
-    const keyword = /^\s*(port|user)\s*(=|\s)/i.exec(value)?.[1]?.toLowerCase();
-    if (keyword) found[keyword] = true;
+    const option = /^\s*(port|user|proxyjump|proxycommand)\s*(?:=|\s)\s*(.*)$/is.exec(value);
+    const keyword = option?.[1].toLowerCase();
+    if (keyword === 'port' || keyword === 'user') found[keyword] = true;
+    else if (keyword) found.jump ||= !isNone(option[2]);
   }
 }
 
@@ -91,10 +107,10 @@ function scanOptions(args, start, found) {
 // Find ssh's destination the way OpenSSH does: options, then the first positional
 // (or the argument after "--"). Like ssh, options right after the destination still count.
 export function scanSshArguments(args) {
-  const found = { port: false, user: false };
+  const found = { port: false, user: false, jump: false };
   const { index, terminated } = scanOptions(args, 0, found);
   if (index >= 0 && !terminated) scanOptions(args, index + 1, found);
-  return { index, port: found.port, user: found.user };
+  return { index, port: found.port, user: found.user, jump: found.jump };
 }
 
 export function fillDestination(args, { host, port, username }) {
@@ -115,8 +131,8 @@ export function fillDestination(args, { host, port, username }) {
 export function sshOptions({ keyPath, password }) {
   const key = keyPath ? ['-i', keyPath, '-o', 'IdentitiesOnly=yes', '-o', 'IdentityAgent=none'] : [];
   if (!password) return key;
-  if (!keyPath) return ['-o', 'PubkeyAuthentication=no', '-o', 'PreferredAuthentications=keyboard-interactive,password', '-o', 'NumberOfPasswordPrompts=1'];
-  return [...key, '-o', 'PreferredAuthentications=publickey,keyboard-interactive,password', '-o', 'NumberOfPasswordPrompts=1'];
+  if (!keyPath) return [...NO_JUMP_OPTIONS, '-o', 'PubkeyAuthentication=no', '-o', 'PreferredAuthentications=keyboard-interactive,password', '-o', 'NumberOfPasswordPrompts=1'];
+  return [...NO_JUMP_OPTIONS, ...key, '-o', 'PreferredAuthentications=publickey,keyboard-interactive,password', '-o', 'NumberOfPasswordPrompts=1'];
 }
 
 // The helpers never contain the password; they print the password file for a password prompt only.
@@ -155,6 +171,9 @@ export async function runSsh(plan, env, execute, { resolver = resolveSecrets, ro
   // Stored user/host/port fill ssh only; Git takes the destination from the remote URL.
   const args = isSsh ? fillDestination(plan.args, credential) : plan.args;
   if (credential.password) {
+    // The app reveals the password only at resolve, so a jump is refused here,
+    // before any file is written. A form this misses is still off: NO_JUMP_OPTIONS.
+    if (isSsh && scanSshArguments(plan.args).jump) throw new UsageError(JUMP_REFUSED);
     // SSH_ASKPASS_REQUIRE needs OpenSSH 8.4. The app tells rtxexec about a password
     // only when it resolves, so the gate runs here, before any file is written.
     const version = parseOpenSshVersion(await sshVersion(isSsh ? plan.command : 'ssh', env));
