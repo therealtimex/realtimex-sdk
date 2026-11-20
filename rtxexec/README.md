@@ -145,17 +145,53 @@ available and now requests only the username/password fields selected.
 ### SSH and Git
 
 ```sh
-rtxexec ssh secret://deploy-key -- ssh user@host
+rtxexec ssh secret://box -- ssh                      # saved user, host and port
+rtxexec ssh secret://box -- ssh {{target}} uptime    # saved destination plus a remote command
+rtxexec ssh secret://box -- ssh -p 2222 user@other   # an explicit destination wins
 rtxexec ssh secret://deploy-key -- git fetch origin
 ```
 
-Requires OpenSSH (and Git for Git commands). The app unlocks the saved key for
-this execution. rtxexec writes it to a restricted temporary directory, supplies
-the path to SSH or Git, and removes the directory when the child finishes or
-fails. Unix uses directory mode 0700 and file mode 0600; Windows requires icacls
-to restrict the directory before writing. Existing host-key verification stays
-in effect. SIGKILL or a machine crash may prevent cleanup. The CLI keeps no
-persistent vault or secret cache. Output masking is best effort; this is an
+An SSH login item holds a private key, a password, or both, and optionally a
+username, host and port. Requires OpenSSH (and Git for Git commands).
+
+**Key.** The app unlocks the saved key for this execution. rtxexec writes it to
+a restricted temporary directory and passes it with `-i`, `IdentitiesOnly=yes`
+and `IdentityAgent=none`.
+
+**Password.** Needs OpenSSH 8.4 or later (`ssh -V`); older versions fail before
+anything is written or launched. rtxexec writes the password to a file in the
+same temporary directory, plus an askpass helper that never contains the
+password. SSH is started with `SSH_ASKPASS` pointing at the helper and
+`SSH_ASKPASS_REQUIRE=force`. The helper answers only password prompts (password
+and keyboard-interactive); any other prompt, such as "continue connecting
+(yes/no)?", is refused. The password is never in the child's arguments or
+environment. A password-only login disables public-key authentication so agent
+keys cannot cause "Too many authentication failures"; key plus password tries the
+key first. For Git, `GIT_ASKPASS` points at a helper that always refuses, so
+the password cannot be sent to an HTTPS remote. Do not pass `BatchMode=yes`; it
+turns askpass off.
+SSH logins with a password don't go through jump hosts; use a key-only login for -J/ProxyJump.
+rtxexec refuses `-J`, `ProxyJump` and `ProxyCommand` with a password and adds
+`-o ProxyJump=none -o ProxyCommand=none -o PermitLocalCommand=no` before your
+arguments, so a jump from a config file is turned off too.
+
+**Host keys.** Host-key verification stays on. Add the host key first (for
+example with a manual `ssh` or `ssh-keyscan` you checked), or pass your own
+`-o StrictHostKeyChecking=accept-new`.
+
+**Destination.** For `ssh` only, rtxexec reads the arguments with OpenSSH's
+option grammar. With no destination, it adds the saved host, plus `-p port` and
+`-l username` when saved. A destination of exactly `{{target}}` becomes the saved
+host the same way; `{{target}}` without a saved host is an error. Any other
+destination is used as given and nothing is added. Your own `-p` or
+`-o Port=` (and `-l` or `-o User=`) win over the saved port (and username). Git
+always uses the remote URL.
+
+**Cleanup.** The directory is mode 0700 with 0600 files on Unix; Windows
+requires icacls to restrict it before writing. It is removed when the child
+finishes, fails or is interrupted (SIGINT/SIGTERM are forwarded). SIGKILL or a
+machine crash may prevent cleanup. The CLI keeps no persistent vault or secret
+cache. The key and password are masked in output; masking is best effort, an
 accidental-disclosure safeguard, not a boundary against deliberate local access.
 
 ## Linked SSO logins

@@ -30,9 +30,12 @@ Browser use (Node.js 22+, existing local CDP browser):
   Filled/submitted does not mean authenticated: verify a non-secret success state.
 
 SSH/Git use:
+  rtxexec ssh secret://name -- ssh               (saved user, host and port)
+  rtxexec ssh secret://name -- ssh {{target}} uptime
   rtxexec ssh secret://name -- ssh user@host
   rtxexec ssh secret://name -- git fetch origin
-  Requires OpenSSH. Creates an owner-only temporary key, removed after exit.
+  Requires OpenSSH (8.4+ for a saved password). Writes owner-only temporary
+  files, removed after exit. Host-key checks stay on.
 
 Manage secrets with realtimex-pp-cli or Settings > Secrets.
 Requires the running app and its terminal-session environment. No secret cache.
